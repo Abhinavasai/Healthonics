@@ -1,0 +1,21 @@
+<div class="shell">
+  <header class="header">
+    <span class="brand">Healthonyx</span>
+    <div class="user-info">
+      <span>{{ user?.email }}</span>
+      <span class="role">({{ role }})</span>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <nav>
+      @for (link of navLinks; track link.path) {
+        <a routerLink="{{ link.path }}" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+          {{ link.label }}
+        </a>
+      }
+    </nav>
+  </aside>
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>
