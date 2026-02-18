@@ -24,6 +24,10 @@ export class AppShellComponent {
     return this.user?.role ?? 'patient';
   }
 
+  logout(): void {
+    this.auth.logout();
+  }
+
   get navLinks(): { path: string; label: string; roles: string[] }[] {
     const all = [
       { path: '/patient', label: 'Patient Dashboard', roles: ['patient'] },

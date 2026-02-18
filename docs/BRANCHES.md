@@ -15,9 +15,22 @@ Each user story / work item has its own feature branch.
 | `test_p1` | — | Legacy integration branch |
 | `test_p2` | — | **Integration branch for combined testing** (current work) |
 
+## Linear History (Rebased)
+
+All branches are rebased onto `project-skeleton` in this order:
+
+```
+main → project-skeleton → US-6 → US-1 → US-0c → US-2 → docs → US-3 → US-0d → US-5
+                                                                              ↑
+                                                                          test_p2
+```
+
+Each feature branch points to its commit in this chain. Merge in this order for conflict-free integration.
+
 ## Workflow
 
-1. Create/checkout branch for work item: `git checkout feature/US-XXX`
-2. Implement, commit
-3. Merge into `test_p2` for integration testing
-4. Merge `test_p2` into `main` when Sprint 1 is complete
+1. Base: `project-skeleton` (structure only)
+2. Create/checkout branch for work item: `git checkout feature/US-XXX`
+3. Implement, commit
+4. Merge into `test_p2` in order (US-6 → US-1 → US-0c → US-2 → … → US-5)
+5. Merge `test_p2` into `dev` or `main` when Sprint 1 is complete
