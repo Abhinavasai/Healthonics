@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/healthonyx/backend/config"
 	"github.com/healthonyx/backend/db"
 	"github.com/healthonyx/backend/handlers"
+	"github.com/healthonyx/backend/middleware"
 )
 
 func main() {
@@ -26,12 +28,26 @@ func main() {
 	}
 	defer db.Close()
 
-		if err := db.Migrate(context.Background()); err != nil {
+	if err := db.Migrate(context.Background()); err != nil {
 		log.Fatalf("migration: %v", err)
 	}
 
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	r := gin.Default()
+
+	// CORS: allow Angular dev server and any configured origins
+	var origins []string
+	if cfg.CORSOrigins != "" {
+		for _, o := range strings.Split(cfg.CORSOrigins, ",") {
+			if t := strings.TrimSpace(o); t != "" {
+				origins = append(origins, t)
+			}
+		}
+	}
+	if len(origins) == 0 {
+		origins = []string{"http://localhost:4200"}
+	}
+	r.Use(middleware.CORS(origins))
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 
