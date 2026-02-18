@@ -12,11 +12,12 @@ Each user story / work item has its own feature branch.
 | `feature/US-4-placeholder-dashboards` | 4 | Placeholder dashboards |
 | `feature/US-5-logout` | 5 | Logout |
 | `feature/US-6-api-auth` | 0a, 0b, 3b | DB schema, JWT, Auth + RBAC middleware |
-| `test_p1` | — | Integration branch for combined testing |
+| `test_p1` | — | Legacy integration branch |
+| `test_p2` | — | **Integration branch for combined testing** (current work) |
 
 ## Workflow
 
 1. Create/checkout branch for work item: `git checkout feature/US-XXX`
 2. Implement, commit
-3. Merge into `test_p1` for integration testing
-4. Merge `test_p1` into `main` when Sprint 1 is complete
+3. Merge into `test_p2` for integration testing
+4. Merge `test_p2` into `main` when Sprint 1 is complete
