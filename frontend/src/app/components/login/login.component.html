@@ -1,0 +1,35 @@
+<div class="login-card">
+  <h1>Log in</h1>
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" type="email" formControlName="email" placeholder="you@example.com" />
+      @if (form.get('email')?.invalid && form.get('email')?.touched) {
+        <span class="error">
+          @if (form.get('email')?.errors?.['required']) { Email is required }
+          @if (form.get('email')?.errors?.['email']) { Invalid email format }
+        </span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" type="password" formControlName="password" placeholder="Your password" />
+      @if (form.get('password')?.invalid && form.get('password')?.touched) {
+        <span class="error">Password is required</span>
+      }
+    </div>
+
+    @if (error) {
+      <div class="server-error">{{ error }}</div>
+    }
+
+    <button type="submit" [disabled]="loading">
+      {{ loading ? 'Signing in...' : 'Log in' }}
+    </button>
+  </form>
+
+  <p class="register-link">
+    Don't have an account? <a routerLink="/register">Register</a>
+  </p>
+</div>
