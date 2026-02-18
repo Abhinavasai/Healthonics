@@ -3,11 +3,11 @@
     Creates GitHub issues from a sprint user-stories markdown file.
 
 .DESCRIPTION
-    Parses docs/user-stories-sprint1.md (or another file), splits by "## US-N:" sections,
-    and creates one GitHub issue per user story using the GitHub CLI (gh).
+    Parses docs/user-stories-sprint1-split.md (or another file), splits by "## US-N:" sections
+    (supports US-0a, US-3a-i, etc.), and creates one GitHub issue per work item using the GitHub CLI (gh).
 
 .PARAMETER StoriesPath
-    Path to the user stories markdown file. Default: docs/user-stories-sprint1.md (relative to repo root).
+    Path to the user stories markdown file. Default: docs/user-stories-sprint1-split.md (relative to repo root).
 
 .PARAMETER DryRun
     If set, only prints what would be created; does not call gh.
@@ -19,20 +19,20 @@
     Target repo as owner/name. Default: current repo from git.
 
 .PARAMETER Assignees
-    Comma-separated GitHub usernames, one per issue in order (e.g. "abhinava,siddani,pavan,..." for 9 split issues).
+    Comma-separated GitHub usernames, one per issue in order (13 items: 0a,0b,0c,0d,1a,1b,2a,2b,3a-i,3a,3b,4,5).
 
 .EXAMPLE
     .\create-sprint-issues.ps1 -DryRun
-    Preview issues without creating them.
+    Preview issues from split doc without creating.
 
 .EXAMPLE
-    .\create-sprint-issues.ps1 -StoriesPath docs/user-stories-sprint1-split.md -Repo "Abhinavasai/Healthonyx" -Assignees "abhinava,siddani,abhinava,siddani,pavan,rohith,pavan,pavan,rohith"
-    Create 9 split issues and assign (1a,1b,2a,2b,3a,3b,4,5,6).
+    .\create-sprint-issues.ps1 -StoriesPath docs/user-stories-sprint1-split.md -Repo "owner/Healthonyx" -Assignees "rohith,rohith,rohith,pavan,abhinava,siddani,abhinava,siddani,pavan,pavan,rohith,pavan,pavan"
+    Create 13 split issues (0a,0b,0c,0d,1a,1b,2a,2b,3a-i,3a,3b,4,5) and assign.
 #>
 
 param(
     [Parameter()]
-    [string] $StoriesPath = "docs/user-stories-sprint1.md",
+    [string] $StoriesPath = "docs/user-stories-sprint1-split.md",
 
     [Parameter()]
     [switch] $DryRun,
@@ -71,14 +71,16 @@ if (-not $content) {
     exit 1
 }
 
-# Extract each ## US-N: or ## US-Nx: ... section (title + body until next ## or end)
+# Extract each ## US-N: or ### US-N: section (title + body until next --- ## or ### or end)
 $stories = [System.Collections.ArrayList]::new()
-$pattern = '(?ms)^## (US-\d+[a-z]?:[^\r\n]+)\r?\n\r?\n(.*?)(?=\r?\n---\r?\n\r?\n## US-|\r?\n\*These user stories|\r?\n\*Sprint 1 split|\z)'
+$pattern = '(?ms)^#{2,3} (US-\d+[a-z0-9-]*:[^\r\n]+)\r?\n\r?\n(.*?)(?=\r?\n---\r?\n\r?\n#{2,3} |\r?\n\*These user stories|\r?\n\*Sprint 1 split|\r?\n\*Sprint 1 work|\z)'
 $matches = [regex]::Matches($content, $pattern)
 foreach ($m in $matches) {
     $title = $m.Groups[1].Value.Trim()
-    $body = $m.Groups[2].Value.Trim()
-    [void]$stories.Add([PSCustomObject]@{ Title = $title; Body = $body })
+    if ($title -match '^US-') {
+        $body = $m.Groups[2].Value.Trim()
+        [void]$stories.Add([PSCustomObject]@{ Title = $title; Body = $body })
+    }
 }
 
 if ($stories.Count -eq 0) {

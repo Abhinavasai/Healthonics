@@ -97,4 +97,10 @@ GitHub Actions runs on push/PR to `main` (or `master`): backend `go build` and `
 ---
 
 ## Sprint 1 documentation
-BDD user stories for Sprint 1 are in [docs/user-stories-sprint1.md](docs/user-stories-sprint1.md).
+
+| Doc | Purpose |
+|-----|---------|
+| [user-stories-sprint1.md](docs/user-stories-sprint1.md) | BDD user stories (US-0 through US-5) |
+| [user-stories-sprint1-split.md](docs/user-stories-sprint1-split.md) | Assignable work items, implementation order, backlog |
+| [sprint1-implementation-plan.md](docs/sprint1-implementation-plan.md) | Definition of Done, status, checklists |
+| [TEST-SETUP.md](docs/TEST-SETUP.md) | How to run and test |

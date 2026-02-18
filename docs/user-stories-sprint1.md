@@ -4,6 +4,60 @@ Sprint 1 focuses on project foundation: authentication, role-based access, and p
 
 ---
 
+## US-0: Backend Foundation (Must-have before auth flows)
+
+### US-0a: DB Schema + Migrations
+
+**As a** backend developer  
+**I want** a proper DB schema with migrations and seed data  
+**So that** registration and login can persist real user data.
+
+**Acceptance Criteria:**
+- Tables: `users` (id, email, password_hash, role, created_at)
+- Migrations run on startup (or via migration tool)
+- Optional: seed default roles/demo users
+
+---
+
+### US-0b: Password Hashing + JWT Implementation
+
+**As a** backend API  
+**I want** to hash passwords and issue JWT tokens  
+**So that** credentials are secure and clients can authenticate.
+
+**Acceptance Criteria:**
+- Passwords hashed with bcrypt (or argon2)
+- JWT access token with user id, email, role
+- Standard error responses: 401 Unauthorized, 403 Forbidden
+
+---
+
+### US-0c: CORS + Environment Config
+
+**As a** backend API  
+**I want** CORS enabled and config loaded from environment  
+**So that** the Angular frontend can call the API and deployment is flexible.
+
+**Acceptance Criteria:**
+- `.env` loading for DATABASE_URL, JWT_SECRET, PORT
+- CORS middleware allows Angular origin (e.g. http://localhost:4200)
+- GET /health endpoint for health checks
+
+---
+
+## US-0d: App Shell + Role-Based Navigation (Frontend Foundation)
+
+**As a** logged-in user  
+**I want** a consistent layout (header/sidebar) with navigation that matches my role  
+**So that** the app feels professional and I can reach my dashboards.
+
+**Acceptance Criteria:**
+- Header/sidebar layout wrapping dashboard routes
+- Menus differ for Patient vs Doctor vs Admin
+- After login, redirect to role-specific dashboard
+
+---
+
 ## US-1: User Registration
 
 **As a** new user  
@@ -54,7 +108,7 @@ Sprint 1 focuses on project foundation: authentication, role-based access, and p
 **I want** the application to show only the dashboard and features for my role  
 **So that** I cannot access areas I am not authorized to use.
 
-### Acceptance Criteria (Given/When/Then)
+### Frontend (US-3a)
 
 - **Given** I am logged in as a patient  
   **When** I try to open the doctor or admin dashboard URL  
@@ -67,6 +121,22 @@ Sprint 1 focuses on project foundation: authentication, role-based access, and p
 - **Given** I am not logged in  
   **When** I try to open any of /patient, /doctor, or /admin  
   **Then** I am redirected to the login page.
+
+### Backend (US-3b: Auth + RBAC Middleware)
+
+**Combined:** JWT validation + role-based access control.
+
+- **Given** a request to GET /api/me without an Authorization header  
+  **When** the request is processed  
+  **Then** the server responds with 401 Unauthorized.
+
+- **Given** a request to GET /api/me with a valid Bearer JWT  
+  **When** the request is processed  
+  **Then** the server responds with 200 and the current user's profile (e.g. id, email, role).
+
+- **Given** a request to a role-protected route (e.g. /api/doctor/*) with a JWT that has a different role  
+  **When** the request is processed  
+  **Then** the server responds with 403 Forbidden.
 
 ---
 
@@ -110,25 +180,33 @@ Sprint 1 focuses on project foundation: authentication, role-based access, and p
 
 ---
 
-## US-6: API Authentication (Backend)
+## Implementation Order
 
-**As a** backend API  
-**I want** to accept JWT on protected endpoints and enforce role-based access  
-**So that** only authorized clients can access sensitive data.
+**Phase 1 (Backend):** 0a → 0b → 1b → 2b → 3b → 0c  
+**Phase 2 (Frontend auth):** 1a → 2a → 3a-i (Interceptor) → 3a (AuthGuard, RoleGuard)  
+**Phase 3 (Layout):** 0d (App shell) → 4 (Dashboards) → 5 (Logout)
 
-### Acceptance Criteria (Given/When/Then)
+*Full order with dependencies: `user-stories-sprint1-split.md`*
 
-- **Given** a request to GET /api/me without an Authorization header  
-  **When** the request is processed  
-  **Then** the server responds with 401 Unauthorized.
+---
 
-- **Given** a request to GET /api/me with a valid Bearer JWT  
-  **When** the request is processed  
-  **Then** the server responds with 200 and the current user's profile (e.g. id, email, role).
+## Sprint 1 Demo Target
 
-- **Given** a request to a role-protected route with a JWT that has a different role  
-  **When** the request is processed  
-  **Then** the server responds with 403 Forbidden.
+By end of Sprint 1, you should be able to demo:
+
+**Frontend**
+- Register page works (form validation, API call)
+- Login page works
+- After login → redirected to role dashboard
+- Protected routes block access if not logged in
+- Logout clears session + redirects to login
+
+**Backend (Postman/CLI)**
+- POST /api/register creates user + returns JWT
+- POST /api/login returns JWT
+- GET /api/me returns user info if JWT present
+- /api/doctor/* blocked for patients (403)
+- /api/patient/* blocked for doctors (403)
 
 ---
 

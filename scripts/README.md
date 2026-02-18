@@ -7,7 +7,7 @@ Creates GitHub issues from the Sprint 1 user stories markdown file using the Git
 ### Prerequisites
 
 - [GitHub CLI (gh)](https://cli.github.com/) installed and authenticated: `gh auth login`
-- Run from the repository root or ensure `docs/user-stories-sprint1.md` exists relative to the repo
+- Run from the repository root or ensure `docs/user-stories-sprint1-split.md` exists relative to the repo
 
 ### Usage
 
@@ -30,29 +30,33 @@ cd "d:\OneDrive - University of Florida\Software Engineering\Healthonyx"
 
 ### Parameters
 
-| Parameter      | Default                       | Description                                                  |
-|----------------|-------------------------------|--------------------------------------------------------------|
-| `StoriesPath`  | `docs/user-stories-sprint1.md`| Path to the user stories markdown file                       |
+| Parameter      | Default                            | Description                                                  |
+|----------------|------------------------------------|--------------------------------------------------------------|
+| `StoriesPath`  | `docs/user-stories-sprint1-split.md` | Path to the work items markdown file                       |
 | `DryRun`       | false                         | Only list what would be created                              |
 | `Label`        | `sprint-1`                    | Comma-separated labels for each issue                       |
 | `Repo`         | current repo                  | Target repo as `owner/name`                                  |
 | `Assignees`    | (none)                        | Comma-separated GitHub usernames, one per issue in order    |
 
-### Split stories (9 issues with assignees)
+### Split stories (13 work items with assignees)
 
-To create **9 issues** (US-1a/1b, US-2a/2b, US-3a/3b, US-4, US-5, US-6) and assign them in one go, use the split file and pass assignees in this order:
+The default file contains **13 work items** (0a, 0b, 0c, 0d, 1a, 1b, 2a, 2b, 3a-i, 3a, 3b, 4, 5). Pass assignees in this order:
 
-| # | Issue   | Assignee (team member)              |
-|---|--------|--------------------------------------|
-| 1 | US-1a  | Abhinava Sai Tirunagari (frontend)   |
-| 2 | US-1b  | Siddani Kaushik Bhargav (backend)    |
-| 3 | US-2a  | Abhinava Sai Tirunagari (frontend)   |
-| 4 | US-2b  | Siddani Kaushik Bhargav (backend)    |
-| 5 | US-3a  | Pavan Karthik Chilla (frontend)      |
-| 6 | US-3b  | Thandava Sai Rohith Achanta (backend)|
-| 7 | US-4   | Pavan Karthik Chilla (frontend)      |
-| 8 | US-5   | Pavan Karthik Chilla (frontend)      |
-| 9 | US-6   | Thandava Sai Rohith Achanta (backend)|
+| # | ID   | Item                     | Type    |
+|---|------|--------------------------|---------|
+| 1 | 0a   | DB schema + migrations   | Backend |
+| 2 | 0b   | Password hashing + JWT   | Backend |
+| 3 | 0c   | CORS + env config        | Backend |
+| 4 | 0d   | App shell + role nav     | Frontend|
+| 5 | 1a   | Registration – Frontend  | Frontend|
+| 6 | 1b   | Registration – Backend   | Backend |
+| 7 | 2a   | Login – Frontend         | Frontend|
+| 8 | 2b   | Login – Backend          | Backend |
+| 9 | 3a-i | HTTP interceptor         | Frontend|
+|10 | 3a   | AuthGuard + RoleGuard    | Frontend|
+|11 | 3b   | Auth + RBAC middleware   | Backend |
+|12 | 4    | Placeholder dashboards   | Frontend|
+|13 | 5    | Logout                   | Frontend|
 
 Replace the placeholder usernames below with your team’s actual GitHub usernames (same order as above):
 
@@ -81,7 +85,7 @@ Use `-Label ""` to skip labels if your repo doesn’t allow creating them.
    cd "d:\OneDrive - University of Florida\Software Engineering\Healthonyx"
    .\scripts\create-sprint-issues.ps1
    ```
-   This creates 6 issues with label `sprint-1`. To add more labels:
+   This creates 13 issues from the split doc with label `sprint-1`. To add more labels:
    ```powershell
    .\scripts\create-sprint-issues.ps1 -Label "sprint-1,user-story"
    ```
