@@ -10,7 +10,7 @@ Healthonyx AI Collective
 - Abhinava Sai Tirunagari – Frontend Engineer
 - Pavan Karthik Chilla – Frontend Engineer
 - Siddani Kaushik Bhargav – Backend Engineer
-- Rohith Achanta – Backend Engineer
+- Thandava Sai Rohith Achanta – Backend Engineer
 
 ---
 
