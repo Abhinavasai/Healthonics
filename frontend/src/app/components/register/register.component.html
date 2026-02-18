@@ -1,0 +1,47 @@
+<div class="register-card">
+  <h1>Register</h1>
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" type="email" formControlName="email" placeholder="you@example.com" />
+      @if (form.get('email')?.invalid && form.get('email')?.touched) {
+        <span class="error">
+          @if (form.get('email')?.errors?.['required']) { Email is required }
+          @if (form.get('email')?.errors?.['email']) { Invalid email format }
+        </span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" type="password" formControlName="password" placeholder="At least 6 characters" />
+      @if (form.get('password')?.invalid && form.get('password')?.touched) {
+        <span class="error">
+          @if (form.get('password')?.errors?.['required']) { Password is required }
+          @if (form.get('password')?.errors?.['minlength']) { Password must be at least 6 characters }
+        </span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="role">Role</label>
+      <select id="role" formControlName="role">
+        <option value="patient">Patient</option>
+        <option value="doctor">Doctor</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+
+    @if (error) {
+      <div class="server-error">{{ error }}</div>
+    }
+
+    <button type="submit" [disabled]="loading">
+      {{ loading ? 'Registering...' : 'Register' }}
+    </button>
+  </form>
+
+  <p class="login-link">
+    Already have an account? <a routerLink="/login">Log in</a>
+  </p>
+</div>
