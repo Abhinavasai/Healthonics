@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -43,14 +44,15 @@ export class LoginComponent implements OnInit {
     const { email, password } = this.form.value;
     this.loading = true;
 
-    this.auth.login(email, password).subscribe({
-      next: (res) => {
-        this.auth.redirectToDashboard(res.user.role);
-      },
-      error: (err) => {
-        this.loading = false;
-        this.error = err.error?.error || err.error?.message || 'Invalid email or password';
-      }
-    });
+    this.auth.login(email, password)
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: (res) => {
+          this.auth.redirectToDashboard(res.user.role);
+        },
+        error: (err) => {
+          this.error = err.error?.error || err.error?.message || 'Invalid email or password';
+        }
+      });
   }
 }
