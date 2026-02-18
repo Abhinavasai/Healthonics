@@ -11,3 +11,25 @@ Healthonyx AI Collective
 - Pavan Karthik Chilla – Frontend Engineer
 - Siddani Kaushik Bhargav – Backend Engineer
 - Rohith Achanta – Backend Engineer
+
+---
+
+## Project Skeleton
+
+This branch contains only the folder structure and minimal project setup.
+
+### Backend (Go)
+```bash
+cd backend
+go mod tidy
+go run .
+```
+API runs at `http://localhost:8080`. `GET /health` returns `{"status":"ok"}`.
+
+### Frontend (Angular)
+```bash
+cd frontend
+npm install
+npm start
+```
+App runs at `http://localhost:4200`.

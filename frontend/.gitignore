@@ -1,0 +1,23 @@
+# Dependencies
+/node_modules
+
+# Build
+/dist
+/tmp
+/out-tsc
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Cache
+.angular/cache
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
