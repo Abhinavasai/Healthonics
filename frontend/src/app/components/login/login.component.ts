@@ -29,7 +29,10 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     if (this.auth.isLoggedIn()) {
       const user = this.auth.getUser();
-      this.auth.redirectToDashboard(user?.role ?? 'patient');
+      const role = user && typeof (user as any).role === 'string' && (user as any).role.trim() !== '' ? (user as any).role : null;
+      if (role) {
+        this.auth.redirectToDashboard(role);
+      }
     }
   }
 
