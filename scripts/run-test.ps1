@@ -1,4 +1,5 @@
-# Healthonyx - Run for Testing (Sprint 1: 0a–3b backend, 1a+4 frontend)
+# Healthonyx - Run for Testing (Sprint 1)
+# Test from: test_p2 (integration branch)
 # Run this from the repo root after starting PostgreSQL.
 
 param(
@@ -19,7 +20,8 @@ if ($Db) {
 }
 
 Write-Host ""
-Write-Host "To test Sprint 1 (Registration + Backend Auth), open TWO terminals:" -ForegroundColor Yellow
+Write-Host "Ensure you're on test_p2: git checkout test_p2" -ForegroundColor Cyan
+Write-Host "To test Sprint 1, open TWO terminals:" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Terminal 1 - Backend:" -ForegroundColor Green
 Write-Host "  cd $RepoRoot\backend"
