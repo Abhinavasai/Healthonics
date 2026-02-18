@@ -71,14 +71,16 @@ if (-not $content) {
     exit 1
 }
 
-# Extract each ## US-N: or ## US-Nx: or ## US-Nx-y: ... section (title + body until next ## or end)
+# Extract each ## US-N: or ### US-N: section (title + body until next --- ## or ### or end)
 $stories = [System.Collections.ArrayList]::new()
-$pattern = '(?ms)^## (US-\d+[a-z0-9-]*:[^\r\n]+)\r?\n\r?\n(.*?)(?=\r?\n---\r?\n\r?\n## US-|\r?\n\*These user stories|\r?\n\*Sprint 1 split|\r?\n\*Sprint 1 work|\z)'
+$pattern = '(?ms)^#{2,3} (US-\d+[a-z0-9-]*:[^\r\n]+)\r?\n\r?\n(.*?)(?=\r?\n---\r?\n\r?\n#{2,3} |\r?\n\*These user stories|\r?\n\*Sprint 1 split|\r?\n\*Sprint 1 work|\z)'
 $matches = [regex]::Matches($content, $pattern)
 foreach ($m in $matches) {
     $title = $m.Groups[1].Value.Trim()
-    $body = $m.Groups[2].Value.Trim()
-    [void]$stories.Add([PSCustomObject]@{ Title = $title; Body = $body })
+    if ($title -match '^US-') {
+        $body = $m.Groups[2].Value.Trim()
+        [void]$stories.Add([PSCustomObject]@{ Title = $title; Body = $body })
+    }
 }
 
 if ($stories.Count -eq 0) {
