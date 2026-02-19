@@ -1,0 +1,457 @@
+{
+  "info": {
+    "name": "Healthonyx API",
+    "description": "Sprint 1 API endpoints - Register, Login, Auth, Role-protected routes. Includes success and error-case tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                "pm.test('Body has status ok', () => { const j = pm.response.json(); pm.expect(j).to.have.property('status', 'ok'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Basic health check. No auth required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Register",
+      "item": [
+        {
+          "name": "Register - Success (Patient)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                "pm.test('Response has token and user', () => { const j = pm.response.json(); pm.expect(j).to.have.property('token'); pm.expect(j).to.have.property('user'); pm.expect(j.user).to.have.property('role', 'patient'); if (j.token) pm.collectionVariables.set('token', j.token); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Valid registration. Saves token for protected requests."
+          }
+        },
+        {
+          "name": "Register - Invalid request body (400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                "pm.test('Has error message', () => { const j = pm.response.json(); pm.expect(j).to.have.property('error'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Missing/invalid body → 400 Invalid request body"
+          }
+        },
+        {
+          "name": "Register - Invalid email format (400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                "pm.test('Error mentions email', () => { const j = pm.response.json(); pm.expect(j.error).to.be.a('string'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"notanemail\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Invalid email format → 400"
+          }
+        },
+        {
+          "name": "Register - Password too short (400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                "pm.test('Error mentions password', () => { const j = pm.response.json(); pm.expect(j.error).to.include('Password'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"short@test.com\",\n  \"password\": \"12345\",\n  \"role\": \"patient\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Password < 6 chars → 400"
+          }
+        },
+        {
+          "name": "Register - Invalid role (400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                "pm.test('Error mentions role', () => { const j = pm.response.json(); pm.expect(j.error).to.include('Role'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"x@test.com\",\n  \"password\": \"password123\",\n  \"role\": \"superuser\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Role must be patient, doctor, or admin → 400"
+          }
+        },
+        {
+          "name": "Register - Duplicate email (409)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                "pm.test('Error mentions already registered', () => { const j = pm.response.json(); pm.expect(j.error).to.be.a('string'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Run after Register - Success. Same email → 409 Email already registered"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login",
+      "item": [
+        {
+          "name": "Login - Success",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                "pm.test('Has token and user', () => { const j = pm.response.json(); pm.expect(j).to.have.property('token'); pm.expect(j).to.have.property('user'); if (j.token) pm.collectionVariables.set('token', j.token); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": "{{baseUrl}}/api/login",
+            "description": "Valid login. Token saved for protected requests."
+          }
+        },
+        {
+          "name": "Login - Wrong password (401)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                "pm.test('Has error', () => pm.expect(pm.response.json()).to.have.property('error'));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"wrongpassword\"\n}" },
+            "url": "{{baseUrl}}/api/login",
+            "description": "Invalid credentials → 401"
+          }
+        },
+        {
+          "name": "Login - User not found (401)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"nonexistent@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": "{{baseUrl}}/api/login",
+            "description": "Unknown email → 401"
+          }
+        },
+        {
+          "name": "Login - Invalid body (400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{baseUrl}}/api/login",
+            "description": "Missing email/password → 400"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Protected - With Token",
+      "item": [
+        {
+          "name": "Me - Success",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                "pm.test('Has id, email, role', () => { const j = pm.response.json(); pm.expect(j).to.have.keys('id','email','role'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/me",
+            "description": "Run Login or Register first so {{token}} is set."
+          }
+        },
+        {
+          "name": "Admin Only - Success (admin token)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                "pm.test('Message is Admin only', () => pm.expect(pm.response.json().message).to.eql('Admin only');"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/admin",
+            "description": "Use after logging in as admin. Returns 403 if role is not admin."
+          }
+        },
+        {
+          "name": "Doctor Only - Success (doctor token)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                "pm.test('Message is Doctor only', () => pm.expect(pm.response.json().message).to.eql('Doctor only');"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/doctor",
+            "description": "Use after logging in as doctor."
+          }
+        },
+        {
+          "name": "Patient Only - Success (patient token)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                "pm.test('Message is Patient only', () => pm.expect(pm.response.json().message).to.eql('Patient only');"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/patient",
+            "description": "Use after logging in as patient."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Protected - Auth & RBAC Errors",
+      "item": [
+        {
+          "name": "Me - No token (401)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                "pm.test('Has error', () => pm.expect(pm.response.json()).to.have.property('error');"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/me",
+            "description": "No Authorization header → 401"
+          }
+        },
+        {
+          "name": "Me - Invalid token (401)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer invalid.token.here" }],
+            "url": "{{baseUrl}}/api/me",
+            "description": "Malformed or expired token → 401"
+          }
+        },
+        {
+          "name": "Admin - Patient token (403)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                "pm.test('Has error Forbidden', () => { const j = pm.response.json(); pm.expect(j.error).to.eql('Forbidden'); });"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/admin",
+            "description": "Login as patient first. Call /admin → 403 RBAC."
+          }
+        },
+        {
+          "name": "Doctor - Patient token (403)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 403', () => pm.response.to.have.status(403));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/doctor",
+            "description": "Patient token → 403"
+          }
+        },
+        {
+          "name": "Patient - Doctor token (403)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status is 403', () => pm.response.to.have.status(403));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/patient",
+            "description": "Doctor token → 403 when calling /patient"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Quick Tests",
+      "item": [
+        {
+          "name": "Register Doctor",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"doctor@test.com\",\n  \"password\": \"doctor123\",\n  \"role\": \"doctor\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Register a doctor. Then run Login and Doctor Only."
+          }
+        },
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}" },
+            "url": "{{baseUrl}}/api/register",
+            "description": "Register an admin user."
+          }
+        },
+        {
+          "name": "Run: Health → Register → Login → Me → Patient",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/patient",
+            "description": "Run after: Health Check, Register (patient), Login (or token from Register). Validates full flow."
+          }
+        }
+      ]
+    }
+  ]
+}
