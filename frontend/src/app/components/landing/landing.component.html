@@ -1,0 +1,170 @@
+<div class="landing-page">
+  <!-- 3D Canvas Background -->
+  <div #canvasContainer class="canvas-container"></div>
+  
+  <!-- Animated Background Gradient -->
+  <div class="bg-gradient"></div>
+  
+  <!-- Navigation -->
+  <nav class="nav-bar">
+    <div class="nav-content">
+      <a routerLink="/" class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">Healthonyx</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#about" class="nav-link">About</a>
+        <a routerLink="/login" class="nav-link">Sign In</a>
+        <a routerLink="/register" class="btn btn-primary btn-nav">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="badge-icon">✨</span>
+        <span>AI-Powered Healthcare Platform</span>
+      </div>
+      
+      <h1 class="hero-title">
+        <span class="title-line">Transform Your</span>
+        <span class="title-line gradient-text">Healthcare</span>
+        <span class="title-line">Experience</span>
+      </h1>
+      
+      <p class="hero-subtitle">
+        Healthonyx revolutionizes healthcare management with cutting-edge AI technology,
+        seamless record keeping, and intelligent health monitoring — all in one secure platform.
+      </p>
+      
+      <div class="hero-buttons">
+        <a routerLink="/register" class="btn btn-primary btn-lg">
+          <span>Start Free Trial</span>
+          <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+        <a routerLink="/login" class="btn btn-secondary btn-lg">
+          <span>Sign In</span>
+        </a>
+      </div>
+      
+      <!-- Stats -->
+      <div class="stats-grid">
+        @for (stat of stats; track stat.label) {
+          <div class="stat-item">
+            <span class="stat-value">{{ stat.value }}</span>
+            <span class="stat-label">{{ stat.label }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    
+    <!-- Floating Elements -->
+    <div class="floating-elements">
+      <div class="float-card float-1">
+        <span class="float-icon">❤️</span>
+        <span class="float-text">Heart Rate: 72 BPM</span>
+      </div>
+      <div class="float-card float-2">
+        <span class="float-icon">🩺</span>
+        <span class="float-text">Next Checkup: Tomorrow</span>
+      </div>
+      <div class="float-card float-3">
+        <span class="float-icon">💊</span>
+        <span class="float-text">Medication Reminder</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features-section">
+    <div class="section-container">
+      <div class="section-header">
+        <span class="section-tag">Features</span>
+        <h2 class="section-title">Everything You Need for <span class="gradient-text">Modern Healthcare</span></h2>
+        <p class="section-subtitle">
+          Comprehensive tools designed to streamline healthcare workflows and enhance patient care.
+        </p>
+      </div>
+      
+      <div class="features-grid">
+        @for (feature of features; track feature.title) {
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <span class="feature-icon">{{ feature.icon }}</span>
+              <div class="icon-glow"></div>
+            </div>
+            <h3 class="feature-title">{{ feature.title }}</h3>
+            <p class="feature-description">{{ feature.description }}</p>
+            <a href="#" class="feature-link">
+              Learn more
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="cta-container">
+      <div class="cta-bg-elements">
+        <div class="cta-circle cta-circle-1"></div>
+        <div class="cta-circle cta-circle-2"></div>
+      </div>
+      <div class="cta-content">
+        <h2 class="cta-title">Ready to Transform Your Healthcare?</h2>
+        <p class="cta-text">
+          Join thousands of healthcare providers and patients who trust Healthonyx for their medical needs.
+        </p>
+        <div class="cta-buttons">
+          <a routerLink="/register" class="btn btn-primary btn-lg">Get Started Free</a>
+          <a href="#" class="btn btn-ghost btn-lg">Watch Demo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <a routerLink="/" class="logo">
+          <span class="logo-icon">⬡</span>
+          <span class="logo-text">Healthonyx</span>
+        </a>
+        <p class="footer-tagline">AI-enabled healthcare for the modern world.</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-column">
+          <h4>Product</h4>
+          <a href="#">Features</a>
+          <a href="#">Pricing</a>
+          <a href="#">Security</a>
+        </div>
+        <div class="footer-column">
+          <h4>Company</h4>
+          <a href="#">About</a>
+          <a href="#">Careers</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-column">
+          <h4>Legal</h4>
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">HIPAA</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Healthonyx AI Collective. All rights reserved.</p>
+    </div>
+  </footer>
+</div>

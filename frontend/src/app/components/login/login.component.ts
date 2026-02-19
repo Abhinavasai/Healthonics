@@ -15,6 +15,9 @@ export class LoginComponent implements OnInit {
   form: FormGroup;
   error = '';
   loading = false;
+  showPassword = false;
+  emailFocused = false;
+  passwordFocused = false;
 
   constructor(
     private fb: FormBuilder,
