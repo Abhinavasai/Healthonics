@@ -230,7 +230,7 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.camera.lookAt(this.scene.position);
     
     // Rotate DNA helix
-    this.scene.children.forEach(child => {
+    this.scene.children.forEach((child: THREE.Object3D) => {
       if (child instanceof THREE.Group) {
         child.rotation.y += 0.005;
       }

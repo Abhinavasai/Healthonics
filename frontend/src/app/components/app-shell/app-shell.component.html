@@ -1,21 +1,58 @@
 <div class="shell">
+  <!-- Animated Background -->
+  <div class="shell-bg">
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+  </div>
+
+  <!-- Header -->
   <header class="header">
-    <span class="brand">Healthonyx</span>
+    <a routerLink="/" class="brand">
+      <span class="brand-icon">⬡</span>
+      <span class="brand-text">Healthonyx</span>
+    </a>
     <div class="user-info">
-      <span>{{ user?.email }}</span>
-      <span class="role">({{ role }})</span>
-      <button class="logout-btn" (click)="logout()">Logout</button>
+      <div class="user-avatar">
+        {{ user?.email?.charAt(0)?.toUpperCase() }}
+      </div>
+      <div class="user-details">
+        <span class="user-email">{{ user?.email }}</span>
+        <span class="user-role">{{ role | titlecase }}</span>
+      </div>
+      <button class="logout-btn" (click)="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>Logout</span>
+      </button>
     </div>
   </header>
+
+  <!-- Sidebar -->
   <aside class="sidebar">
     <nav>
       @for (link of navLinks; track link.path) {
-        <a routerLink="{{ link.path }}" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-          {{ link.label }}
+        <a routerLink="{{ link.path }}" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">
+          <span class="nav-icon">
+            @if (link.path === '/patient') { 🧑‍⚕️ }
+            @if (link.path === '/doctor') { 👨‍⚕️ }
+            @if (link.path === '/admin') { 🛡️ }
+          </span>
+          <span class="nav-label">{{ link.label }}</span>
         </a>
       }
     </nav>
+    <div class="sidebar-footer">
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span>System Online</span>
+      </div>
+    </div>
   </aside>
+
+  <!-- Main Content -->
   <main class="content">
     <router-outlet />
   </main>
