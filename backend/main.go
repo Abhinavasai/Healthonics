@@ -33,6 +33,7 @@ func main() {
 	}
 
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
+	appointments := handlers.NewAppointmentHandler()
 	r := gin.Default()
 
 	// CORS: allow Angular dev server and any configured origins
@@ -69,6 +70,11 @@ func main() {
 		api.GET("/patient", auth.RequireAuth(), auth.RequireRole("patient"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Patient only"})
 		})
+
+		api.POST("/appointments", auth.RequireAuth(), auth.RequireRole("patient"), appointments.Create)
+		api.GET("/appointments/patient", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListPatient)
+		api.GET("/appointments/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.ListDoctor)
+		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
