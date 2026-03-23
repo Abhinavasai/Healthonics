@@ -36,8 +36,8 @@
       @for (link of navLinks; track link.path) {
         <a routerLink="{{ link.path }}" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">
           <span class="nav-icon">
-            @if (link.path === '/patient') { 🧑‍⚕️ }
-            @if (link.path === '/doctor') { 👨‍⚕️ }
+            @if (link.path.startsWith('/patient')) { 🧑‍⚕️ }
+            @if (link.path.startsWith('/doctor')) { 👨‍⚕️ }
             @if (link.path === '/admin') { 🛡️ }
           </span>
           <span class="nav-label">{{ link.label }}</span>

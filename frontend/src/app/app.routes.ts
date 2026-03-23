@@ -20,15 +20,31 @@ export const routes: Routes = [
     children: [
       {
         path: 'patient',
-        component: PatientAppointmentsComponent,
-        data: { title: 'Patient Appointments', roles: ['patient'] },
-        canActivate: [roleGuard]
+        data: { roles: ['patient'] },
+        canActivate: [roleGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          {
+            path: 'appointments',
+            component: PatientAppointmentsComponent,
+            data: { title: 'Patient Appointments', roles: ['patient'] },
+            canActivate: [roleGuard]
+          }
+        ]
       },
       {
         path: 'doctor',
-        component: DoctorAppointmentsComponent,
-        data: { title: 'Doctor Appointments', roles: ['doctor'] },
-        canActivate: [roleGuard]
+        data: { roles: ['doctor'] },
+        canActivate: [roleGuard],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          {
+            path: 'appointments',
+            component: DoctorAppointmentsComponent,
+            data: { title: 'Doctor Appointments', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          }
+        ]
       },
       {
         path: 'admin',
