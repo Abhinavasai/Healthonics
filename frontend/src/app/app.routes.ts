@@ -4,6 +4,7 @@ import { LoginComponent } from './components/login/login.component';
 import { LandingComponent } from './components/landing/landing.component';
 import { AppShellComponent } from './components/app-shell/app-shell.component';
 import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
+import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -18,8 +19,8 @@ export const routes: Routes = [
     children: [
       {
         path: 'patient',
-        component: DashboardPlaceholderComponent,
-        data: { title: 'Patient', roles: ['patient'] },
+        component: PatientAppointmentsComponent,
+        data: { title: 'Patient Appointments', roles: ['patient'] },
         canActivate: [roleGuard]
       },
       {
