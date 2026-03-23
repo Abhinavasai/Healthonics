@@ -30,8 +30,8 @@ export class AppShellComponent {
 
   get navLinks(): { path: string; label: string; roles: string[] }[] {
     const all = [
-      { path: '/patient', label: 'Patient Dashboard', roles: ['patient'] },
-      { path: '/doctor', label: 'Doctor Dashboard', roles: ['doctor'] },
+      { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
+      { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] }
     ];
     return all.filter((l) => l.roles.includes(this.role));
