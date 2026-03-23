@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
 	"github.com/healthonyx/backend/models"
+	"github.com/jackc/pgx/v5"
 )
 
 type AppointmentHandler struct{}
@@ -17,6 +19,10 @@ type CreateAppointmentRequest struct {
 	DoctorID    string    `json:"doctor_id" binding:"required"`
 	ScheduledAt time.Time `json:"scheduled_at" binding:"required"`
 	Reason      string    `json:"reason" binding:"required"`
+}
+
+type UpdateAppointmentStatusRequest struct {
+	Status string `json:"status" binding:"required"`
 }
 
 func NewAppointmentHandler() *AppointmentHandler {
@@ -167,4 +173,48 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"appointments": appointments})
+}
+
+func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appointment id"})
+		return
+	}
+
+	var req UpdateAppointmentStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status != models.AppointmentStatusApproved && status != models.AppointmentStatusRejected {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be approved or rejected"})
+		return
+	}
+
+	var appt models.Appointment
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		UPDATE appointments
+		SET status = $1, updated_at = NOW()
+		WHERE id = $2 AND doctor_id = $3
+		RETURNING id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
+	`, status, id, claims.UserID).
+		Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, appt)
 }
