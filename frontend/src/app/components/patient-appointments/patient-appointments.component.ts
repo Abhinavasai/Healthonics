@@ -58,12 +58,17 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
             {{ loading ? 'Refreshing...' : 'Refresh' }}
           </button>
         </div>
+        <div class="summary" *ngIf="appointments.length > 0">
+          <span class="badge pending">Pending {{ pendingCount }}</span>
+          <span class="badge approved">Approved {{ approvedCount }}</span>
+          <span class="badge rejected">Rejected {{ rejectedCount }}</span>
+        </div>
         <p *ngIf="error" class="error">{{ error }}</p>
         <p *ngIf="!error && !loading && appointments.length === 0" class="muted">
           No appointments yet.
         </p>
         <ul *ngIf="appointments.length > 0">
-          <li *ngFor="let appointment of appointments">
+          <li *ngFor="let appointment of sortedAppointments">
             <div class="top-row">
               <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
               <span class="badge" [class]="'badge ' + appointment.status">
@@ -87,6 +92,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
     button { width: fit-content; padding: 0.55rem 0.85rem; border-radius: 8px; border: 1px solid #22d3ee; background: #0f172a; color: #22d3ee; cursor: pointer; }
     button:disabled { opacity: 0.7; cursor: not-allowed; }
     .list-header { display: flex; justify-content: space-between; align-items: center; }
+    .summary { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
     li { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 0.75rem; }
     .top-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
@@ -125,12 +131,37 @@ export class PatientAppointmentsComponent implements OnInit {
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (res) => {
-          this.appointments = res.appointments ?? [];
+          this.appointments = (res.appointments ?? []).sort(
+            (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+          );
         },
         error: (err) => {
           this.error = err?.error?.error ?? 'Unable to load appointments';
         }
       });
+  }
+
+  get sortedAppointments(): Appointment[] {
+    const rank = { pending: 0, approved: 1, rejected: 2 };
+    return [...this.appointments].sort((a, b) => {
+      const rankDelta = rank[a.status] - rank[b.status];
+      if (rankDelta !== 0) {
+        return rankDelta;
+      }
+      return new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime();
+    });
+  }
+
+  get pendingCount(): number {
+    return this.appointments.filter((a) => a.status === 'pending').length;
+  }
+
+  get approvedCount(): number {
+    return this.appointments.filter((a) => a.status === 'approved').length;
+  }
+
+  get rejectedCount(): number {
+    return this.appointments.filter((a) => a.status === 'rejected').length;
   }
 
   submit(): void {
