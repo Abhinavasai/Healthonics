@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { Appointment, AppointmentsService } from '../../services/appointments.service';
+import { Appointment, AppointmentsService, DoctorOption } from '../../services/appointments.service';
 
 @Component({
   selector: 'app-patient-appointments',
@@ -16,14 +16,17 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
       <form class="card form" (ngSubmit)="submit()" #appointmentForm="ngForm">
         <h2>Request Appointment</h2>
         <label>
-          Doctor ID
-          <input
-            type="text"
+          Doctor
+          <select
             name="doctorId"
-            [(ngModel)]="doctorId"
+            [(ngModel)]="selectedDoctorId"
             required
-            placeholder="Doctor UUID"
-          />
+          >
+            <option value="" disabled>Select a doctor</option>
+            <option *ngFor="let doctor of doctors" [value]="doctor.id">
+              {{ doctor.email }}
+            </option>
+          </select>
         </label>
         <label>
           Date and Time
@@ -45,9 +48,11 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
             placeholder="Brief reason for the appointment"
           ></textarea>
         </label>
-        <button type="submit" [disabled]="appointmentForm.invalid || submitting">
+        <button type="submit" [disabled]="appointmentForm.invalid || submitting || doctorsLoading || doctors.length === 0">
           {{ submitting ? 'Submitting...' : 'Submit Request' }}
         </button>
+        <p *ngIf="doctorsLoading" class="muted">Loading doctors...</p>
+        <p *ngIf="!doctorsLoading && doctors.length === 0" class="error">No doctors available right now.</p>
         <p *ngIf="formMessage" class="message">{{ formMessage }}</p>
       </form>
 
@@ -88,7 +93,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
     .card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 1rem; }
     .form { display: grid; gap: 0.8rem; }
     label { display: grid; gap: 0.35rem; font-size: 0.9rem; }
-    input, textarea { background: #0b1220; color: #e5e7eb; border: 1px solid #334155; border-radius: 8px; padding: 0.55rem; }
+    input, select, textarea { background: #0b1220; color: #e5e7eb; border: 1px solid #334155; border-radius: 8px; padding: 0.55rem; }
     button { width: fit-content; padding: 0.55rem 0.85rem; border-radius: 8px; border: 1px solid #22d3ee; background: #0f172a; color: #22d3ee; cursor: pointer; }
     button:disabled { opacity: 0.7; cursor: not-allowed; }
     .list-header { display: flex; justify-content: space-between; align-items: center; }
@@ -108,12 +113,14 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
   `]
 })
 export class PatientAppointmentsComponent implements OnInit {
-  doctorId = '';
+  selectedDoctorId = '';
   scheduledAt = '';
   reason = '';
   appointments: Appointment[] = [];
+  doctors: DoctorOption[] = [];
 
   loading = false;
+  doctorsLoading = false;
   submitting = false;
   error = '';
   formMessage = '';
@@ -121,7 +128,25 @@ export class PatientAppointmentsComponent implements OnInit {
   constructor(private appointmentsService: AppointmentsService) {}
 
   ngOnInit(): void {
+    this.loadDoctors();
     this.load();
+  }
+
+  loadDoctors(): void {
+    this.doctorsLoading = true;
+    this.appointmentsService.listDoctors()
+      .pipe(finalize(() => (this.doctorsLoading = false)))
+      .subscribe({
+        next: (res) => {
+          this.doctors = res.doctors ?? [];
+          if (!this.selectedDoctorId && this.doctors.length > 0) {
+            this.selectedDoctorId = this.doctors[0].id;
+          }
+        },
+        error: (err) => {
+          this.formMessage = err?.error?.error ?? 'Unable to load doctors';
+        }
+      });
   }
 
   load(): void {
@@ -168,7 +193,7 @@ export class PatientAppointmentsComponent implements OnInit {
     this.submitting = true;
     this.formMessage = '';
     const payload = {
-      doctor_id: this.doctorId.trim(),
+      doctor_id: this.selectedDoctorId,
       scheduled_at: new Date(this.scheduledAt).toISOString(),
       reason: this.reason.trim()
     };
