@@ -37,34 +37,24 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
               [(ngModel)]="selectedDate"
               required
             />
+            <span class="field-hint">Tap the field to open your calendar and pick a date.</span>
           </label>
         </div>
-        <div class="selected-range">
-          Selected slot: <strong>{{ selectedRangeLabel }}</strong>
-        </div>
 
-        <div class="time-picker card-sub">
-          <div class="time-picker-header">
-            <h3>Radial Selector</h3>
-            <div class="radial-nav">
-              <button type="button" (click)="prevRadialWindow()" [disabled]="radialStartIndex === 0">Prev</button>
-              <button type="button" (click)="nextRadialWindow()" [disabled]="radialStartIndex + radialWindowSize >= daySlots.length">Next</button>
-            </div>
-          </div>
-          <div class="radial">
-            <button
-              type="button"
-              class="radial-slot"
-              *ngFor="let slot of radialSlots; let i = index"
-              [style.--i]="i"
-              [style.--count]="radialSlots.length"
-              [class.active]="slot.value === selectedTime"
-              (click)="selectSlot(slot.value)"
+        <div class="time-block card-sub">
+          <h3 class="time-title">Time</h3>
+          <label class="time-select-label">
+            <span class="sr-only">Appointment time</span>
+            <select
+              name="selectedTime"
+              [(ngModel)]="selectedTime"
+              required
             >
-              {{ slot.value }}
-            </button>
-            <div class="radial-center">{{ toReadableTime(selectedTime) }}</div>
-          </div>
+              <option *ngFor="let slot of daySlots" [value]="slot.value">
+                {{ slot.label }}
+              </option>
+            </select>
+          </label>
         </div>
 
         <label>
@@ -142,70 +132,20 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .message { color: #22d3ee; margin: 0; }
     .muted { color: #94a3b8; }
     .schedule-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
-    .selected-range { color: #cbd5e1; font-size: 0.9rem; margin-top: -0.2rem; }
-    .time-picker-header { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
-    .radial-nav { display: flex; gap: 0.5rem; }
-    .radial-nav button { padding: 0.35rem 0.55rem; font-size: 0.75rem; }
-    .time-picker h3 { margin: 0; font-size: 0.95rem; color: #93c5fd; }
-    .radial {
-      position: relative;
-      width: 270px;
-      height: 270px;
-      margin: 0.25rem auto;
-      border-radius: 50%;
-      border: 1px dashed rgba(148, 163, 184, 0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .radial-center {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      text-align: center;
-      border: 1px solid rgba(34, 211, 238, 0.6);
-      color: #67e8f9;
-      background: rgba(15, 23, 42, 0.9);
-      padding: 0.35rem;
-    }
-    .radial-slot {
+    .field-hint { color: #94a3b8; font-size: 0.78rem; margin-top: 0.25rem; }
+    .time-block { display: grid; gap: 0.6rem; }
+    .time-title { margin: 0; font-size: 0.95rem; color: #93c5fd; font-weight: 600; }
+    .time-select-label select { width: 100%; max-width: 100%; }
+    .sr-only {
       position: absolute;
-      width: 68px;
-      height: 34px;
+      width: 1px;
+      height: 1px;
       padding: 0;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      line-height: 1;
-      left: 50%;
-      top: 50%;
-      transform:
-        translate(-50%, -50%)
-        rotate(calc(var(--i) * (360deg / var(--count))))
-        translateY(-112px)
-        rotate(calc(-1 * var(--i) * (360deg / var(--count))));
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: #0b1220;
-      color: #cbd5e1;
-      cursor: pointer;
-    }
-    .radial-slot.active {
-      border-color: rgba(34, 211, 238, 0.85);
-      color: #22d3ee;
-      box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25);
-    }
-    @media (max-width: 700px) {
-      .time-picker-header { flex-direction: column; align-items: flex-start; }
-      .radial { width: 240px; height: 240px; }
-      .radial-slot { transform:
-        translate(-50%, -50%)
-        rotate(calc(var(--i) * (360deg / var(--count))))
-        translateY(-98px)
-        rotate(calc(-1 * var(--i) * (360deg / var(--count))));
-      }
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
   `]
 })
@@ -213,8 +153,6 @@ export class PatientAppointmentsComponent implements OnInit {
   selectedDoctorId = '';
   selectedDate = this.getTodayLocalDate();
   selectedTime = '09:00';
-  radialStartIndex = 0;
-  readonly radialWindowSize = 12;
   reason = '';
   appointments: Appointment[] = [];
   doctors: DoctorOption[] = [];
@@ -305,32 +243,6 @@ export class PatientAppointmentsComponent implements OnInit {
     return slots;
   }
 
-  get radialSlots(): { value: string; label: string; minutes: number }[] {
-    const slots = this.daySlots;
-    return slots.slice(this.radialStartIndex, this.radialStartIndex + this.radialWindowSize);
-  }
-
-  selectSlot(slotValue: string): void {
-    this.selectedTime = slotValue;
-  }
-
-  prevRadialWindow(): void {
-    this.radialStartIndex = Math.max(0, this.radialStartIndex - this.radialWindowSize);
-  }
-
-  nextRadialWindow(): void {
-    const maxStart = Math.max(0, this.daySlots.length - this.radialWindowSize);
-    this.radialStartIndex = Math.min(maxStart, this.radialStartIndex + this.radialWindowSize);
-  }
-
-  get selectedRangeLabel(): string {
-    const minutes = this.parseHHMM(this.selectedTime);
-    if (minutes === null) {
-      return 'Pick a valid time in 15-minute slots.';
-    }
-    return `${this.toReadableTime(this.toHHMM(minutes))} - ${this.toReadableTime(this.toHHMM(minutes + 15))}`;
-  }
-
   submit(): void {
     this.submitting = true;
     this.formMessage = '';
@@ -353,7 +265,6 @@ export class PatientAppointmentsComponent implements OnInit {
           this.reason = '';
           this.selectedDate = this.getTodayLocalDate();
           this.selectedTime = '09:00';
-          this.radialStartIndex = 0;
           this.load();
         },
         error: (err) => {
