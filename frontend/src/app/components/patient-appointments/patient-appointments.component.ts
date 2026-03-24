@@ -38,24 +38,19 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
               required
             />
           </label>
-          <label>
-            Time (type or pick)
-            <input
-              type="time"
-              step="900"
-              name="selectedTime"
-              [(ngModel)]="selectedTime"
-              (ngModelChange)="onTimeTyped($event)"
-              required
-            />
-          </label>
         </div>
         <div class="selected-range">
           Selected slot: <strong>{{ selectedRangeLabel }}</strong>
         </div>
 
         <div class="time-picker card-sub">
-          <h3>Radial Selector</h3>
+          <div class="time-picker-header">
+            <h3>Radial Selector</h3>
+            <div class="radial-nav">
+              <button type="button" (click)="prevRadialWindow()" [disabled]="radialStartIndex === 0">Prev</button>
+              <button type="button" (click)="nextRadialWindow()" [disabled]="radialStartIndex + radialWindowSize >= daySlots.length">Next</button>
+            </div>
+          </div>
           <div class="radial">
             <button
               type="button"
@@ -72,17 +67,6 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
           </div>
         </div>
 
-        <div class="time-slot-list">
-          <button
-            type="button"
-            class="slot-chip"
-            *ngFor="let slot of daySlots"
-            [class.active]="slot.value === selectedTime"
-            (click)="selectSlot(slot.value)"
-          >
-            {{ slot.label }}
-          </button>
-        </div>
         <label>
           Reason
           <textarea
@@ -157,9 +141,12 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .error { color: #f87171; }
     .message { color: #22d3ee; margin: 0; }
     .muted { color: #94a3b8; }
-    .schedule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .schedule-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
     .selected-range { color: #cbd5e1; font-size: 0.9rem; margin-top: -0.2rem; }
-    .time-picker h3 { margin: 0 0 0.6rem; font-size: 0.95rem; color: #93c5fd; }
+    .time-picker-header { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .radial-nav { display: flex; gap: 0.5rem; }
+    .radial-nav button { padding: 0.35rem 0.55rem; font-size: 0.75rem; }
+    .time-picker h3 { margin: 0; font-size: 0.95rem; color: #93c5fd; }
     .radial {
       position: relative;
       width: 270px;
@@ -210,29 +197,8 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
       color: #22d3ee;
       box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25);
     }
-    .time-slot-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 0.45rem;
-      max-height: 180px;
-      overflow: auto;
-      padding-right: 0.25rem;
-    }
-    .slot-chip {
-      width: 100%;
-      text-align: left;
-      font-size: 0.78rem;
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      background: rgba(2, 6, 23, 0.9);
-      color: #cbd5e1;
-    }
-    .slot-chip.active {
-      border-color: rgba(34, 211, 238, 0.85);
-      color: #22d3ee;
-      background: rgba(8, 47, 73, 0.35);
-    }
     @media (max-width: 700px) {
-      .schedule-grid { grid-template-columns: 1fr; }
+      .time-picker-header { flex-direction: column; align-items: flex-start; }
       .radial { width: 240px; height: 240px; }
       .radial-slot { transform:
         translate(-50%, -50%)
@@ -247,6 +213,8 @@ export class PatientAppointmentsComponent implements OnInit {
   selectedDoctorId = '';
   selectedDate = this.getTodayLocalDate();
   selectedTime = '09:00';
+  radialStartIndex = 0;
+  readonly radialWindowSize = 12;
   reason = '';
   appointments: Appointment[] = [];
   doctors: DoctorOption[] = [];
@@ -339,35 +307,20 @@ export class PatientAppointmentsComponent implements OnInit {
 
   get radialSlots(): { value: string; label: string; minutes: number }[] {
     const slots = this.daySlots;
-    const selected = this.parseHHMM(this.selectedTime);
-    if (selected === null) {
-      return slots.slice(0, 12);
-    }
-
-    let centerIndex = slots.findIndex((s) => s.minutes === selected);
-    if (centerIndex === -1) {
-      centerIndex = slots.findIndex((s) => s.minutes > selected);
-      centerIndex = centerIndex === -1 ? slots.length - 1 : centerIndex;
-    }
-
-    let start = Math.max(0, centerIndex - 5);
-    if (start + 12 > slots.length) {
-      start = Math.max(0, slots.length - 12);
-    }
-    return slots.slice(start, start + 12);
-  }
-
-  onTimeTyped(raw: string): void {
-    const parsed = this.parseHHMM(raw);
-    if (parsed === null) {
-      return;
-    }
-    const snapped = Math.round(parsed / 15) * 15;
-    this.selectedTime = this.toHHMM(snapped);
+    return slots.slice(this.radialStartIndex, this.radialStartIndex + this.radialWindowSize);
   }
 
   selectSlot(slotValue: string): void {
     this.selectedTime = slotValue;
+  }
+
+  prevRadialWindow(): void {
+    this.radialStartIndex = Math.max(0, this.radialStartIndex - this.radialWindowSize);
+  }
+
+  nextRadialWindow(): void {
+    const maxStart = Math.max(0, this.daySlots.length - this.radialWindowSize);
+    this.radialStartIndex = Math.min(maxStart, this.radialStartIndex + this.radialWindowSize);
   }
 
   get selectedRangeLabel(): string {
@@ -400,6 +353,7 @@ export class PatientAppointmentsComponent implements OnInit {
           this.reason = '';
           this.selectedDate = this.getTodayLocalDate();
           this.selectedTime = '09:00';
+          this.radialStartIndex = 0;
           this.load();
         },
         error: (err) => {
