@@ -17,9 +17,19 @@ export interface AppointmentListResponse {
   appointments: Appointment[];
 }
 
+export interface DoctorOption {
+  id: string;
+  email: string;
+}
+
+export interface DoctorListResponse {
+  doctors: DoctorOption[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsService {
   private readonly API = '/api/appointments';
+  private readonly CoreAPI = '/api';
 
   constructor(private http: HttpClient) {}
 
@@ -33,6 +43,10 @@ export class AppointmentsService {
 
   listDoctor(): Observable<AppointmentListResponse> {
     return this.http.get<AppointmentListResponse>(`${this.API}/doctor`);
+  }
+
+  listDoctors(): Observable<DoctorListResponse> {
+    return this.http.get<DoctorListResponse>(`${this.CoreAPI}/doctors`);
   }
 
   updateStatus(id: string, status: 'approved' | 'rejected'): Observable<Appointment> {
