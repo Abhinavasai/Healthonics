@@ -28,15 +28,61 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
             </option>
           </select>
         </label>
-        <label>
-          Date and Time
-          <input
-            type="datetime-local"
-            name="scheduledAt"
-            [(ngModel)]="scheduledAt"
-            required
-          />
-        </label>
+        <div class="schedule-grid">
+          <label>
+            Date
+            <input
+              type="date"
+              name="selectedDate"
+              [(ngModel)]="selectedDate"
+              required
+            />
+          </label>
+          <label>
+            Time (type or pick)
+            <input
+              type="time"
+              step="900"
+              name="selectedTime"
+              [(ngModel)]="selectedTime"
+              (ngModelChange)="onTimeTyped($event)"
+              required
+            />
+          </label>
+        </div>
+        <div class="selected-range">
+          Selected slot: <strong>{{ selectedRangeLabel }}</strong>
+        </div>
+
+        <div class="time-picker card-sub">
+          <h3>Radial Selector</h3>
+          <div class="radial">
+            <button
+              type="button"
+              class="radial-slot"
+              *ngFor="let slot of radialSlots; let i = index"
+              [style.--i]="i"
+              [style.--count]="radialSlots.length"
+              [class.active]="slot.value === selectedTime"
+              (click)="selectSlot(slot.value)"
+            >
+              {{ slot.value }}
+            </button>
+            <div class="radial-center">{{ toReadableTime(selectedTime) }}</div>
+          </div>
+        </div>
+
+        <div class="time-slot-list">
+          <button
+            type="button"
+            class="slot-chip"
+            *ngFor="let slot of daySlots"
+            [class.active]="slot.value === selectedTime"
+            (click)="selectSlot(slot.value)"
+          >
+            {{ slot.label }}
+          </button>
+        </div>
         <label>
           Reason
           <textarea
@@ -91,6 +137,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .appointments { max-width: 900px; margin: 0 auto; display: grid; gap: 1rem; }
     .subtitle { color: #a7b0be; margin-top: -0.4rem; }
     .card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 1rem; }
+    .card-sub { background: rgba(11, 18, 32, 0.6); border: 1px solid rgba(148, 163, 184, 0.15); border-radius: 10px; padding: 0.8rem; }
     .form { display: grid; gap: 0.8rem; }
     label { display: grid; gap: 0.35rem; font-size: 0.9rem; }
     input, select, textarea { background: #0b1220; color: #e5e7eb; border: 1px solid #334155; border-radius: 8px; padding: 0.55rem; }
@@ -110,11 +157,96 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .error { color: #f87171; }
     .message { color: #22d3ee; margin: 0; }
     .muted { color: #94a3b8; }
+    .schedule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .selected-range { color: #cbd5e1; font-size: 0.9rem; margin-top: -0.2rem; }
+    .time-picker h3 { margin: 0 0 0.6rem; font-size: 0.95rem; color: #93c5fd; }
+    .radial {
+      position: relative;
+      width: 270px;
+      height: 270px;
+      margin: 0.25rem auto;
+      border-radius: 50%;
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .radial-center {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      text-align: center;
+      border: 1px solid rgba(34, 211, 238, 0.6);
+      color: #67e8f9;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 0.35rem;
+    }
+    .radial-slot {
+      position: absolute;
+      width: 68px;
+      height: 34px;
+      padding: 0;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      line-height: 1;
+      left: 50%;
+      top: 50%;
+      transform:
+        translate(-50%, -50%)
+        rotate(calc(var(--i) * (360deg / var(--count))))
+        translateY(-112px)
+        rotate(calc(-1 * var(--i) * (360deg / var(--count))));
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: #0b1220;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .radial-slot.active {
+      border-color: rgba(34, 211, 238, 0.85);
+      color: #22d3ee;
+      box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25);
+    }
+    .time-slot-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 0.45rem;
+      max-height: 180px;
+      overflow: auto;
+      padding-right: 0.25rem;
+    }
+    .slot-chip {
+      width: 100%;
+      text-align: left;
+      font-size: 0.78rem;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(2, 6, 23, 0.9);
+      color: #cbd5e1;
+    }
+    .slot-chip.active {
+      border-color: rgba(34, 211, 238, 0.85);
+      color: #22d3ee;
+      background: rgba(8, 47, 73, 0.35);
+    }
+    @media (max-width: 700px) {
+      .schedule-grid { grid-template-columns: 1fr; }
+      .radial { width: 240px; height: 240px; }
+      .radial-slot { transform:
+        translate(-50%, -50%)
+        rotate(calc(var(--i) * (360deg / var(--count))))
+        translateY(-98px)
+        rotate(calc(-1 * var(--i) * (360deg / var(--count))));
+      }
+    }
   `]
 })
 export class PatientAppointmentsComponent implements OnInit {
   selectedDoctorId = '';
-  scheduledAt = '';
+  selectedDate = this.getTodayLocalDate();
+  selectedTime = '09:00';
   reason = '';
   appointments: Appointment[] = [];
   doctors: DoctorOption[] = [];
@@ -189,12 +321,75 @@ export class PatientAppointmentsComponent implements OnInit {
     return this.appointments.filter((a) => a.status === 'rejected').length;
   }
 
+  get daySlots(): { value: string; label: string; minutes: number }[] {
+    const slots: { value: string; label: string; minutes: number }[] = [];
+    const startMinutes = 8 * 60;
+    const endMinutes = 18 * 60;
+    for (let m = startMinutes; m < endMinutes; m += 15) {
+      const from = this.toHHMM(m);
+      const to = this.toHHMM(m + 15);
+      slots.push({
+        value: from,
+        label: `${this.toReadableTime(from)} - ${this.toReadableTime(to)}`,
+        minutes: m
+      });
+    }
+    return slots;
+  }
+
+  get radialSlots(): { value: string; label: string; minutes: number }[] {
+    const slots = this.daySlots;
+    const selected = this.parseHHMM(this.selectedTime);
+    if (selected === null) {
+      return slots.slice(0, 12);
+    }
+
+    let centerIndex = slots.findIndex((s) => s.minutes === selected);
+    if (centerIndex === -1) {
+      centerIndex = slots.findIndex((s) => s.minutes > selected);
+      centerIndex = centerIndex === -1 ? slots.length - 1 : centerIndex;
+    }
+
+    let start = Math.max(0, centerIndex - 5);
+    if (start + 12 > slots.length) {
+      start = Math.max(0, slots.length - 12);
+    }
+    return slots.slice(start, start + 12);
+  }
+
+  onTimeTyped(raw: string): void {
+    const parsed = this.parseHHMM(raw);
+    if (parsed === null) {
+      return;
+    }
+    const snapped = Math.round(parsed / 15) * 15;
+    this.selectedTime = this.toHHMM(snapped);
+  }
+
+  selectSlot(slotValue: string): void {
+    this.selectedTime = slotValue;
+  }
+
+  get selectedRangeLabel(): string {
+    const minutes = this.parseHHMM(this.selectedTime);
+    if (minutes === null) {
+      return 'Pick a valid time in 15-minute slots.';
+    }
+    return `${this.toReadableTime(this.toHHMM(minutes))} - ${this.toReadableTime(this.toHHMM(minutes + 15))}`;
+  }
+
   submit(): void {
     this.submitting = true;
     this.formMessage = '';
+    const scheduledAt = this.combineDateAndTime(this.selectedDate, this.selectedTime);
+    if (!scheduledAt) {
+      this.submitting = false;
+      this.formMessage = 'Please choose a valid date and 15-minute time slot.';
+      return;
+    }
     const payload = {
       doctor_id: this.selectedDoctorId,
-      scheduled_at: new Date(this.scheduledAt).toISOString(),
+      scheduled_at: scheduledAt,
       reason: this.reason.trim()
     };
     this.appointmentsService.create(payload)
@@ -203,12 +398,62 @@ export class PatientAppointmentsComponent implements OnInit {
         next: () => {
           this.formMessage = 'Appointment request submitted.';
           this.reason = '';
-          this.scheduledAt = '';
+          this.selectedDate = this.getTodayLocalDate();
+          this.selectedTime = '09:00';
           this.load();
         },
         error: (err) => {
           this.formMessage = err?.error?.error ?? 'Unable to submit request';
         }
       });
+  }
+
+  private combineDateAndTime(date: string, time: string): string | null {
+    const mins = this.parseHHMM(time);
+    if (!date || mins === null || mins % 15 !== 0) {
+      return null;
+    }
+    const [year, month, day] = date.split('-').map((v) => Number(v));
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    const local = new Date(year, (month ?? 1) - 1, day ?? 1, hours, minutes, 0, 0);
+    if (Number.isNaN(local.getTime())) {
+      return null;
+    }
+    return local.toISOString();
+  }
+
+  private parseHHMM(value: string): number | null {
+    const trimmed = (value || '').trim();
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(trimmed);
+    if (!match) {
+      return null;
+    }
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  private toHHMM(totalMinutes: number): string {
+    const normalized = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+    const hours = Math.floor(normalized / 60).toString().padStart(2, '0');
+    const minutes = (normalized % 60).toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  toReadableTime(hhmm: string): string {
+    const mins = this.parseHHMM(hhmm);
+    if (mins === null) {
+      return hhmm;
+    }
+    const hour24 = Math.floor(mins / 60);
+    const minute = mins % 60;
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    const ampm = hour24 >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
+  }
+
+  private getTodayLocalDate(): string {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
   }
 }
