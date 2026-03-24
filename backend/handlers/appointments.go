@@ -25,6 +25,11 @@ type UpdateAppointmentStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+type DoctorOption struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
 func NewAppointmentHandler() *AppointmentHandler {
 	return &AppointmentHandler{}
 }
@@ -173,6 +178,36 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"appointments": appointments})
+}
+
+func (h *AppointmentHandler) ListAvailableDoctors(c *gin.Context) {
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT id, email
+		FROM users
+		WHERE role = 'doctor'
+		ORDER BY email ASC
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+
+	doctors := make([]DoctorOption, 0)
+	for rows.Next() {
+		var doctor DoctorOption
+		if err := rows.Scan(&doctor.ID, &doctor.Email); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		doctors = append(doctors, doctor)
+	}
+	if rows.Err() != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"doctors": doctors})
 }
 
 func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
