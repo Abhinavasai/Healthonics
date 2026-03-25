@@ -228,6 +228,80 @@ func (h *AppointmentHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, appt)
 }
 
+// ListActivity returns audit rows for an appointment when the caller is the patient or assigned doctor.
+func (h *AppointmentHandler) ListActivity(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "patient" && claims.Role != "doctor" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appointment id"})
+		return
+	}
+
+	var appt models.Appointment
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
+		FROM appointments
+		WHERE id = $1
+	`, id).Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	switch claims.Role {
+	case "patient":
+		if appt.PatientID != claims.UserID {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+	case "doctor":
+		if appt.DoctorID != claims.UserID {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+	}
+
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT id, appointment_id, actor_user_id, action, detail, created_at
+		FROM appointment_activities
+		WHERE appointment_id = $1
+		ORDER BY created_at ASC
+	`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+
+	activities := make([]models.AppointmentActivity, 0)
+	for rows.Next() {
+		var row models.AppointmentActivity
+		if err := rows.Scan(&row.ID, &row.AppointmentID, &row.ActorUserID, &row.Action, &row.Detail, &row.CreatedAt); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		activities = append(activities, row)
+	}
+	if rows.Err() != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"activities": activities})
+}
+
 func (h *AppointmentHandler) ListAvailableDoctors(c *gin.Context) {
 	rows, err := db.Pool.Query(c.Request.Context(), `
 		SELECT id, email
@@ -282,8 +356,15 @@ func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	tx, err := db.Pool.Begin(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
 	var appt models.Appointment
-	err = db.Pool.QueryRow(c.Request.Context(), `
+	err = tx.QueryRow(c.Request.Context(), `
 		UPDATE appointments
 		SET status = $1, updated_at = NOW()
 		WHERE id = $2 AND doctor_id = $3
@@ -295,6 +376,20 @@ func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	_, err = tx.Exec(c.Request.Context(), `
+		INSERT INTO appointment_activities (appointment_id, actor_user_id, action, detail)
+		VALUES ($1, $2, $3, $4)
+	`, appt.ID, claims.UserID, "status_changed", status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
