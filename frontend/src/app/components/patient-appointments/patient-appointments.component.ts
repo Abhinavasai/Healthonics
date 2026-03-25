@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
@@ -31,13 +31,28 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
         <div class="schedule-grid">
           <label>
             Date
-            <input
-              type="date"
-              name="selectedDate"
-              [(ngModel)]="selectedDate"
-              required
-            />
-            <span class="field-hint">Tap the field to open your calendar and pick a date.</span>
+            <div class="date-row">
+              <input
+                #dateInput
+                type="date"
+                name="selectedDate"
+                [(ngModel)]="selectedDate"
+                required
+                (click)="openDatePicker()"
+              />
+              <button
+                type="button"
+                class="calendar-trigger"
+                (click)="openDatePicker()"
+                aria-label="Open calendar to pick a date"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              </button>
+            </div>
+            <span class="field-hint">Tap the date field or calendar button to open the picker.</span>
           </label>
         </div>
 
@@ -132,6 +147,26 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .message { color: #22d3ee; margin: 0; }
     .muted { color: #94a3b8; }
     .schedule-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+    .date-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+    .date-row input[type="date"] {
+      flex: 1;
+      min-width: 0;
+      min-height: 44px;
+    }
+    .calendar-trigger {
+      flex-shrink: 0;
+      width: 44px;
+      min-height: 44px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
     .field-hint { color: #94a3b8; font-size: 0.78rem; margin-top: 0.25rem; }
     .time-block { display: grid; gap: 0.6rem; }
     .time-title { margin: 0; font-size: 0.95rem; color: #93c5fd; font-weight: 600; }
@@ -150,6 +185,8 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
   `]
 })
 export class PatientAppointmentsComponent implements OnInit {
+  @ViewChild('dateInput') private dateInputRef?: ElementRef<HTMLInputElement>;
+
   selectedDoctorId = '';
   selectedDate = this.getTodayLocalDate();
   selectedTime = '09:00';
@@ -164,6 +201,25 @@ export class PatientAppointmentsComponent implements OnInit {
   formMessage = '';
 
   constructor(private appointmentsService: AppointmentsService) {}
+
+  /** Opens native date picker (showPicker when supported; focus/click fallback). */
+  openDatePicker(): void {
+    const el = this.dateInputRef?.nativeElement;
+    if (!el) {
+      return;
+    }
+    const withPicker = el as HTMLInputElement & { showPicker?: () => void };
+    if (typeof withPicker.showPicker === 'function') {
+      try {
+        withPicker.showPicker();
+        return;
+      } catch {
+        // NotAllowedError or unsupported context — fall back
+      }
+    }
+    el.focus();
+    el.click();
+  }
 
   ngOnInit(): void {
     this.loadDoctors();
