@@ -5,6 +5,7 @@ import { LandingComponent } from './components/landing/landing.component';
 import { AppShellComponent } from './components/app-shell/app-shell.component';
 import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
+import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
@@ -24,6 +25,12 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          {
+            path: 'appointments/:id',
+            component: PatientAppointmentDetailComponent,
+            data: { title: 'Appointment details', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'appointments',
             component: PatientAppointmentsComponent,

@@ -1,5 +1,6 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { Appointment, AppointmentsService, DoctorOption } from '../../services/appointments.service';
@@ -7,7 +8,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
 @Component({
   selector: 'app-patient-appointments',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, TitleCasePipe],
+  imports: [CommonModule, FormsModule, RouterModule, DatePipe, TitleCasePipe],
   template: `
     <section class="appointments">
       <h1>Patient Appointments</h1>
@@ -109,14 +110,17 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
         </p>
         <ul *ngIf="appointments.length > 0">
           <li *ngFor="let appointment of sortedAppointments">
-            <div class="top-row">
-              <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
-              <span class="badge" [class]="'badge ' + appointment.status">
-                {{ appointment.status | titlecase }}
-              </span>
-            </div>
-            <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
-            <div class="reason">{{ appointment.reason }}</div>
+            <a class="row-link" [routerLink]="['/patient/appointments', appointment.id]">
+              <div class="top-row">
+                <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
+                <span class="badge" [class]="'badge ' + appointment.status">
+                  {{ appointment.status | titlecase }}
+                </span>
+              </div>
+              <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
+              <div class="reason">{{ appointment.reason }}</div>
+              <span class="hint">View details</span>
+            </a>
           </li>
         </ul>
       </div>
@@ -135,7 +139,16 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .list-header { display: flex; justify-content: space-between; align-items: center; }
     .summary { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
-    li { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 0.75rem; }
+    li { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 0; overflow: hidden; }
+    .row-link {
+      display: grid;
+      gap: 0.35rem;
+      padding: 0.75rem;
+      color: inherit;
+      text-decoration: none;
+    }
+    .row-link:hover { background: rgba(34, 211, 238, 0.06); }
+    .hint { font-size: 0.78rem; color: #22d3ee; margin-top: 0.25rem; }
     .top-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .badge { border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.78rem; border: 1px solid transparent; }
     .pending { color: #facc15; border-color: rgba(250, 204, 21, 0.5); }
