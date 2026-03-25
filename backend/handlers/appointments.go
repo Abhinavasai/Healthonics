@@ -180,6 +180,54 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"appointments": appointments})
 }
 
+// GetByID returns one appointment when the caller is the patient or assigned doctor.
+func (h *AppointmentHandler) GetByID(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "patient" && claims.Role != "doctor" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appointment id"})
+		return
+	}
+
+	var appt models.Appointment
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
+		FROM appointments
+		WHERE id = $1
+	`, id).Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	switch claims.Role {
+	case "patient":
+		if appt.PatientID != claims.UserID {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+	case "doctor":
+		if appt.DoctorID != claims.UserID {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, appt)
+}
+
 func (h *AppointmentHandler) ListAvailableDoctors(c *gin.Context) {
 	rows, err := db.Pool.Query(c.Request.Context(), `
 		SELECT id, email
