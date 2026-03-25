@@ -1,12 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
 import { Appointment, AppointmentsService } from '../../services/appointments.service';
 
 @Component({
   selector: 'app-doctor-appointments',
   standalone: true,
-  imports: [CommonModule, DatePipe, TitleCasePipe],
+  imports: [CommonModule, RouterModule, DatePipe, TitleCasePipe],
   template: `
     <section class="appointments">
       <h1>Doctor Appointments</h1>
@@ -25,21 +26,26 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
         </p>
         <ul *ngIf="appointments.length > 0">
           <li *ngFor="let appointment of appointments">
-            <div class="top-row">
-              <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
-              <span class="badge" [class]="'badge ' + appointment.status">
-                {{ appointment.status | titlecase }}
-              </span>
-            </div>
-            <div class="meta">Patient: {{ appointment.patient_id }}</div>
-            <div class="reason">{{ appointment.reason }}</div>
-            <div class="actions" *ngIf="appointment.status === 'pending'">
-              <button type="button" (click)="updateStatus(appointment.id, 'approved')" [disabled]="processingId === appointment.id">
-                Approve
-              </button>
-              <button type="button" (click)="updateStatus(appointment.id, 'rejected')" [disabled]="processingId === appointment.id">
-                Reject
-              </button>
+            <div class="row">
+              <a class="row-link" [routerLink]="['/doctor/appointments', appointment.id]">
+                <div class="top-row">
+                  <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
+                  <span class="badge" [class]="'badge ' + appointment.status">
+                    {{ appointment.status | titlecase }}
+                  </span>
+                </div>
+                <div class="meta">Patient: {{ appointment.patient_id }}</div>
+                <div class="reason">{{ appointment.reason }}</div>
+                <span class="hint">View details</span>
+              </a>
+              <div class="actions" *ngIf="appointment.status === 'pending'">
+                <button type="button" (click)="updateStatus(appointment.id, 'approved')" [disabled]="processingId === appointment.id">
+                  Approve
+                </button>
+                <button type="button" (click)="updateStatus(appointment.id, 'rejected')" [disabled]="processingId === appointment.id">
+                  Reject
+                </button>
+              </div>
             </div>
           </li>
         </ul>
@@ -54,7 +60,16 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
     button { width: fit-content; padding: 0.55rem 0.85rem; border-radius: 8px; border: 1px solid #22d3ee; background: #0f172a; color: #22d3ee; cursor: pointer; }
     button:disabled { opacity: 0.7; cursor: not-allowed; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
-    li { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 0.75rem; }
+    li { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 0; overflow: hidden; }
+    .row { display: grid; gap: 0.65rem; padding: 0.75rem; }
+    .row-link {
+      display: grid;
+      gap: 0.35rem;
+      color: inherit;
+      text-decoration: none;
+    }
+    .row-link:hover { background: rgba(34, 211, 238, 0.06); border-radius: 8px; margin: -0.35rem; padding: 0.35rem; }
+    .hint { font-size: 0.78rem; color: #22d3ee; margin-top: 0.25rem; }
     .top-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .badge { border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.78rem; border: 1px solid transparent; }
     .pending { color: #facc15; border-color: rgba(250, 204, 21, 0.5); }
