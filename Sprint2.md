@@ -188,46 +188,64 @@ These are already present in `GeoBookingHandler` and can be connected from the n
 ## 6. Sprint 2 Testing (Unit + Cypress)
 
 ### 6.1 Backend unit tests (Go)
-We added backend unit tests for geo parsing/math helpers:
+We added backend unit tests for geo parsing/math helpers and the new geocoding handler.
+
+#### Test files added
 - `backend/handlers/geo_booking_test.go`
   - `TestHaversineKm_ZeroDistance`
   - `TestParseLatLngRadius_ValidDefaults`
   - `TestParseLatLngRadius_MissingLat`
   - `TestParseLatLngRadius_OutOfBounds`
+- `backend/handlers/geocode_handler_test.go`
+  - `TestGeocodeSearch_MissingQ`
+  - `TestGeocodeSearch_ParsesUpstreamResults` (uses `httptest` to stub upstream Nominatim `/search`)
 
 **Command run:**
 ```powershell
 cd backend
 go test ./...
 ```
-**Result:** Passed (Go tests succeeded).
+**Result:** Passed (all handler/helper tests succeeded).
 
 ### 6.2 Frontend unit tests (Angular)
-We added unit tests for the geo booking service:
+We added unit tests for both the geo service layer and the patient “find care” component UI/state logic.
+
+#### Test files added
 - `frontend/src/app/services/geo-booking.service.spec.ts`
   - tests `geocodeSearch` request params + response shape
   - tests `hospitalsNear` request params + response handling
+- `frontend/src/app/components/patient-find-care/patient-find-care.component.spec.ts`
+  - verifies component error handling when `locationQuery` is empty
+  - verifies successful `runGeocodeSearch()` updates `lat/lng` + selected label (single-hit path)
+  - verifies `pickGeocodeSuggestion()` updates location + coordinates
+  - verifies `useMyLocation()` permission-denied error path (mocked via Jasmine `spyOnProperty`)
+  - verifies `loadHospitals()` calls the correct API arguments and updates `hospitals`
+  - verifies `loadDoctors()` calls the correct API arguments and updates `doctors`
 
 **Command run:**
 ```powershell
 cd frontend
 CI=true npx ng test --watch=false --browsers=ChromeHeadless --progress=false
 ```
-**Result:** Passed (Karma reported success).
+**Result:** Passed (all Angular unit tests succeeded).
 
 ### 6.3 Cypress e2e test (very simple integration)
-We added a minimal e2e test for the patient find-care page:
+We added a minimal e2e test suite for the patient find-care page.
+
+#### Cypress files
 - `frontend/cypress/e2e/find-care.cy.js`
-  - stubs `/api/geocode` and `/api/hospitals/near`
-  - sets localStorage auth for patient role
-  - verifies that nearby hospitals are rendered after clicking the relevant buttons
+  - stubs `/api/geocode` (single hit)
+  - stubs `/api/hospitals/near` and verifies the hospital list renders
+  - stubs `/api/doctors/search` and verifies the doctors list renders
+
+The Cypress test uses `data-cy` selectors added to `PatientFindCareComponent` to keep selectors stable.
 
 **Command run:**
 ```powershell
 cd frontend
 npx cypress run --headless --spec "cypress/e2e/find-care.cy.js"
 ```
-**Result:** Passed (1 spec, 1 test passing).
+**Result:** Passed (1 spec, 2 tests passing).
 
 ---
 

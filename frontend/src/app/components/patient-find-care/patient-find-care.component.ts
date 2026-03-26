@@ -39,22 +39,23 @@ import {
             Location
             <input
               type="text"
+              data-cy="location-query"
               [(ngModel)]="locationQuery"
               (keydown.enter)="runGeocodeSearch()"
               placeholder="City, address, landmark…"
               autocomplete="off"
             />
           </label>
-          <button type="button" class="secondary" (click)="runGeocodeSearch()" [disabled]="loadingGeocode">
+          <button type="button" class="secondary" data-cy="location-search" (click)="runGeocodeSearch()" [disabled]="loadingGeocode">
             Search
           </button>
-          <button type="button" class="secondary" (click)="useMyLocation()" [disabled]="loadingGeo">
+          <button type="button" class="secondary" data-cy="use-my-location" (click)="useMyLocation()" [disabled]="loadingGeo">
             Use my location
           </button>
         </div>
         <ul *ngIf="geocodeSuggestions.length" class="suggestions">
           <li *ngFor="let s of geocodeSuggestions">
-            <button type="button" class="suggest-btn" (click)="pickGeocodeSuggestion(s)">
+            <button type="button" class="suggest-btn" data-cy="geocode-suggestion" (click)="pickGeocodeSuggestion(s)">
               {{ s.display_name }}
             </button>
           </li>
@@ -77,8 +78,8 @@ import {
       </div>
 
       <div class="actions">
-        <button type="button" (click)="loadHospitals()" [disabled]="loading">Hospitals nearby</button>
-        <button type="button" (click)="loadDoctors()" [disabled]="loading">Find doctors</button>
+        <button type="button" data-cy="hospitals-nearby" (click)="loadHospitals()" [disabled]="loading">Hospitals nearby</button>
+        <button type="button" data-cy="find-doctors" (click)="loadDoctors()" [disabled]="loading">Find doctors</button>
       </div>
 
       <div #mapHost class="map-host"></div>
