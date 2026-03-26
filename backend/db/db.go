@@ -54,6 +54,39 @@ func Migrate(ctx context.Context) error {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_appointment_activities_appt ON appointment_activities(appointment_id);
+
+		CREATE TABLE IF NOT EXISTS hospitals (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name       TEXT NOT NULL,
+			city       TEXT NOT NULL DEFAULT '',
+			region     TEXT NOT NULL DEFAULT '',
+			latitude   DOUBLE PRECISION NOT NULL,
+			longitude  DOUBLE PRECISION NOT NULL
+		);
+
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_hospitals_name_region ON hospitals(name, region);
+
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS specialization TEXT NOT NULL DEFAULT '';
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS hospital_id UUID REFERENCES hospitals(id) ON DELETE SET NULL;
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_latitude DOUBLE PRECISION;
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_longitude DOUBLE PRECISION;
+
+		CREATE INDEX IF NOT EXISTS idx_users_doctor_spec ON users(role, specialization) WHERE role = 'doctor';
+
+		CREATE TABLE IF NOT EXISTS doctor_slots (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			doctor_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			start_at    TIMESTAMPTZ NOT NULL,
+			end_at      TIMESTAMPTZ NOT NULL,
+			patient_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+			CONSTRAINT doctor_slots_time_order CHECK (end_at > start_at),
+			CONSTRAINT doctor_slots_unique_start UNIQUE (doctor_id, start_at)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_doctor_slots_doctor_time ON doctor_slots(doctor_id, start_at);
+		CREATE INDEX IF NOT EXISTS idx_doctor_slots_open ON doctor_slots(doctor_id) WHERE patient_id IS NULL;
+
+		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id UUID UNIQUE REFERENCES doctor_slots(id) ON DELETE SET NULL;
 	`)
 	return err
 }
