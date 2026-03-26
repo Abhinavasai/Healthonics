@@ -7,6 +7,7 @@ import { DashboardPlaceholderComponent } from './components/dashboard-placeholde
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
+import { DoctorAppointmentDetailComponent } from './components/doctor-appointment-detail/doctor-appointment-detail.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -45,6 +46,12 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          {
+            path: 'appointments/:id',
+            component: DoctorAppointmentDetailComponent,
+            data: { title: 'Request details', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'appointments',
             component: DoctorAppointmentsComponent,
