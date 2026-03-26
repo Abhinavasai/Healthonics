@@ -58,6 +58,7 @@
               "  const json = pm.response.json();",
               "  pm.expect(json).to.have.property('token');",
               "  pm.environment.set('token', json.token);",
+              "  pm.collectionVariables.set('token', json.token);",
               "});"
             ]
           }
@@ -114,6 +115,9 @@
               "  pm.environment.set('lat', first.lat);",
               "  pm.environment.set('lng', first.lng);",
               "  pm.environment.set('displayName', first.display_name);",
+              "  pm.collectionVariables.set('lat', first.lat);",
+              "  pm.collectionVariables.set('lng', first.lng);",
+              "  pm.collectionVariables.set('displayName', first.display_name);",
               "});"
             ]
           }
@@ -234,6 +238,7 @@
               "  pm.expect(json.doctors).to.be.an('array');",
               "  if (json.doctors.length > 0) {",
               "    pm.environment.set('doctorId', json.doctors[0].id);",
+              "    pm.collectionVariables.set('doctorId', json.doctors[0].id);",
               "  }",
               "});"
             ]
