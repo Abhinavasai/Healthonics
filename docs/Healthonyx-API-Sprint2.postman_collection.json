@@ -1,0 +1,292 @@
+{
+  "info": {
+    "name": "Healthonyx API - Sprint 2 (Geo Find-Care)",
+    "_postman_id": "5a1e6e9c-6c4d-4b7f-9a8e-3b5c1d9df2f8",
+    "description": "Postman collection for Sprint 2 backend testing: geocode -> nearby hospitals -> nearby doctors. It extracts auth token, lat/lng, and doctorId automatically from responses.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /api/login (patient)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"{{patientPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "http://{{baseUrl}}/api/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login returns token', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('token');",
+              "  pm.environment.set('token', json.token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /api/geocode (text -> lat/lng)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/api/geocode?q={{query}}&limit={{geocodeLimit}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "geocode"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "{{query}}"
+            },
+            {
+              "key": "limit",
+              "value": "{{geocodeLimit}}"
+            }
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Geocode returns at least one result', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('results');",
+              "  pm.expect(json.results.length).to.be.greaterThan(0);",
+              "  const first = json.results[0];",
+              "  pm.environment.set('lat', first.lat);",
+              "  pm.environment.set('lng', first.lng);",
+              "  pm.environment.set('displayName', first.display_name);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /api/hospitals/near (lat/lng + radius)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/api/hospitals/near?lat={{lat}}&lng={{lng}}&radius_km={{radiusKm}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "hospitals",
+            "near"
+          ],
+          "query": [
+            {
+              "key": "lat",
+              "value": "{{lat}}"
+            },
+            {
+              "key": "lng",
+              "value": "{{lng}}"
+            },
+            {
+              "key": "radius_km",
+              "value": "{{radiusKm}}"
+            }
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Hospitals near returns a list', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('hospitals');",
+              "  pm.expect(json.hospitals).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /api/doctors/search (nearby + optional specialization)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/api/doctors/search?lat={{lat}}&lng={{lng}}&radius_km={{radiusKm}}&specialization={{specialization}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctors",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "lat",
+              "value": "{{lat}}"
+            },
+            {
+              "key": "lng",
+              "value": "{{lng}}"
+            },
+            {
+              "key": "radius_km",
+              "value": "{{radiusKm}}"
+            },
+            {
+              "key": "specialization",
+              "value": "{{specialization}}"
+            }
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Doctors search returns results and extracts doctorId', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('doctors');",
+              "  pm.expect(json.doctors).to.be.an('array');",
+              "  if (json.doctors.length > 0) {",
+              "    pm.environment.set('doctorId', json.doctors[0].id);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "localhost:8080"
+    },
+    {
+      "key": "patientEmail",
+      "value": "patient@healthonyx.demo"
+    },
+    {
+      "key": "patientPassword",
+      "value": "patient123"
+    },
+    {
+      "key": "query",
+      "value": "Gainesville, FL"
+    },
+    {
+      "key": "geocodeLimit",
+      "value": "5"
+    },
+    {
+      "key": "radiusKm",
+      "value": "50"
+    },
+    {
+      "key": "specialization",
+      "value": "Internal Medicine"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "lat",
+      "value": ""
+    },
+    {
+      "key": "lng",
+      "value": ""
+    },
+    {
+      "key": "doctorId",
+      "value": ""
+    }
+  ]
+}
+
