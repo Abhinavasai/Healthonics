@@ -35,6 +35,7 @@ func main() {
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	appointments := handlers.NewAppointmentHandler()
 	geo := handlers.NewGeoBookingHandler()
+	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
 	r := gin.Default()
 
 	// CORS: allow Angular dev server and any configured origins
@@ -72,6 +73,7 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"message": "Patient only"})
 		})
 
+		api.GET("/geocode", auth.RequireAuth(), auth.RequireRole("patient"), geocode.GeocodeSearch)
 		api.GET("/hospitals/near", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListHospitalsNear)
 		api.GET("/doctors/search", auth.RequireAuth(), auth.RequireRole("patient"), geo.SearchDoctors)
 		api.GET("/doctors/:id/slots", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListOpenSlotsForDoctor)

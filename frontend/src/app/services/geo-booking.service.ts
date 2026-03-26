@@ -28,11 +28,25 @@ export interface DoctorSlotRow {
   available: boolean;
 }
 
+/** OpenStreetMap Nominatim hit via GET /api/geocode (same shape works if you swap to Google later). */
+export interface GeocodeHit {
+  lat: number;
+  lng: number;
+  display_name: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class GeoBookingService {
   private readonly api = '/api';
 
   constructor(private http: HttpClient) {}
+
+  /** Text/address search → coordinates (backend proxies Nominatim; ~1 req/s policy on public OSM). */
+  geocodeSearch(query: string, limit = 5): Observable<{ results: GeocodeHit[] }> {
+    const q = query?.trim() ?? '';
+    let p = new HttpParams().set('q', q).set('limit', String(limit));
+    return this.http.get<{ results: GeocodeHit[] }>(`${this.api}/geocode`, { params: p });
+  }
 
   hospitalsNear(lat: number, lng: number, radiusKm: number): Observable<{ hospitals: HospitalNear[] }> {
     let p = new HttpParams().set('lat', String(lat)).set('lng', String(lng)).set('radius_km', String(radiusKm));
