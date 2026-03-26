@@ -47,7 +47,7 @@ Healthonyx AI Collective
    ```
    Default demo logins (see seed output): e.g. `admin@healthonyx.demo` / `admin123`, `doctor@healthonyx.demo` / `doctor123`, `patient@healthonyx.demo` / `patient123`.
 
-5. Run tests:
+5. Run backend unit tests (Go):
    ```bash
    go test ./...
    ```
@@ -68,11 +68,20 @@ Healthonyx AI Collective
    ```
    The app will be at `http://localhost:4200`. Use **Login** or **Register**; after login you are redirected to the role-specific dashboard (patient, doctor, or admin).
 
-4. Run tests:
+4. Run frontend unit tests (Angular/Jasmine via Karma, once headless):
    ```bash
-   npm run test
+   # from the repo root
+   cd frontend
+   CI=true npx ng test --watch=false --browsers=ChromeHeadless --progress=false
    ```
-5. Production build:
+
+5. Run Cypress e2e test (Find-Care flow):
+   ```bash
+   cd frontend
+   npx cypress run --headless --spec "cypress/e2e/find-care.cy.js"
+   ```
+
+6. Production build:
    ```bash
    npm run build
    ```
@@ -81,6 +90,15 @@ Healthonyx AI Collective
 - Terminal 1: `cd backend && go run .`
 - Terminal 2: `cd frontend && npm start`
 - Open `http://localhost:4200` and log in or register.
+
+Note: if you just cloned the repo and the database is empty, run the backend once (migrations happen on startup) and then run:
+`cd backend && go run ./cmd/seed`
+
+#### Recommended local run order
+1. Start PostgreSQL (Docker or local) and make sure `backend/.env` has `DATABASE_URL`.
+2. Start backend: `cd backend && go run .`
+3. (Optional) Seed demo users: `go run ./cmd/seed`
+4. Start frontend: `cd frontend && npm start`
 
 ### Docker (optional) for PostgreSQL only
 If you prefer to run Postgres in Docker:
