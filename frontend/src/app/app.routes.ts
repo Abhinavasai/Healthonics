@@ -8,6 +8,8 @@ import { PatientAppointmentsComponent } from './components/patient-appointments/
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
 import { DoctorAppointmentDetailComponent } from './components/doctor-appointment-detail/doctor-appointment-detail.component';
+import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
+import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -26,6 +28,12 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          {
+            path: 'find-care',
+            component: PatientFindCareComponent,
+            data: { title: 'Find care', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'appointments/:id',
             component: PatientAppointmentDetailComponent,
@@ -46,6 +54,12 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          {
+            path: 'availability',
+            component: DoctorAvailabilityComponent,
+            data: { title: 'Availability', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'appointments/:id',
             component: DoctorAppointmentDetailComponent,
