@@ -33,11 +33,16 @@ func Migrate(ctx context.Context) error {
 			doctor_id    UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 			scheduled_at TIMESTAMPTZ NOT NULL,
 			reason       TEXT NOT NULL,
-			status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+			status       TEXT NOT NULL DEFAULT 'pending',
 			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			CHECK (patient_id <> doctor_id)
 		);
+
+		ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
+		ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN (
+			'pending', 'approved', 'rejected', 'cancelled', 'completed', 'no_show', 'reschedule_requested'
+		));
 
 		CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id);
 		CREATE INDEX IF NOT EXISTS idx_appointments_doctor_id ON appointments(doctor_id);

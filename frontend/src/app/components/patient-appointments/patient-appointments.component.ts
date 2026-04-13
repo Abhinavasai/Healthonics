@@ -108,19 +108,31 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
         <p *ngIf="!error && !loading && appointments.length === 0" class="muted">
           No appointments yet.
         </p>
-        <ul *ngIf="appointments.length > 0">
+        <ul *ngIf="appointments.length > 0" data-cy="patient-appointments-list">
           <li *ngFor="let appointment of sortedAppointments">
-            <a class="row-link" [routerLink]="['/patient/appointments', appointment.id]">
-              <div class="top-row">
-                <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
-                <span class="badge" [class]="'badge ' + appointment.status">
-                  {{ appointment.status | titlecase }}
-                </span>
-              </div>
-              <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
-              <div class="reason">{{ appointment.reason }}</div>
-              <span class="hint">View details</span>
-            </a>
+            <div class="row-wrap">
+              <a class="row-link" [routerLink]="['/patient/appointments', appointment.id]">
+                <div class="top-row">
+                  <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
+                  <span class="badge" [class]="'badge ' + appointment.status">
+                    {{ appointment.status | titlecase }}
+                  </span>
+                </div>
+                <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
+                <div class="reason">{{ appointment.reason }}</div>
+                <span class="hint">View details</span>
+              </a>
+              <button
+                *ngIf="appointment.status === 'pending' || appointment.status === 'approved'"
+                type="button"
+                class="cancel-btn"
+                [disabled]="cancellingId === appointment.id"
+                (click)="cancelAppointment(appointment.id, $event)"
+                data-cy="patient-appointment-cancel"
+              >
+                Cancel
+              </button>
+            </div>
           </li>
         </ul>
       </div>
@@ -140,6 +152,14 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .summary { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
     li { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 0; overflow: hidden; }
+    .row-wrap { display: flex; align-items: stretch; gap: 0.5rem; }
+    .cancel-btn {
+      align-self: center;
+      margin: 0.5rem;
+      white-space: nowrap;
+      border-color: #f87171;
+      color: #f87171;
+    }
     .row-link {
       display: grid;
       gap: 0.35rem;
@@ -198,6 +218,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
   `]
 })
 export class PatientAppointmentsComponent implements OnInit {
+  cancellingId: string | null = null;
   @ViewChild('dateInput') private dateInputRef?: ElementRef<HTMLInputElement>;
 
   selectedDoctorId = '';
@@ -274,9 +295,17 @@ export class PatientAppointmentsComponent implements OnInit {
   }
 
   get sortedAppointments(): Appointment[] {
-    const rank = { pending: 0, approved: 1, rejected: 2 };
+    const rank: Record<string, number> = {
+      pending: 0,
+      approved: 1,
+      reschedule_requested: 1,
+      rejected: 2,
+      cancelled: 3,
+      completed: 4,
+      no_show: 4
+    };
     return [...this.appointments].sort((a, b) => {
-      const rankDelta = rank[a.status] - rank[b.status];
+      const rankDelta = (rank[a.status] ?? 9) - (rank[b.status] ?? 9);
       if (rankDelta !== 0) {
         return rankDelta;
       }
@@ -310,6 +339,21 @@ export class PatientAppointmentsComponent implements OnInit {
       });
     }
     return slots;
+  }
+
+  cancelAppointment(id: string, ev: Event): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.cancellingId = id;
+    this.appointmentsService
+      .cancelAsPatient(id)
+      .pipe(finalize(() => (this.cancellingId = null)))
+      .subscribe({
+        next: () => this.load(),
+        error: (err) => {
+          this.error = err?.error?.error ?? 'Could not cancel';
+        }
+      });
   }
 
   submit(): void {

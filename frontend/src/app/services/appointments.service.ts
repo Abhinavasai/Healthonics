@@ -8,7 +8,7 @@ export interface Appointment {
   doctor_id: string;
   scheduled_at: string;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -53,7 +53,11 @@ export class AppointmentsService {
     return this.http.get<DoctorListResponse>(`${this.CoreAPI}/doctors`);
   }
 
-  updateStatus(id: string, status: 'approved' | 'rejected'): Observable<Appointment> {
+  updateStatus(id: string, status: string): Observable<Appointment> {
     return this.http.patch<Appointment>(`${this.API}/${id}/status`, { status });
+  }
+
+  cancelAsPatient(id: string): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.CoreAPI}/patient/appointments/${id}/cancel`, {});
   }
 }
