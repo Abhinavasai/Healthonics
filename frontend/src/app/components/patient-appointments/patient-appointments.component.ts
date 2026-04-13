@@ -31,6 +31,14 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
         </label>
         <div class="schedule-grid">
           <label>
+            Timezone
+            <select name="selectedTimezone" [(ngModel)]="selectedTimezone" (ngModelChange)="onScheduleInputsChanged()">
+              <option *ngFor="let tz of timezoneOptions" [value]="tz.value">
+                {{ tz.label }}
+              </option>
+            </select>
+          </label>
+          <label>
             Date
             <div class="date-row">
               <input
@@ -39,6 +47,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
                 name="selectedDate"
                 [(ngModel)]="selectedDate"
                 required
+                (ngModelChange)="onScheduleInputsChanged()"
                 (click)="openDatePicker()"
               />
               <button
@@ -66,11 +75,14 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
               [(ngModel)]="selectedTime"
               required
             >
-              <option *ngFor="let slot of daySlots" [value]="slot.value">
+              <option *ngFor="let slot of availableDaySlots" [value]="slot.value">
                 {{ slot.label }}
               </option>
             </select>
           </label>
+          <span class="field-hint" *ngIf="availableDaySlots.length === 0">
+            No valid future slots for the selected date and timezone.
+          </span>
         </div>
 
         <label>
@@ -203,7 +215,20 @@ export class PatientAppointmentsComponent implements OnInit {
   selectedDoctorId = '';
   selectedDate = this.getTodayLocalDate();
   selectedTime = '09:00';
+  selectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   reason = '';
+  readonly timezoneOptions: { value: string; label: string }[] = [
+    { value: 'UTC', label: 'UTC' },
+    { value: 'America/New_York', label: 'America/New_York (ET)' },
+    { value: 'America/Chicago', label: 'America/Chicago (CT)' },
+    { value: 'America/Denver', label: 'America/Denver (MT)' },
+    { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PT)' },
+    { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST)' },
+    { value: 'Europe/London', label: 'Europe/London (UK)' },
+    { value: 'Europe/Berlin', label: 'Europe/Berlin (CET/CEST)' },
+    { value: 'Australia/Sydney', label: 'Australia/Sydney (AET)' },
+  ];
+
   appointments: Appointment[] = [];
   doctors: DoctorOption[] = [];
 
@@ -235,6 +260,7 @@ export class PatientAppointmentsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.onScheduleInputsChanged();
     this.loadDoctors();
     this.load();
   }
@@ -318,6 +344,24 @@ export class PatientAppointmentsComponent implements OnInit {
     return slots;
   }
 
+  get availableDaySlots(): { value: string; label: string; minutes: number }[] {
+    const now = Date.now();
+    return this.daySlots.filter((slot) => {
+      const iso = this.combineDateAndTime(this.selectedDate, slot.value);
+      if (!iso) {
+        return false;
+      }
+      const t = new Date(iso).getTime();
+      return Number.isFinite(t) && t > now;
+    });
+  }
+
+  onScheduleInputsChanged(): void {
+    if (!this.availableDaySlots.some((slot) => slot.value === this.selectedTime)) {
+      this.selectedTime = this.availableDaySlots[0]?.value ?? '';
+    }
+  }
+
   submit(): void {
     this.submitting = true;
     this.formMessage = '';
@@ -325,6 +369,11 @@ export class PatientAppointmentsComponent implements OnInit {
     if (!scheduledAt) {
       this.submitting = false;
       this.formMessage = 'Please choose a valid date and 15-minute time slot.';
+      return;
+    }
+    if (new Date(scheduledAt).getTime() <= Date.now()) {
+      this.submitting = false;
+      this.formMessage = 'Selected appointment time is in the past for the chosen timezone.';
       return;
     }
     const payload = {
@@ -339,7 +388,7 @@ export class PatientAppointmentsComponent implements OnInit {
           this.formMessage = 'Appointment request submitted.';
           this.reason = '';
           this.selectedDate = this.getTodayLocalDate();
-          this.selectedTime = '09:00';
+          this.selectedTime = this.availableDaySlots[0]?.value ?? '09:00';
           this.load();
         },
         error: (err) => {
@@ -354,13 +403,83 @@ export class PatientAppointmentsComponent implements OnInit {
       return null;
     }
     const [year, month, day] = date.split('-').map((v) => Number(v));
-    const hours = Math.floor(mins / 60);
-    const minutes = mins % 60;
-    const local = new Date(year, (month ?? 1) - 1, day ?? 1, hours, minutes, 0, 0);
-    if (Number.isNaN(local.getTime())) {
+    if (!year || !month || !day) {
       return null;
     }
-    return local.toISOString();
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    const utcMs = this.zonedDateTimeToUtcMs(year, month, day, hours, minutes, this.selectedTimezone);
+    if (utcMs === null) {
+      return null;
+    }
+    return new Date(utcMs).toISOString();
+  }
+
+  private zonedDateTimeToUtcMs(
+    year: number,
+    month: number,
+    day: number,
+    hours: number,
+    minutes: number,
+    timeZone: string
+  ): number | null {
+    const desiredUtcLike = Date.UTC(year, month - 1, day, hours, minutes, 0, 0);
+    let guess = desiredUtcLike;
+    for (let i = 0; i < 3; i += 1) {
+      const parts = this.getZonedParts(guess, timeZone);
+      if (!parts) {
+        return null;
+      }
+      const zonedUtcLike = Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day,
+        parts.hour,
+        parts.minute,
+        0,
+        0
+      );
+      const diffMs = desiredUtcLike - zonedUtcLike;
+      guess += diffMs;
+      if (Math.abs(diffMs) < 1000) {
+        break;
+      }
+    }
+    return Number.isFinite(guess) ? guess : null;
+  }
+
+  private getZonedParts(
+    utcMs: number,
+    timeZone: string
+  ): { year: number; month: number; day: number; hour: number; minute: number } | null {
+    let parts: Intl.DateTimeFormatPart[];
+    try {
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        hour12: false,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      parts = dtf.formatToParts(new Date(utcMs));
+    } catch {
+      return null;
+    }
+    const getNum = (type: 'year' | 'month' | 'day' | 'hour' | 'minute') => {
+      const found = parts.find((p) => p.type === type)?.value;
+      return found ? Number(found) : NaN;
+    };
+    const year = getNum('year');
+    const month = getNum('month');
+    const day = getNum('day');
+    const hour = getNum('hour');
+    const minute = getNum('minute');
+    if ([year, month, day, hour, minute].some((v) => Number.isNaN(v))) {
+      return null;
+    }
+    return { year, month, day, hour, minute };
   }
 
   private parseHHMM(value: string): number | null {
