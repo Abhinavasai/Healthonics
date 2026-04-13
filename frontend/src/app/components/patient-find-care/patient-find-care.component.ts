@@ -72,6 +72,18 @@ import {
           <input type="number" step="1" min="1" [(ngModel)]="radiusKm" />
         </label>
         <label>
+          Hospital (optional — load hospitals first)
+          <select
+            class="department-select"
+            data-cy="hospital-select"
+            [(ngModel)]="selectedHospitalId"
+            (ngModelChange)="onHospitalChange()"
+          >
+            <option value="">Any hospital</option>
+            <option *ngFor="let h of hospitals" [value]="h.id">{{ h.name }}</option>
+          </select>
+        </label>
+        <label>
           Department
           <select
             class="department-select"
@@ -80,12 +92,12 @@ import {
             (ngModelChange)="onDepartmentChange()"
           >
             <option value="">Any department</option>
-            <option *ngFor="let department of departments" [value]="department">
+            <option *ngFor="let department of effectiveDepartments" [value]="department">
               {{ department }}
             </option>
           </select>
         </label>
-        <label>
+        <label class="span-2">
           Specialty / problem keyword
           <input type="text" [(ngModel)]="specialization" placeholder="Optional keyword (or pick department)" />
         </label>
@@ -149,6 +161,9 @@ import {
         gap: 0.75rem;
       }
       .span-2 {
+        grid-column: 1 / -1;
+      }
+      label.span-2 {
         grid-column: 1 / -1;
       }
       .search-row {
@@ -294,6 +309,8 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   geocodeSuggestions: GeocodeHit[] = [];
   hospitals: HospitalNear[] = [];
   doctors: DoctorSearchRow[] = [];
+  selectedHospitalId = '';
+  hospitalDepartments: string[] = [];
   readonly departments: string[] = [
     'General Medicine',
     'Internal Medicine',
@@ -458,10 +475,31 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  get effectiveDepartments(): string[] {
+    return this.hospitalDepartments.length ? this.hospitalDepartments : this.departments;
+  }
+
+  onHospitalChange(): void {
+    this.hospitalDepartments = [];
+    this.selectedDepartment = '';
+    if (!this.selectedHospitalId) {
+      return;
+    }
+    this.geo.hospitalDepartments(this.selectedHospitalId).subscribe({
+      next: (res) => {
+        this.hospitalDepartments = res.departments ?? [];
+      },
+      error: () => {
+        this.hospitalDepartments = [];
+      },
+    });
+  }
+
   loadDoctors(): void {
     this.error = '';
     this.loading = true;
-    this.geo.searchDoctors(this.lat, this.lng, this.radiusKm, this.specialization).subscribe({
+    const hid = this.selectedHospitalId.trim() || undefined;
+    this.geo.searchDoctors(this.lat, this.lng, this.radiusKm, this.specialization, hid).subscribe({
       next: (res) => {
         this.doctors = res.doctors ?? [];
         this.loading = false;

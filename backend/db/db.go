@@ -118,6 +118,30 @@ func Migrate(ctx context.Context) error {
 			last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (thread_id, user_id)
 		);
+
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+
+		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS pending_scheduled_at TIMESTAMPTZ;
+
+		ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
+		ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN (
+			'pending', 'approved', 'rejected', 'cancelled', 'reschedule_requested', 'completed', 'no_show'
+		));
+
+		CREATE TABLE IF NOT EXISTS hospital_departments (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			hospital_id UUID NOT NULL REFERENCES hospitals(id) ON DELETE CASCADE,
+			department_name TEXT NOT NULL,
+			UNIQUE (hospital_id, department_name)
+		);
+		CREATE INDEX IF NOT EXISTS idx_hospital_departments_hospital ON hospital_departments(hospital_id);
+
+		CREATE TABLE IF NOT EXISTS user_notification_preferences (
+			user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+			email_appointment_reminders BOOLEAN NOT NULL DEFAULT TRUE,
+			sms_appointment_reminders BOOLEAN NOT NULL DEFAULT FALSE,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
 	`)
 	return err
 }

@@ -3,7 +3,6 @@ import { RegisterComponent } from './components/register/register.component';
 import { LoginComponent } from './components/login/login.component';
 import { LandingComponent } from './components/landing/landing.component';
 import { AppShellComponent } from './components/app-shell/app-shell.component';
-import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
@@ -12,6 +11,9 @@ import { PatientFindCareComponent } from './components/patient-find-care/patient
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { MessagesComponent } from './components/messages/messages.component';
 import { AccountSettingsComponent } from './components/account-settings/account-settings.component';
+import { PatientDashboardComponent } from './components/patient-dashboard/patient-dashboard.component';
+import { DoctorDashboardComponent } from './components/doctor-dashboard/doctor-dashboard.component';
+import { AdminDashboardComponent } from './components/admin-dashboard/admin-dashboard.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -29,7 +31,13 @@ export const routes: Routes = [
         data: { roles: ['patient'] },
         canActivate: [roleGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+          {
+            path: 'dashboard',
+            component: PatientDashboardComponent,
+            data: { title: 'Dashboard', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'find-care',
             component: PatientFindCareComponent,
@@ -73,7 +81,13 @@ export const routes: Routes = [
         data: { roles: ['doctor'] },
         canActivate: [roleGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+          {
+            path: 'dashboard',
+            component: DoctorDashboardComponent,
+            data: { title: 'Dashboard', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'availability',
             component: DoctorAvailabilityComponent,
@@ -114,7 +128,7 @@ export const routes: Routes = [
       },
       {
         path: 'admin',
-        component: DashboardPlaceholderComponent,
+        component: AdminDashboardComponent,
         data: { title: 'Admin', roles: ['admin'] },
         canActivate: [roleGuard]
       }

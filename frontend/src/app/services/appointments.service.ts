@@ -3,13 +3,23 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
+export type AppointmentStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled'
+  | 'reschedule_requested'
+  | 'completed'
+  | 'no_show';
+
 export interface Appointment {
   id: string;
   patient_id: string;
   doctor_id: string;
   scheduled_at: string;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: AppointmentStatus;
+  pending_scheduled_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -76,7 +86,21 @@ export class AppointmentsService {
     return this.http.get<DoctorListResponse>(`${this.CoreAPI}/doctors`);
   }
 
-  updateStatus(id: string, status: 'approved' | 'rejected'): Observable<Appointment> {
+  updateStatus(
+    id: string,
+    status: 'approved' | 'rejected' | 'completed' | 'no_show' | 'cancelled'
+  ): Observable<Appointment> {
     return this.http.patch<Appointment>(`${this.API}/${id}/status`, { status });
+  }
+
+  cancel(id: string, reason?: string): Observable<Appointment> {
+    return this.http.patch<Appointment>(`${this.API}/${id}/cancel`, { reason: reason ?? '' });
+  }
+
+  requestReschedule(id: string, scheduledAt: string, reason?: string): Observable<Appointment> {
+    return this.http.patch<Appointment>(`${this.API}/${id}/request-reschedule`, {
+      scheduled_at: scheduledAt,
+      reason: reason ?? ''
+    });
   }
 }

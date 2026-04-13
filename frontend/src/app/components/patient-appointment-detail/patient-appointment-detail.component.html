@@ -17,13 +17,71 @@
     <div class="card main-card" data-cy="patient-appointment-detail-card">
       <div class="top-row">
         <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
-        <span class="badge" [ngClass]="appointment.status">{{ appointment.status | titlecase }}</span>
+        <span class="badge" [ngClass]="appointment.status">{{ statusLabel(appointment.status) }}</span>
       </div>
       <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
+      @if (appointment.status === 'reschedule_requested' && appointment.pending_scheduled_at) {
+        <div class="pending-slot" data-cy="patient-pending-reschedule">
+          <span class="label">Requested new time</span>
+          <p>{{ appointment.pending_scheduled_at | date: 'medium' }}</p>
+        </div>
+      }
       <div class="reason">
         <span class="label">Reason</span>
         <p>{{ appointment.reason }}</p>
       </div>
+      @if (canCancel(appointment) || canRequestReschedule(appointment)) {
+        <div class="actions patient-actions" data-cy="patient-appointment-actions">
+          @if (canRequestReschedule(appointment)) {
+            <div class="action-block">
+              <span class="label">Request a different time</span>
+              <input
+                type="datetime-local"
+                [(ngModel)]="rescheduleAtLocal"
+                [disabled]="actionLoading"
+                data-cy="patient-reschedule-datetime"
+              />
+              <textarea
+                rows="2"
+                placeholder="Optional note to your doctor"
+                [(ngModel)]="rescheduleReason"
+                [disabled]="actionLoading"
+                data-cy="patient-reschedule-note"
+              ></textarea>
+              <button
+                type="button"
+                class="btn-primary"
+                (click)="requestReschedule()"
+                [disabled]="actionLoading"
+                data-cy="patient-reschedule-submit"
+              >
+                {{ actionLoading ? '…' : 'Request reschedule' }}
+              </button>
+            </div>
+          }
+          @if (canCancel(appointment)) {
+            <div class="action-block">
+              <span class="label">Cancel this appointment</span>
+              <textarea
+                rows="2"
+                placeholder="Optional cancellation reason"
+                [(ngModel)]="cancelReason"
+                [disabled]="actionLoading"
+                data-cy="patient-cancel-reason"
+              ></textarea>
+              <button
+                type="button"
+                class="btn-danger"
+                (click)="cancel()"
+                [disabled]="actionLoading"
+                data-cy="patient-cancel-submit"
+              >
+                {{ actionLoading ? '…' : 'Cancel appointment' }}
+              </button>
+            </div>
+          }
+        </div>
+      }
     </div>
 
     <app-appointment-activity-timeline

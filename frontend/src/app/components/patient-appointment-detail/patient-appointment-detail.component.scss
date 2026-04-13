@@ -90,6 +90,115 @@ h1 {
   border-color: rgba(248, 113, 113, 0.5);
 }
 
+.badge.cancelled,
+.badge.no_show {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+.badge.completed {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.badge.reschedule_requested {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.55);
+}
+
+.pending-slot {
+  margin-top: 0.65rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.pending-slot .label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fcd34d;
+  margin-bottom: 0.2rem;
+}
+
+.pending-slot p {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.actions.patient-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  display: grid;
+  gap: 1rem;
+}
+
+.action-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.action-block .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.action-block input[type='datetime-local'],
+.action-block textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  font-size: 0.88rem;
+}
+
+.action-block textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.btn-primary {
+  width: fit-content;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+  color: #a5f3fc;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: rgba(34, 211, 238, 0.2);
+}
+
+.btn-danger {
+  width: fit-content;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:disabled,
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .meta {
   color: #94a3b8;
   margin-top: 0.5rem;

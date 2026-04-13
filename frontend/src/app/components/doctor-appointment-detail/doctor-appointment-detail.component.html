@@ -17,9 +17,15 @@
     <div class="card main-card" data-cy="doctor-appointment-detail-card">
       <div class="top-row">
         <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
-        <span class="badge" [ngClass]="appointment.status">{{ appointment.status | titlecase }}</span>
+        <span class="badge" [ngClass]="appointment.status">{{ statusLabel(appointment.status) }}</span>
       </div>
       <div class="meta">Patient: {{ appointment.patient_id }}</div>
+      @if (appointment.status === 'reschedule_requested' && appointment.pending_scheduled_at) {
+        <div class="pending-slot" data-cy="doctor-pending-reschedule">
+          <span class="label">Patient requested new time</span>
+          <p>{{ appointment.pending_scheduled_at | date: 'medium' }}</p>
+        </div>
+      }
       <div class="reason">
         <span class="label">Reason</span>
         <p>{{ appointment.reason }}</p>
@@ -44,6 +50,59 @@
             [disabled]="deciding"
           >
             {{ deciding ? '…' : 'Reject' }}
+          </button>
+        </div>
+      }
+      @if (appointment.status === 'reschedule_requested') {
+        <div class="actions" data-cy="doctor-reschedule-actions">
+          <button
+            type="button"
+            class="btn-approve"
+            data-cy="doctor-reschedule-approve"
+            (click)="doctorAct('approved')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'Approve new time' }}
+          </button>
+          <button
+            type="button"
+            class="btn-reject"
+            data-cy="doctor-reschedule-reject"
+            (click)="doctorAct('rejected')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'Keep original time' }}
+          </button>
+        </div>
+      }
+      @if (appointment.status === 'approved') {
+        <div class="actions" data-cy="doctor-post-visit-actions">
+          <button
+            type="button"
+            class="btn-neutral"
+            data-cy="doctor-detail-completed"
+            (click)="doctorAct('completed')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'Mark completed' }}
+          </button>
+          <button
+            type="button"
+            class="btn-warn"
+            data-cy="doctor-detail-noshow"
+            (click)="doctorAct('no_show')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'No-show' }}
+          </button>
+          <button
+            type="button"
+            class="btn-reject"
+            data-cy="doctor-detail-cancelled"
+            (click)="doctorAct('cancelled')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'Cancel appointment' }}
           </button>
         </div>
       }

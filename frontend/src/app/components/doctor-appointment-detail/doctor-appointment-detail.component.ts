@@ -6,8 +6,11 @@ import { catchError, distinctUntilChanged, filter, finalize, map, switchMap, tap
 import {
   Appointment,
   AppointmentActivity,
+  AppointmentStatus,
   AppointmentsService
 } from '../../services/appointments.service';
+
+export type DoctorStatusAction = 'approved' | 'rejected' | 'completed' | 'no_show' | 'cancelled';
 import { AppointmentActivityTimelineComponent } from '../appointment-activity-timeline/appointment-activity-timeline.component';
 
 @Component({
@@ -79,7 +82,11 @@ export class DoctorAppointmentDetailComponent implements OnInit, OnDestroy {
     );
   }
 
-  decide(status: 'approved' | 'rejected'): void {
+  statusLabel(s: AppointmentStatus): string {
+    return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  doctorAct(status: DoctorStatusAction): void {
     if (!this.appointmentId || this.deciding) {
       return;
     }
@@ -111,6 +118,11 @@ export class DoctorAppointmentDetailComponent implements OnInit, OnDestroy {
         finalize(() => (this.deciding = false))
       )
       .subscribe();
+  }
+
+  /** Initial review of a new request */
+  decide(status: 'approved' | 'rejected'): void {
+    this.doctorAct(status);
   }
 
   refreshActivities(): void {

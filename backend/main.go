@@ -35,6 +35,9 @@ func main() {
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	bootstrap := handlers.NewBootstrapHandler()
 	appointments := handlers.NewAppointmentHandler()
+	dashboard := handlers.NewDashboardHandler()
+	adminUsers := handlers.NewAdminUsersHandler()
+	prefs := handlers.NewNotificationPreferencesHandler()
 	messaging := handlers.NewMessagingHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
@@ -63,7 +66,16 @@ func main() {
 
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
+		api.GET("/me/notification-preferences", auth.RequireAuth(), prefs.Get)
+		api.PUT("/me/notification-preferences", auth.RequireAuth(), prefs.Put)
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
+
+		api.GET("/dashboard/patient", auth.RequireAuth(), auth.RequireRole("patient"), dashboard.Patient)
+		api.GET("/dashboard/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), dashboard.Doctor)
+		api.GET("/dashboard/admin", auth.RequireAuth(), auth.RequireRole("admin"), dashboard.Admin)
+
+		api.GET("/admin/users", auth.RequireAuth(), auth.RequireRole("admin"), adminUsers.ListUsers)
+		api.PATCH("/admin/users/:id", auth.RequireAuth(), auth.RequireRole("admin"), adminUsers.PatchUser)
 
 		// Role-protected: demonstrates 403 when role doesn't match
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
@@ -78,6 +90,7 @@ func main() {
 
 		api.GET("/geocode", auth.RequireAuth(), auth.RequireRole("patient"), geocode.GeocodeSearch)
 		api.GET("/hospitals/near", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListHospitalsNear)
+		api.GET("/hospitals/:id/departments", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListHospitalDepartments)
 		api.GET("/doctors/search", auth.RequireAuth(), auth.RequireRole("patient"), geo.SearchDoctors)
 		api.GET("/doctors/:id/slots", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListOpenSlotsForDoctor)
 		api.POST("/doctor/slots", auth.RequireAuth(), auth.RequireRole("doctor"), geo.CreateSlot)
@@ -85,6 +98,8 @@ func main() {
 		api.POST("/appointments/book-slot", auth.RequireAuth(), auth.RequireRole("patient"), geo.BookSlot)
 
 		api.POST("/appointments", auth.RequireAuth(), auth.RequireRole("patient"), appointments.Create)
+		api.PATCH("/appointments/:id/cancel", auth.RequireAuth(), auth.RequireRole("patient"), appointments.PatientCancel)
+		api.PATCH("/appointments/:id/request-reschedule", auth.RequireAuth(), auth.RequireRole("patient"), appointments.PatientRequestReschedule)
 		api.GET("/appointments/patient", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListPatient)
 		api.GET("/appointments/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.ListDoctor)
 		api.GET("/appointments/:id/activity", auth.RequireAuth(), appointments.ListActivity)

@@ -85,10 +85,12 @@ export class AppShellComponent implements OnInit, OnDestroy {
 
   get navLinks(): { path: string; label: string; roles: string[] }[] {
     const all = [
+      { path: '/patient/dashboard', label: 'Dashboard', roles: ['patient'] },
       { path: '/patient/find-care', label: 'Find care', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
       { path: '/patient/messages', label: 'Messages', roles: ['patient'] },
       { path: '/patient/settings', label: 'Account', roles: ['patient'] },
+      { path: '/doctor/dashboard', label: 'Dashboard', roles: ['doctor'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
       { path: '/doctor/messages', label: 'Messages', roles: ['doctor'] },

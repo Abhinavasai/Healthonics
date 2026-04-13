@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
-import { Appointment, AppointmentsService } from '../../services/appointments.service';
+import { Appointment, AppointmentStatus, AppointmentsService } from '../../services/appointments.service';
 
 @Component({
   selector: 'app-doctor-appointments',
@@ -31,7 +31,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
                 <div class="top-row">
                   <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
                   <span class="badge" [class]="'badge ' + appointment.status">
-                    {{ appointment.status | titlecase }}
+                    {{ statusLabel(appointment.status) }}
                   </span>
                 </div>
                 <div class="meta">Patient: {{ appointment.patient_id }}</div>
@@ -44,6 +44,14 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
                 </button>
                 <button type="button" (click)="updateStatus(appointment.id, 'rejected')" [disabled]="processingId === appointment.id">
                   Reject
+                </button>
+              </div>
+              <div class="actions" *ngIf="appointment.status === 'reschedule_requested'">
+                <button type="button" (click)="updateStatus(appointment.id, 'approved')" [disabled]="processingId === appointment.id">
+                  Approve new time
+                </button>
+                <button type="button" (click)="updateStatus(appointment.id, 'rejected')" [disabled]="processingId === appointment.id">
+                  Keep original
                 </button>
               </div>
             </div>
@@ -75,6 +83,9 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
     .pending { color: #facc15; border-color: rgba(250, 204, 21, 0.5); }
     .approved { color: #22c55e; border-color: rgba(34, 197, 94, 0.5); }
     .rejected { color: #f87171; border-color: rgba(248, 113, 113, 0.5); }
+    .cancelled, .no_show { color: #94a3b8; border-color: rgba(148, 163, 184, 0.45); }
+    .completed { color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); }
+    .reschedule_requested { color: #fbbf24; border-color: rgba(251, 191, 36, 0.55); }
     .meta { color: #94a3b8; margin-top: 0.25rem; font-size: 0.85rem; }
     .reason { margin-top: 0.4rem; }
     .actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
@@ -111,7 +122,14 @@ export class DoctorAppointmentsComponent implements OnInit {
       });
   }
 
-  updateStatus(id: string, status: 'approved' | 'rejected'): void {
+  statusLabel(s: AppointmentStatus): string {
+    return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  updateStatus(
+    id: string,
+    status: 'approved' | 'rejected' | 'completed' | 'no_show' | 'cancelled'
+  ): void {
     this.processingId = id;
     this.appointmentsService.updateStatus(id, status)
       .pipe(finalize(() => (this.processingId = '')))

@@ -52,6 +52,23 @@ func main() {
 		fmt.Printf("Hospital: %s — %s, %s\n", h.name, h.city, h.region)
 	}
 
+	_, err := db.Pool.Exec(ctx, `
+		INSERT INTO hospital_departments (hospital_id, department_name)
+		SELECT h.id, d.dep
+		FROM hospitals h
+		CROSS JOIN (
+			VALUES
+				('Emergency Medicine'), ('Internal Medicine'), ('Cardiology'), ('Family Medicine'),
+				('Orthopedics'), ('Neurology'), ('Pediatrics'), ('Surgery')
+		) AS d(dep)
+		ON CONFLICT (hospital_id, department_name) DO NOTHING
+	`)
+	if err != nil {
+		log.Printf("hospital_departments seed: %v", err)
+	} else {
+		fmt.Println("Seeded hospital departments (per hospital).")
+	}
+
 	users := []struct {
 		email string
 		pass  string
@@ -92,7 +109,7 @@ func main() {
 
 	// One demo open slot for the demo doctor (tomorrow 10:00 UTC window — adjust in app as needed)
 	var docID uuid.UUID
-	err := db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email = 'doctor@healthonyx.demo' AND role = 'doctor'`).Scan(&docID)
+	err = db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email = 'doctor@healthonyx.demo' AND role = 'doctor'`).Scan(&docID)
 	if err != nil {
 		log.Printf("demo slot: doctor id: %v", err)
 	} else {

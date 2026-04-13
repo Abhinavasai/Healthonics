@@ -3,7 +3,12 @@ import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { Appointment, AppointmentsService, DoctorOption } from '../../services/appointments.service';
+import {
+  Appointment,
+  AppointmentStatus,
+  AppointmentsService,
+  DoctorOption
+} from '../../services/appointments.service';
 
 @Component({
   selector: 'app-patient-appointments',
@@ -126,7 +131,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
               <div class="top-row">
                 <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
                 <span class="badge" [class]="'badge ' + appointment.status">
-                  {{ appointment.status | titlecase }}
+                  {{ statusLabel(appointment.status) }}
                 </span>
               </div>
               <div class="meta">Doctor: {{ doctorLabel(appointment) }}</div>
@@ -166,6 +171,9 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .pending { color: #facc15; border-color: rgba(250, 204, 21, 0.5); }
     .approved { color: #22c55e; border-color: rgba(34, 197, 94, 0.5); }
     .rejected { color: #f87171; border-color: rgba(248, 113, 113, 0.5); }
+    .cancelled, .no_show { color: #94a3b8; border-color: rgba(148, 163, 184, 0.45); }
+    .completed { color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); }
+    .reschedule_requested { color: #fbbf24; border-color: rgba(251, 191, 36, 0.55); }
     .meta { color: #94a3b8; margin-top: 0.25rem; font-size: 0.85rem; }
     .reason { margin-top: 0.4rem; }
     .error { color: #f87171; }
@@ -306,14 +314,28 @@ export class PatientAppointmentsComponent implements OnInit {
   }
 
   get sortedAppointments(): Appointment[] {
-    const rank = { pending: 0, approved: 1, rejected: 2 };
+    const rank: Record<string, number> = {
+      pending: 0,
+      reschedule_requested: 1,
+      approved: 2,
+      completed: 3,
+      no_show: 4,
+      cancelled: 5,
+      rejected: 6
+    };
     return [...this.appointments].sort((a, b) => {
-      const rankDelta = rank[a.status] - rank[b.status];
+      const ra = rank[a.status] ?? 99;
+      const rb = rank[b.status] ?? 99;
+      const rankDelta = ra - rb;
       if (rankDelta !== 0) {
         return rankDelta;
       }
       return new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime();
     });
+  }
+
+  statusLabel(s: AppointmentStatus): string {
+    return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   get pendingCount(): number {

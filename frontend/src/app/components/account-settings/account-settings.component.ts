@@ -1,14 +1,17 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, TitleCasePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService, UserProfile } from '../../services/auth.service';
+import { DashboardService, NotificationPreferences } from '../../services/dashboard.service';
 
 /** Account summary for patients and doctors (Sprint 3 feature 01 — Abhinav). */
 @Component({
   selector: 'app-account-settings',
   standalone: true,
-  imports: [CommonModule, RouterModule, TitleCasePipe],
+  imports: [CommonModule, FormsModule, RouterModule, TitleCasePipe],
   template: `
     <section class="account" data-cy="account-settings-page">
       <header class="toolbar">
@@ -33,6 +36,39 @@ import { AuthService, UserProfile } from '../../services/auth.service';
           {{ loading ? 'Refreshing…' : 'Refresh from server' }}
         </button>
       </div>
+
+      <div *ngIf="!loading && profile && profile.role !== 'admin'" class="card prefs" data-cy="notification-preferences-card">
+        <h2 class="card-title">Notifications</h2>
+        <p class="lede small">Reminder preferences (stored on the server).</p>
+        <p *ngIf="prefsError" class="error">{{ prefsError }}</p>
+        <label class="check">
+          <input
+            type="checkbox"
+            [(ngModel)]="prefs.email_appointment_reminders"
+            [disabled]="prefsSaving"
+            data-cy="pref-email-reminders"
+          />
+          Email appointment reminders
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            [(ngModel)]="prefs.sms_appointment_reminders"
+            [disabled]="prefsSaving"
+            data-cy="pref-sms-reminders"
+          />
+          SMS appointment reminders
+        </label>
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="savePrefs()"
+          [disabled]="prefsSaving"
+          data-cy="notification-prefs-save"
+        >
+          {{ prefsSaving ? 'Saving…' : 'Save notification preferences' }}
+        </button>
+      </div>
     </section>
   `,
   styles: [`
@@ -50,16 +86,28 @@ import { AuthService, UserProfile } from '../../services/auth.service';
     .btn-secondary:disabled { opacity: 0.55; cursor: not-allowed; }
     .error { color: #f87171; margin: 0; }
     .muted { color: #94a3b8; margin: 0; }
+    .prefs { margin-top: 0.75rem; }
+    .card-title { margin: 0 0 0.35rem; font-size: 1.05rem; color: #f1f5f9; }
+    .lede.small { font-size: 0.82rem; margin: 0 0 0.75rem; }
+    .check { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.55rem; font-size: 0.9rem; color: #e2e8f0; cursor: pointer; }
+    .check input { width: 1rem; height: 1rem; accent-color: #22d3ee; }
   `]
 })
 export class AccountSettingsComponent implements OnInit {
   profile: UserProfile | null = null;
   loading = false;
   error = '';
+  prefs: NotificationPreferences = {
+    email_appointment_reminders: true,
+    sms_appointment_reminders: false
+  };
+  prefsSaving = false;
+  prefsError = '';
 
   constructor(
     private auth: AuthService,
-    private router: Router
+    private router: Router,
+    private dashboard: DashboardService
   ) {}
 
   ngOnInit(): void {
@@ -67,25 +115,61 @@ export class AccountSettingsComponent implements OnInit {
   }
 
   get backLabel(): string {
-    return this.auth.getUser()?.role === 'doctor' ? 'Back to queue' : 'Back to appointments';
+    return this.auth.getUser()?.role === 'doctor' ? 'Back to dashboard' : 'Back to dashboard';
   }
 
   back(): void {
     const role = this.auth.getUser()?.role;
-    void this.router.navigate([role === 'doctor' ? '/doctor/appointments' : '/patient/appointments']);
+    void this.router.navigate([role === 'doctor' ? '/doctor/dashboard' : '/patient/dashboard']);
   }
 
   reload(): void {
     this.loading = true;
     this.error = '';
-    this.auth
-      .refreshProfile()
+    const role = this.auth.getUser()?.role;
+    const prefs$ =
+      role === 'admin'
+        ? of(null as NotificationPreferences | null)
+        : this.dashboard.getNotificationPreferences().pipe(
+            catchError(() => {
+              this.prefsError = 'Unable to load notification preferences.';
+              return of(null as NotificationPreferences | null);
+            })
+          );
+
+    forkJoin({
+      profile: this.auth.refreshProfile(),
+      prefs: prefs$
+    })
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: (u) => (this.profile = u),
+        next: ({ profile, prefs: p }) => {
+          this.profile = profile;
+          this.prefsError = '';
+          if (p) {
+            this.prefs = { ...p };
+          }
+        },
         error: (err) => {
           this.profile = this.auth.getUser();
           this.error = err?.error?.error ?? 'Unable to load profile from server.';
+        }
+      });
+  }
+
+  savePrefs(): void {
+    if (this.prefsSaving || this.profile?.role === 'admin') {
+      return;
+    }
+    this.prefsSaving = true;
+    this.prefsError = '';
+    this.dashboard
+      .putNotificationPreferences(this.prefs)
+      .pipe(finalize(() => (this.prefsSaving = false)))
+      .subscribe({
+        next: (p) => (this.prefs = { ...p }),
+        error: (err) => {
+          this.prefsError = err?.error?.error ?? 'Unable to save preferences.';
         }
       });
   }

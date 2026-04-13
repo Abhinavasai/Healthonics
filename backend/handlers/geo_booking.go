@@ -142,6 +142,15 @@ func (h *GeoBookingHandler) SearchDoctors(c *gin.Context) {
 		return
 	}
 	spec := strings.TrimSpace(c.Query("specialization"))
+	var filterHospitalID *uuid.UUID
+	if hs := strings.TrimSpace(c.Query("hospital_id")); hs != "" {
+		hid, err := uuid.Parse(hs)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "hospital_id must be a valid UUID"})
+			return
+		}
+		filterHospitalID = &hid
+	}
 
 	rows, err := db.Pool.Query(c.Request.Context(), `
 		SELECT u.id, u.email, u.specialization, u.hospital_id,
@@ -169,6 +178,11 @@ func (h *GeoBookingHandler) SearchDoctors(c *gin.Context) {
 		}
 		if spec != "" && !strings.Contains(strings.ToLower(specialization), strings.ToLower(spec)) {
 			continue
+		}
+		if filterHospitalID != nil {
+			if hid == nil || *hid != *filterHospitalID {
+				continue
+			}
 		}
 
 		var effLat, effLng float64
@@ -407,12 +421,11 @@ func (h *GeoBookingHandler) BookSlot(c *gin.Context) {
 	}
 
 	var appt models.Appointment
-	err = tx.QueryRow(c.Request.Context(), `
+	err = scanAppointment(tx.QueryRow(c.Request.Context(), `
 		INSERT INTO appointments (patient_id, doctor_id, scheduled_at, reason, status, slot_id)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
-	`, claims.UserID, doctorID, startAt, reason, models.AppointmentStatusPending, slotID).
-		Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+		RETURNING id, patient_id, doctor_id, scheduled_at, reason, status, pending_scheduled_at, created_at, updated_at
+	`, claims.UserID, doctorID, startAt, reason, models.AppointmentStatusPending, slotID), &appt)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique") && strings.Contains(err.Error(), "slot_id") {
 			c.JSON(http.StatusConflict, gin.H{"error": "This slot is already booked"})
@@ -435,4 +448,40 @@ func (h *GeoBookingHandler) BookSlot(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, appt)
+}
+
+// ListHospitalDepartments returns curated departments for a hospital (for find-care funnel).
+func (h *GeoBookingHandler) ListHospitalDepartments(c *gin.Context) {
+	if _, ok := getClaims(c); !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid hospital id"})
+		return
+	}
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT department_name FROM hospital_departments
+		WHERE hospital_id = $1
+		ORDER BY department_name ASC
+	`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+	names := make([]string, 0)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		names = append(names, name)
+	}
+	if rows.Err() != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"departments": names})
 }

@@ -53,13 +53,27 @@ export class GeoBookingService {
     return this.http.get<{ hospitals: HospitalNear[] }>(`${this.api}/hospitals/near`, { params: p });
   }
 
-  searchDoctors(lat: number, lng: number, radiusKm: number, specialization: string): Observable<{ doctors: DoctorSearchRow[] }> {
+  searchDoctors(
+    lat: number,
+    lng: number,
+    radiusKm: number,
+    specialization: string,
+    hospitalId?: string
+  ): Observable<{ doctors: DoctorSearchRow[] }> {
     let p = new HttpParams().set('lat', String(lat)).set('lng', String(lng)).set('radius_km', String(radiusKm));
     const spec = specialization?.trim();
     if (spec) {
       p = p.set('specialization', spec);
     }
+    const hid = hospitalId?.trim();
+    if (hid) {
+      p = p.set('hospital_id', hid);
+    }
     return this.http.get<{ doctors: DoctorSearchRow[] }>(`${this.api}/doctors/search`, { params: p });
+  }
+
+  hospitalDepartments(hospitalId: string): Observable<{ departments: string[] }> {
+    return this.http.get<{ departments: string[] }>(`${this.api}/hospitals/${hospitalId}/departments`);
   }
 
   listDoctorSlots(doctorId: string): Observable<{ slots: DoctorSlotRow[] }> {

@@ -121,12 +121,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	var id uuid.UUID
 	var passwordHash, role string
+	var active bool
 	err := db.Pool.QueryRow(c.Request.Context(),
-		`SELECT id, password_hash, role FROM users WHERE email = $1`, req.Email,
-	).Scan(&id, &passwordHash, &role)
+		`SELECT id, password_hash, role, COALESCE(active, TRUE) FROM users WHERE email = $1`, req.Email,
+	).Scan(&id, &passwordHash, &role, &active)
 
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+	if !active {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Account is disabled"})
 		return
 	}
 
@@ -207,6 +212,24 @@ func (h *AuthHandler) RequireAuth() gin.HandlerFunc {
 		claims, ok := token.Claims.(*Claims)
 		if !ok || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+		var active bool
+		err = db.Pool.QueryRow(c.Request.Context(),
+			`SELECT COALESCE(active, TRUE) FROM users WHERE id = $1`, claims.UserID,
+		).Scan(&active)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			}
+			c.Abort()
+			return
+		}
+		if !active {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Account is disabled"})
 			c.Abort()
 			return
 		}
