@@ -1,24 +1,27 @@
-import { CommonModule, DOCUMENT, TitleCasePipe } from '@angular/common';
+import { CommonModule, DOCUMENT, TitleCasePipe, AsyncPipe } from '@angular/common';
 import { Component, HostListener, Inject, OnDestroy, OnInit } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
-import { filter, Subscription } from 'rxjs';
+import { filter, Subscription, timer, switchMap } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { MessagingService } from '../../services/messaging.service';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, TitleCasePipe],
+  imports: [CommonModule, RouterModule, TitleCasePipe, AsyncPipe],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss'
 })
 export class AppShellComponent implements OnInit, OnDestroy {
-  /** Mobile drawer (Sprint 3 F02 — Karthik): pairs with existing `.sidebar.open` styles. */
+  /** Mobile drawer: pairs with `.sidebar.open` styles. */
   mobileNavOpen = false;
 
   private navEndSub?: Subscription;
+  private unreadPoll?: Subscription;
 
   constructor(
     public auth: AuthService,
+    public messaging: MessagingService,
     private router: Router,
     @Inject(DOCUMENT) private doc: Document
   ) {}
@@ -27,10 +30,14 @@ export class AppShellComponent implements OnInit, OnDestroy {
     this.navEndSub = this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => this.closeMobileNav());
+    this.unreadPoll = timer(0, 30_000)
+      .pipe(switchMap(() => this.messaging.refreshUnread()))
+      .subscribe();
   }
 
   ngOnDestroy(): void {
     this.navEndSub?.unsubscribe();
+    this.unreadPoll?.unsubscribe();
     this.doc.body.style.overflow = '';
   }
 
@@ -67,13 +74,23 @@ export class AppShellComponent implements OnInit, OnDestroy {
     this.auth.logout();
   }
 
+  /** False for routes with detail children (appointments/:id, messages/:threadId). */
+  isExactNavPath(path: string): boolean {
+    if (path.endsWith('/appointments') || path.endsWith('/messages')) {
+      return false;
+    }
+    return true;
+  }
+
   get navLinks(): { path: string; label: string; roles: string[] }[] {
     const all = [
       { path: '/patient/find-care', label: 'Find care', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
+      { path: '/patient/messages', label: 'Messages', roles: ['patient'] },
       { path: '/patient/settings', label: 'Account', roles: ['patient'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
+      { path: '/doctor/messages', label: 'Messages', roles: ['doctor'] },
       { path: '/doctor/settings', label: 'Account', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] }
     ];
