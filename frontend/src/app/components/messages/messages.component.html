@@ -60,12 +60,18 @@
             placeholder="Say hello and add context…"
             data-cy="messages-new-body"
           ></textarea>
+          <span
+            class="char-count"
+            data-cy="messages-new-count"
+            [class.char-count--warn]="newThreadRunes > maxMessageRunes * 0.9"
+            [class.char-count--bad]="newThreadOverLimit"
+            >{{ newThreadRunes }} / {{ maxMessageRunes }}</span>
         </label>
         <button
           type="button"
           class="btn-send-primary"
           (click)="createThread()"
-          [disabled]="sending"
+          [disabled]="sending || newThreadOverLimit"
           data-cy="messages-send-new"
         >
           {{ sending ? 'Starting…' : 'Start conversation' }}
@@ -131,13 +137,19 @@
               <h2 data-cy="messages-thread-title">{{ selectedPeerEmail }}</h2>
               <p class="chat-header__status">
                 <span class="pulse-dot"></span>
-                Active thread
+                Active thread · checks for new messages every 25s
               </p>
             </div>
           </div>
         </div>
 
-        <div #chatBody class="chat-body" data-cy="messages-chat-body">
+        <div
+          #chatBody
+          class="chat-body"
+          data-cy="messages-chat-body"
+          aria-live="polite"
+          aria-relevant="additions text"
+        >
           <p *ngIf="loadingMessages" class="loading-line">Loading messages…</p>
           <div *ngFor="let m of messages" class="bubble-row" [class.bubble-row--mine]="isMine(m)">
             <div class="bubble" [class.bubble--mine]="isMine(m)" data-cy="messages-bubble">
@@ -157,11 +169,17 @@
             (keydown.control.enter)="send()"
             (keydown.meta.enter)="send()"
           ></textarea>
+          <span
+            class="char-count"
+            data-cy="messages-reply-count"
+            [class.char-count--warn]="replyRunes > maxMessageRunes * 0.9"
+            [class.char-count--bad]="replyOverLimit"
+            >{{ replyRunes }} / {{ maxMessageRunes }}</span>
           <button
             type="button"
             class="btn-send-primary"
             (click)="send()"
-            [disabled]="sending || !replyBody.trim()"
+            [disabled]="sending || !replyBody.trim() || replyOverLimit"
             data-cy="messages-send-reply"
           >
             {{ sending ? 'Sending…' : 'Send' }}

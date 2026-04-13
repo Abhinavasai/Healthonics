@@ -11,7 +11,7 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { AppointmentsService } from '../../services/appointments.service';
 
-/** Inbox + thread view for patients and doctors (Sprint 3 feature 9). */
+/** Inbox + thread view for patients and doctors (Sprint 3 feature 9 + F10 limits / compose UX). */
 @Component({
   selector: 'app-messages',
   standalone: true,
@@ -42,6 +42,9 @@ export class MessagesComponent implements OnInit, OnDestroy {
   private pollSub?: Subscription;
   private readonly pollMs = 25000;
 
+  /** Matches backend `maxMessageRunes` in messaging handler. */
+  readonly maxMessageRunes = 8000;
+
   constructor(
     private messaging: MessagingService,
     private auth: AuthService,
@@ -65,6 +68,27 @@ export class MessagesComponent implements OnInit, OnDestroy {
   get selectedPeerEmail(): string {
     const t = this.threads.find((x) => x.id === this.selectedThreadId);
     return t?.peer_email ?? 'Conversation';
+  }
+
+  /** Unicode-aware length for parity with server-side rune cap. */
+  runeLen(s: string): number {
+    return [...(s || '')].length;
+  }
+
+  get newThreadRunes(): number {
+    return this.runeLen(this.newThreadBody);
+  }
+
+  get replyRunes(): number {
+    return this.runeLen(this.replyBody);
+  }
+
+  get newThreadOverLimit(): boolean {
+    return this.newThreadRunes > this.maxMessageRunes;
+  }
+
+  get replyOverLimit(): boolean {
+    return this.replyRunes > this.maxMessageRunes;
   }
 
   ngOnInit(): void {
@@ -157,6 +181,10 @@ export class MessagesComponent implements OnInit, OnDestroy {
     if (!tid || !text || this.sending) {
       return;
     }
+    if (this.replyOverLimit) {
+      this.error = `Message is too long (max ${this.maxMessageRunes} characters).`;
+      return;
+    }
     this.sending = true;
     this.messaging
       .sendMessage(tid, text)
@@ -180,6 +208,10 @@ export class MessagesComponent implements OnInit, OnDestroy {
       this.role === 'patient' ? this.selectedDoctorId.trim() : this.peerPatientId.trim();
     if (!peer || !body) {
       this.error = 'Choose a recipient and enter a message.';
+      return;
+    }
+    if (this.newThreadOverLimit) {
+      this.error = `First message is too long (max ${this.maxMessageRunes} characters).`;
       return;
     }
     this.sending = true;
