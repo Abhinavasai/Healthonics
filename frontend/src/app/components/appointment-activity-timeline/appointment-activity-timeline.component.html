@@ -1,0 +1,36 @@
+<section class="timeline-wrap" data-cy="appointment-activity-timeline">
+  <div class="section-head">
+    <h2>Activity</h2>
+    <p class="section-lede">History of updates on this appointment.</p>
+  </div>
+
+  @if (error) {
+    <p class="banner error" data-cy="appointment-activity-error">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <p class="muted" data-cy="appointment-activity-loading">Loading activity…</p>
+  } @else if (!error && activities.length === 0) {
+    <p class="empty" data-cy="appointment-activity-empty">No activity yet. Updates appear here after actions (for example, when your doctor approves or rejects).</p>
+  } @else {
+    <ol class="timeline" data-cy="appointment-activity-list">
+      @for (a of activities; track a.id) {
+        <li class="timeline-item" data-cy="appointment-activity-row">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="card">
+            <div class="row-top">
+              <strong>{{ headline(a) }}</strong>
+              <time [attr.datetime]="a.created_at">{{ a.created_at | date: 'medium' }}</time>
+            </div>
+            @if (subline(a)) {
+              <p class="meta">{{ subline(a) }}</p>
+            }
+            @if (a.detail && a.action !== 'status_changed') {
+              <p class="detail">{{ a.detail }}</p>
+            }
+          </div>
+        </li>
+      }
+    </ol>
+  }
+</section>

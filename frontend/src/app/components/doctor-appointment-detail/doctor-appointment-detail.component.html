@@ -1,0 +1,54 @@
+<section class="detail-page" data-cy="doctor-appointment-detail-page">
+  <header class="hero">
+    <button type="button" class="back" (click)="back()">Back to queue</button>
+    <h1>Request details</h1>
+    <p class="subtitle">Review the request, take action, and see the full activity trail.</p>
+  </header>
+
+  @if (pageError) {
+    <p class="banner error" data-cy="doctor-appointment-detail-error">{{ pageError }}</p>
+  }
+
+  @if (loading && !appointment) {
+    <p class="muted" data-cy="doctor-appointment-detail-loading">Loading…</p>
+  }
+
+  @if (appointment) {
+    <div class="card main-card" data-cy="doctor-appointment-detail-card">
+      <div class="top-row">
+        <strong>{{ appointment.scheduled_at | date: 'medium' }}</strong>
+        <span class="badge" [ngClass]="appointment.status">{{ appointment.status | titlecase }}</span>
+      </div>
+      <div class="meta">Patient: {{ appointment.patient_id }}</div>
+      <div class="reason">
+        <span class="label">Reason</span>
+        <p>{{ appointment.reason }}</p>
+      </div>
+
+      @if (appointment.status === 'pending') {
+        <div class="actions" data-cy="doctor-appointment-detail-actions">
+          <button
+            type="button"
+            class="btn-approve"
+            data-cy="doctor-detail-approve"
+            (click)="decide('approved')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'Approve' }}
+          </button>
+          <button
+            type="button"
+            class="btn-reject"
+            data-cy="doctor-detail-reject"
+            (click)="decide('rejected')"
+            [disabled]="deciding"
+          >
+            {{ deciding ? '…' : 'Reject' }}
+          </button>
+        </div>
+      }
+    </div>
+
+    <app-appointment-activity-timeline [loading]="false" [error]="activityError" [activities]="activities" />
+  }
+</section>

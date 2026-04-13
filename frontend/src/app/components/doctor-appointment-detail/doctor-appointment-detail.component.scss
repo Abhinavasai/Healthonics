@@ -1,0 +1,158 @@
+.detail-page {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1rem;
+  padding: 0 0.25rem;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.back {
+  width: fit-content;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #64748b;
+  background: #0f172a;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.back:hover {
+  border-color: #22d3ee;
+  color: #22d3ee;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.subtitle {
+  margin: 0;
+  color: #a7b0be;
+  font-size: 0.9rem;
+}
+
+.banner.error {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  margin: 0;
+}
+
+.muted {
+  color: #94a3b8;
+  margin: 0;
+}
+
+.main-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
+  border: 1px solid transparent;
+}
+
+.badge.pending {
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+.badge.approved {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.badge.rejected {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.meta {
+  color: #94a3b8;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.reason {
+  margin-top: 0.85rem;
+}
+
+.reason .label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.reason p {
+  margin: 0;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.actions button {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-approve {
+  border: 1px solid #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.btn-approve:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.22);
+}
+
+.btn-reject {
+  border: 1px solid #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.18);
+}
