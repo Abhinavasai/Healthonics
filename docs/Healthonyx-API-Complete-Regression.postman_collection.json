@@ -1,0 +1,245 @@
+{
+  "info": {
+    "name": "Healthonyx API - Complete Regression",
+    "_postman_id": "ff6eb274-a91d-445a-85e4-1f8ea2f117aa",
+    "description": "Complete backend regression collection for currently implemented features (auth, bootstrap, geo, slots, appointments, activity, documents, messaging).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth and Core",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "POST /api/login (patient)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('patientToken', j.token);",
+                  "pm.collectionVariables.set('patientUserId', j.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"{{patientPassword}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api", "login"] }
+          }
+        },
+        {
+          "name": "POST /api/login (doctor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('doctorToken', j.token);",
+                  "pm.collectionVariables.set('doctorUserId', j.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"{{doctorPassword}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api", "login"] }
+          }
+        },
+        {
+          "name": "GET /api/me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/me", "host": ["{{baseUrl}}"], "path": ["api", "me"] }
+          }
+        },
+        {
+          "name": "GET /api/bootstrap",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/bootstrap", "host": ["{{baseUrl}}"], "path": ["api", "bootstrap"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Geo and Slots",
+      "item": [
+        {
+          "name": "GET /api/geocode",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/geocode?q={{geoQuery}}&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "geocode"],
+              "query": [{ "key": "q", "value": "{{geoQuery}}" }, { "key": "limit", "value": "5" }]
+            }
+          }
+        },
+        {
+          "name": "GET /api/hospitals/near",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/hospitals/near?lat={{lat}}&lng={{lng}}&radius_km=25",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hospitals", "near"],
+              "query": [{ "key": "lat", "value": "{{lat}}" }, { "key": "lng", "value": "{{lng}}" }, { "key": "radius_km", "value": "25" }]
+            }
+          }
+        },
+        {
+          "name": "GET /api/doctors/search",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctors/search?lat={{lat}}&lng={{lng}}&radius_km=25&specialization=Internal%20Medicine",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctors", "search"],
+              "query": [{ "key": "lat", "value": "{{lat}}" }, { "key": "lng", "value": "{{lng}}" }, { "key": "radius_km", "value": "25" }, { "key": "specialization", "value": "Internal Medicine" }]
+            }
+          }
+        },
+        {
+          "name": "GET /api/doctors/:id/slots",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/doctors/{{doctorUserId}}/slots", "host": ["{{baseUrl}}"], "path": ["api", "doctors", "{{doctorUserId}}", "slots"] }
+          }
+        },
+        {
+          "name": "GET /api/doctor/slots",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/doctor/slots", "host": ["{{baseUrl}}"], "path": ["api", "doctor", "slots"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments and Activity",
+      "item": [
+        {
+          "name": "POST /api/appointments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('appointmentId', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"doctor_id\": \"{{doctorUserId}}\",\n  \"scheduled_at\": \"{{scheduledAtIso}}\",\n  \"reason\": \"Regression test\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] }
+          }
+        },
+        {
+          "name": "PATCH /api/appointments/:id/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/status", "host": ["{{baseUrl}}"], "path": ["api", "appointments", "{{appointmentId}}", "status"] }
+          }
+        },
+        {
+          "name": "GET /api/appointments/:id/activity",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/activity", "host": ["{{baseUrl}}"], "path": ["api", "appointments", "{{appointmentId}}", "activity"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents and Messaging",
+      "item": [
+        {
+          "name": "GET /api/documents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] }
+          }
+        },
+        {
+          "name": "GET /api/messages/compose-limits",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/messages/compose-limits", "host": ["{{baseUrl}}"], "path": ["api", "messages", "compose-limits"] }
+          }
+        },
+        {
+          "name": "GET /api/messages/threads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/messages/threads", "host": ["{{baseUrl}}"], "path": ["api", "messages", "threads"] }
+          }
+        },
+        {
+          "name": "GET /api/messages/unread",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/messages/unread", "host": ["{{baseUrl}}"], "path": ["api", "messages", "unread"] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "patientEmail", "value": "patient@healthonyx.demo" },
+    { "key": "patientPassword", "value": "patient123" },
+    { "key": "doctorEmail", "value": "doctor@healthonyx.demo" },
+    { "key": "doctorPassword", "value": "doctor123" },
+    { "key": "patientToken", "value": "" },
+    { "key": "doctorToken", "value": "" },
+    { "key": "patientUserId", "value": "" },
+    { "key": "doctorUserId", "value": "" },
+    { "key": "appointmentId", "value": "" },
+    { "key": "geoQuery", "value": "Gainesville, FL" },
+    { "key": "lat", "value": "29.6516" },
+    { "key": "lng", "value": "-82.3248" },
+    { "key": "scheduledAtIso", "value": "2026-12-01T14:00:00Z" }
+  ]
+}
+
