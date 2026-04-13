@@ -9,10 +9,11 @@ This file supports **course submission**: paste the **GitHub** link in the LMS, 
 | Item | Value |
 |------|--------|
 | **GitHub repository** | [https://github.com/Abhinavasai/Healthonyx](https://github.com/Abhinavasai/Healthonyx) |
-| **Sprint 3 integration branch** | `s3-feature-updates-healthonyx` |
+| **Primary branch for commits** | **`dev`** — the team integrates ongoing work here; feature branches are merged into **`dev`**. |
+| **Sprint 3 integration branch (topic)** | `s3-feature-updates-healthonyx` — Sprint 3 feature work; typically merged into **`dev`** when integrated. |
 | **Related planning docs** | `docs/sprint3-assigned-features.md`, `docs/sprint3-merge-order.md`, `docs/BRANCHES.md` |
 
-Graders may review **per-commit authorship** on this branch (and feature branches merged into it). Each teammate should have **distinct commits** with meaningful messages.
+Graders may review **per-commit authorship** on **`dev`** (and on feature branches that merge into **`dev`**). Each teammate should have **distinct commits** with meaningful messages.
 
 ---
 
@@ -22,7 +23,7 @@ Graders may review **per-commit authorship** on this branch (and feature branche
 |----------------|----------------|
 | **Primary URL** | The GitHub repo link above (or the branch URL if your rubric requires it). |
 | **Comments / additional links** | Links to **narrated videos** (Part 1, Part 2, unlisted YouTube, Drive with sharing, etc.). |
-| **Attachments** | If allowed, export this file as PDF or link to **Sprint3.md** on the `main`/`dev`/integration branch **tagged at submission time**. |
+| **Attachments** | If allowed, export this file as PDF or link to **Sprint3.md** on **`dev`** (preferred, where commits land) or `main`, **tagged at submission time**. |
 
 ---
 
@@ -47,7 +48,7 @@ Your instructor asked for a **narrated** recording that **splits narration acros
 
 | Segment | Owner (fill names) | Content |
 |---------|-------------------|---------|
-| 0:00–1:30 | Member 1 | Problem recap, repo link, branch name, demo environment (DB + seed). |
+| 0:00–1:30 | Member 1 | Problem recap, repo link, mention **`dev`** as the commit/integration branch, demo environment (DB + seed). |
 | 1:30–6:00 | Member 2 | Backend: REST highlights + **Postman** folder walk. |
 | 6:00–11:00 | Member 3 | Frontend: patient + doctor + admin paths. |
 | 11:00–14:00 | Member 4 | **Unit tests** (both stacks) + quick Cypress/Newman mention if time. |
@@ -149,7 +150,7 @@ Customize the bullets below with **your** ticket/story IDs and owner names if th
 
 ### 5.2 Data and migrations
 
-- Migrations run **on startup** via `db.Migrate` (see `backend/main.go`). They include tables/columns needed for **appointment activities**, **dashboards**, **preferences**, **admin flags**, etc., as implemented on the integration branch.
+- Migrations run **on startup** via `db.Migrate` (see `backend/main.go`). They include tables/columns needed for **appointment activities**, **dashboards**, **preferences**, **admin flags**, etc., as implemented on **`dev`**.
 
 ### 5.3 Frontend — routes and UX (high level)
 
@@ -342,7 +343,7 @@ Requires API + `ng serve` per `docs/MANUAL-TESTING.md`.
 
 ## 10. Notes for graders
 
-- **Commits:** Credit is tied to **individual commits** — verify authors on `s3-feature-updates-healthonyx` and merged feature branches.
+- **Commits:** Credit is tied to **individual commits** — verify authors on **`dev`** (primary integration branch) and on feature branches merged into **`dev`** (including `s3-feature-updates-healthonyx` where used).
 - **Tests:** Default `go test ./...` should pass; frontend **12** unit tests as listed. Integration tests may **skip** unless env vars are set (that is expected).
 - **Single source:** This file path is **`Sprint3.md`** at the repository root; GitHub renders Markdown on the web UI.
 
