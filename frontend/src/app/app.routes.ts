@@ -11,6 +11,7 @@ import { DoctorAppointmentDetailComponent } from './components/doctor-appointmen
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { MessagesComponent } from './components/messages/messages.component';
+import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -57,6 +58,12 @@ export const routes: Routes = [
             path: 'messages/:threadId',
             component: MessagesComponent,
             data: { title: 'Messages', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'prescriptions',
+            component: PatientPrescriptionsComponent,
+            data: { title: 'My prescriptions', roles: ['patient'] },
             canActivate: [roleGuard]
           }
         ]

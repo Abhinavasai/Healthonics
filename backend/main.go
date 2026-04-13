@@ -36,6 +36,7 @@ func main() {
 	bootstrap := handlers.NewBootstrapHandler()
 	appointments := handlers.NewAppointmentHandler()
 	messaging := handlers.NewMessagingHandler()
+	prescriptions := handlers.NewPrescriptionsHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
 	r := gin.Default()
@@ -91,6 +92,10 @@ func main() {
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
+
+		api.GET("/patients/:patientId/prescriptions", auth.RequireAuth(), prescriptions.ListByPatient)
+		api.POST("/patients/:patientId/prescriptions", auth.RequireAuth(), auth.RequireRole("doctor"), prescriptions.Create)
+		api.PATCH("/prescriptions/:id/revoke", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), prescriptions.Revoke)
 
 		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
 		{
