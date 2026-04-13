@@ -32,6 +32,7 @@ export interface AppointmentActivity {
   id: string;
   appointment_id: string;
   actor_user_id: string;
+  actor_email?: string;
   action: string;
   detail?: string;
   created_at: string;

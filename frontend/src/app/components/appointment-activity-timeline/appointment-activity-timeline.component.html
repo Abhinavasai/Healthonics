@@ -23,7 +23,7 @@
               <time [attr.datetime]="a.created_at">{{ a.created_at | date: 'medium' }}</time>
             </div>
             @if (subline(a)) {
-              <p class="meta">{{ subline(a) }}</p>
+              <p class="meta" data-cy="appointment-activity-actor">{{ subline(a) }}</p>
             }
             @if (a.detail && a.action !== 'status_changed') {
               <p class="detail">{{ a.detail }}</p>

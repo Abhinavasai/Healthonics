@@ -30,6 +30,9 @@ export class AppointmentActivityTimelineComponent {
   }
 
   subline(a: AppointmentActivity): string {
+    if (a.actor_email) {
+      return `Actor ${a.actor_email}`;
+    }
     const short = a.actor_user_id?.slice(0, 8) ?? '';
     return short ? `Actor ${short}…` : '';
   }
