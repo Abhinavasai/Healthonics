@@ -30,6 +30,7 @@ export class AppShellComponent {
 
   get navLinks(): { path: string; label: string; roles: string[] }[] {
     const all = [
+      { path: '/patient/dashboard', label: 'Dashboard', roles: ['patient'] },
       { path: '/patient/find-care', label: 'Find care', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
       { path: '/patient/settings', label: 'Account', roles: ['patient'] },
