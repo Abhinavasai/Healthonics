@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,6 +24,14 @@ func NewPatientDocumentsHandler() *PatientDocumentsHandler {
 type patientUploadResponse struct {
 	ID       uuid.UUID `json:"id"`
 	Filename string    `json:"filename"`
+}
+
+type patientDocumentRow struct {
+	ID          uuid.UUID `json:"id"`
+	Filename    string    `json:"filename"`
+	SizeBytes   int64     `json:"size_bytes"`
+	ContentType string    `json:"content_type"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Upload accepts multipart form field "file" and stores metadata (and bytes) for doctor visibility
@@ -86,4 +95,62 @@ func (h *PatientDocumentsHandler) Upload(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, patientUploadResponse{ID: id, Filename: filename})
+}
+
+// List returns all documents uploaded by the authenticated patient.
+func (h *PatientDocumentsHandler) List(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT id, filename, size_bytes, content_type, created_at
+		FROM patient_documents
+		WHERE patient_id = $1
+		ORDER BY created_at DESC
+	`, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load documents"})
+		return
+	}
+	defer rows.Close()
+
+	out := make([]patientDocumentRow, 0)
+	for rows.Next() {
+		var r patientDocumentRow
+		if err := rows.Scan(&r.ID, &r.Filename, &r.SizeBytes, &r.ContentType, &r.CreatedAt); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load documents"})
+			return
+		}
+		out = append(out, r)
+	}
+	c.JSON(http.StatusOK, gin.H{"documents": out})
+}
+
+// Download streams a patient's own uploaded file.
+func (h *PatientDocumentsHandler) Download(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document id"})
+		return
+	}
+	var filename, contentType string
+	var payload []byte
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT filename, content_type, file_data
+		FROM patient_documents
+		WHERE id = $1 AND patient_id = $2
+	`, id, claims.UserID).Scan(&filename, &contentType, &payload)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
+		return
+	}
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, contentType, payload)
 }

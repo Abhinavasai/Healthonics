@@ -91,7 +91,9 @@ func main() {
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
 
-		api.POST("/patient/documents", auth.RequireAuth(), auth.RequireRole("patient"), patientDocs.Upload)
+		api.GET("/documents", auth.RequireAuth(), auth.RequireRole("patient"), patientDocs.List)
+		api.POST("/documents", auth.RequireAuth(), auth.RequireRole("patient"), patientDocs.Upload)
+		api.GET("/documents/:id/download", auth.RequireAuth(), auth.RequireRole("patient"), patientDocs.Download)
 
 		api.GET("/doctor/documents", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocs.List)
 		api.POST("/doctor/documents/:id/summarize", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocs.Summarize)
