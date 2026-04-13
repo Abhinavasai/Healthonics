@@ -1,0 +1,75 @@
+<section class="timeline-wrap" data-cy="appointment-activity-timeline">
+  <div class="section-head">
+    <div class="head-text">
+      <h2>Activity</h2>
+      <p class="section-lede">History of updates on this appointment. Refresh pulls the latest from the server.</p>
+    </div>
+    <button
+      type="button"
+      class="btn-refresh"
+      data-cy="appointment-activity-refresh"
+      (click)="onRefresh()"
+      [disabled]="refreshing || loading"
+    >
+      @if (refreshing) {
+        <span class="spin" aria-hidden="true">↻</span>
+      }
+      <span>{{ refreshing ? 'Refreshing…' : 'Refresh' }}</span>
+    </button>
+  </div>
+
+  @if (error) {
+    <p class="banner error" data-cy="appointment-activity-error">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <p class="muted" data-cy="appointment-activity-loading">Loading activity…</p>
+  } @else if (!error && activities.length === 0) {
+    <p class="empty" data-cy="appointment-activity-empty">No activity yet. Updates appear here after actions (for example, when your doctor approves or rejects).</p>
+  } @else {
+    <ol class="timeline" data-cy="appointment-activity-list">
+      @for (a of activities; track a.id) {
+        <li class="timeline-item" data-cy="appointment-activity-row">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="card" [class.card-expanded]="isExpanded(a)">
+            <div class="row-top">
+              <strong>{{ headline(a) }}</strong>
+              <time [attr.datetime]="a.created_at">{{ a.created_at | date: 'medium' }}</time>
+            </div>
+            @if (subline(a)) {
+              <p class="meta" data-cy="appointment-activity-actor">{{ subline(a) }}</p>
+            }
+            @if (a.detail && a.action !== 'status_changed') {
+              <p class="detail">{{ a.detail }}</p>
+            }
+            @if (hasExpandable(a)) {
+              <button
+                type="button"
+                class="btn-details"
+                data-cy="appointment-activity-details"
+                (click)="toggleExpand(a.id)"
+                [attr.aria-expanded]="isExpanded(a)"
+              >
+                {{ isExpanded(a) ? 'Hide details' : 'Details' }}
+              </button>
+            }
+            @if (isExpanded(a)) {
+              <div class="expand-panel" data-cy="appointment-activity-expanded">
+                <dl>
+                  <dt>Action</dt>
+                  <dd>{{ a.action }}</dd>
+                  @if (a.detail) {
+                    <dt>Detail</dt>
+                    <dd>{{ a.detail }}</dd>
+                  }
+                  <dt>Actor id</dt>
+                  <dd class="mono">{{ a.actor_user_id }}</dd>
+                </dl>
+              </div>
+            }
+          </div>
+        </li>
+      }
+    </ol>
+  }
+</section>
