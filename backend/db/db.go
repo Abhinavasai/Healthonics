@@ -55,6 +55,16 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_appointment_activities_appt ON appointment_activities(appointment_id);
 
+		CREATE TABLE IF NOT EXISTS appointment_comments (
+			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			appointment_id  UUID NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+			author_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			body            TEXT NOT NULL,
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_appointment_comments_appt ON appointment_comments(appointment_id);
+
 		CREATE TABLE IF NOT EXISTS hospitals (
 			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name       TEXT NOT NULL,

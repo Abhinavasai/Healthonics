@@ -53,6 +53,16 @@ export class AppointmentsService {
     return this.http.get<DoctorListResponse>(`${this.CoreAPI}/doctors`);
   }
 
+  listComments(appointmentId: string): Observable<{ comments: { id: string; author_user_id: string; body: string; created_at: string }[] }> {
+    return this.http.get<{ comments: { id: string; author_user_id: string; body: string; created_at: string }[] }>(
+      `${this.CoreAPI}/appointments/${appointmentId}/comments`
+    );
+  }
+
+  postComment(appointmentId: string, body: string): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>(`${this.CoreAPI}/appointments/${appointmentId}/comments`, { body });
+  }
+
   updateStatus(id: string, status: 'approved' | 'rejected'): Observable<Appointment> {
     return this.http.patch<Appointment>(`${this.API}/${id}/status`, { status });
   }
