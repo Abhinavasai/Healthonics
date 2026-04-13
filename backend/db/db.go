@@ -78,6 +78,18 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_users_doctor_spec ON users(role, specialization) WHERE role = 'doctor';
 
+		CREATE TABLE IF NOT EXISTS audit_logs (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+			action        TEXT NOT NULL,
+			entity_type   TEXT NOT NULL,
+			entity_id     TEXT NOT NULL DEFAULT '',
+			detail        TEXT NOT NULL DEFAULT '',
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
+
 		CREATE TABLE IF NOT EXISTS doctor_slots (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			doctor_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
