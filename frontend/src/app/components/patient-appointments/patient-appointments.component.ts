@@ -117,7 +117,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
                   {{ appointment.status | titlecase }}
                 </span>
               </div>
-              <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
+              <div class="meta">Doctor: {{ doctorLabel(appointment) }}</div>
               <div class="reason">{{ appointment.reason }}</div>
               <span class="hint">View details</span>
             </a>
@@ -294,6 +294,10 @@ export class PatientAppointmentsComponent implements OnInit {
 
   get rejectedCount(): number {
     return this.appointments.filter((a) => a.status === 'rejected').length;
+  }
+
+  doctorLabel(appointment: Appointment): string {
+    return appointment.doctor_email ?? appointment.doctor_id;
   }
 
   get daySlots(): { value: string; label: string; minutes: number }[] {

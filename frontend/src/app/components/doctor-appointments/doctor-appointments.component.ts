@@ -34,7 +34,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
                     {{ appointment.status | titlecase }}
                   </span>
                 </div>
-                <div class="meta">Patient: {{ appointment.patient_id }}</div>
+                <div class="meta">Patient: {{ patientLabel(appointment) }}</div>
                 <div class="reason">{{ appointment.reason }}</div>
                 <span class="hint">View details</span>
               </a>
@@ -121,5 +121,9 @@ export class DoctorAppointmentsComponent implements OnInit {
           this.error = err?.error?.error ?? 'Unable to update appointment status';
         }
       });
+  }
+
+  patientLabel(appointment: Appointment): string {
+    return appointment.patient_email ?? appointment.patient_id;
   }
 }

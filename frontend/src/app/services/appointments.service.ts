@@ -6,7 +6,9 @@ import { map } from 'rxjs/operators';
 export interface Appointment {
   id: string;
   patient_id: string;
+  patient_email?: string;
   doctor_id: string;
+  doctor_email?: string;
   scheduled_at: string;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
