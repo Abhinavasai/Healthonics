@@ -34,12 +34,18 @@
   <aside class="sidebar">
     <nav>
       @for (link of navLinks; track link.path) {
-        <a routerLink="{{ link.path }}" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">
+        <a
+          routerLink="{{ link.path }}"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: isExactNavPath(link.path) }"
+          class="nav-item"
+        >
           <span class="nav-icon">
             @if (link.path === '/patient/find-care') { 📍 }
             @if (link.path === '/patient/appointments') { 🧑‍⚕️ }
             @if (link.path === '/doctor/availability') { 📅 }
             @if (link.path === '/doctor/appointments') { 👨‍⚕️ }
+            @if (link.path === '/doctor/documents') { 📋 }
             @if (link.path === '/admin') { 🛡️ }
           </span>
           <span class="nav-label">{{ link.label }}</span>
