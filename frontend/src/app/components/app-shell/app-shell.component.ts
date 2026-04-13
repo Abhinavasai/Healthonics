@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
-import { CommonModule, TitleCasePipe } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { CommonModule, DOCUMENT, TitleCasePipe } from '@angular/common';
+import { Component, HostListener, Inject, OnDestroy, OnInit } from '@angular/core';
+import { NavigationEnd, Router, RouterModule } from '@angular/router';
+import { filter, Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -10,11 +11,49 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss'
 })
-export class AppShellComponent {
+export class AppShellComponent implements OnInit, OnDestroy {
+  /** Mobile drawer (Sprint 3 F02 — Karthik): pairs with existing `.sidebar.open` styles. */
+  mobileNavOpen = false;
+
+  private navEndSub?: Subscription;
+
   constructor(
     public auth: AuthService,
-    private router: Router
+    private router: Router,
+    @Inject(DOCUMENT) private doc: Document
   ) {}
+
+  ngOnInit(): void {
+    this.navEndSub = this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => this.closeMobileNav());
+  }
+
+  ngOnDestroy(): void {
+    this.navEndSub?.unsubscribe();
+    this.doc.body.style.overflow = '';
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeCloseNav(): void {
+    if (this.mobileNavOpen) {
+      this.closeMobileNav();
+    }
+  }
+
+  toggleMobileNav(): void {
+    this.mobileNavOpen = !this.mobileNavOpen;
+    this.syncBodyScrollLock();
+  }
+
+  closeMobileNav(): void {
+    this.mobileNavOpen = false;
+    this.syncBodyScrollLock();
+  }
+
+  private syncBodyScrollLock(): void {
+    this.doc.body.style.overflow = this.mobileNavOpen ? 'hidden' : '';
+  }
 
   get user() {
     return this.auth.getUser();
