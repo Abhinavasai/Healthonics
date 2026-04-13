@@ -60,7 +60,12 @@ export class AuthService {
   }
 
   redirectToDashboard(role: string): void {
-    const path = role === 'admin' ? '/admin' : role === 'doctor' ? '/doctor' : '/patient';
+    const path =
+      role === 'admin'
+        ? '/admin'
+        : role === 'doctor'
+          ? '/doctor/dashboard'
+          : '/patient/dashboard';
     this.router.navigate([path]);
   }
 }

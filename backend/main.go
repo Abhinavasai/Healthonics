@@ -34,6 +34,7 @@ func main() {
 
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	bootstrap := handlers.NewBootstrapHandler()
+	dashboard := handlers.NewDashboardHandler()
 	appointments := handlers.NewAppointmentHandler()
 	messaging := handlers.NewMessagingHandler()
 	prescriptions := handlers.NewPrescriptionsHandler()
@@ -69,6 +70,8 @@ func main() {
 		api.GET("/me", auth.RequireAuth(), auth.Me)
 		api.GET("/notifications", auth.RequireAuth(), notifications.ListMine)
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
+		api.GET("/patient/dashboard/summary", auth.RequireAuth(), auth.RequireRole("patient"), dashboard.PatientSummary)
+		api.GET("/doctor/dashboard/summary", auth.RequireAuth(), auth.RequireRole("doctor"), dashboard.DoctorSummary)
 
 		// Role-protected: demonstrates 403 when role doesn't match
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
