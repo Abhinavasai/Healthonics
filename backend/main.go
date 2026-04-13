@@ -38,7 +38,9 @@ func main() {
 	messaging := handlers.NewMessagingHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
+	patientFiles := handlers.NewPatientFilesHandler(cfg.UploadDir)
 	r := gin.Default()
+	r.MaxMultipartMemory = 8 << 20 // 8 MiB multipart buffer (handler still enforces 5 MiB file cap)
 
 	// CORS: allow Angular dev server and any configured origins
 	var origins []string
@@ -91,6 +93,10 @@ func main() {
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
+
+		api.GET("/patients/:patientId/files", auth.RequireAuth(), patientFiles.List)
+		api.POST("/patients/:patientId/files", auth.RequireAuth(), patientFiles.Upload)
+		api.GET("/files/:id", auth.RequireAuth(), patientFiles.Download)
 
 		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
 		{

@@ -118,6 +118,20 @@ func Migrate(ctx context.Context) error {
 			last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (thread_id, user_id)
 		);
+
+		CREATE TABLE IF NOT EXISTS patient_files (
+			id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			uploaded_by    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			description    TEXT NOT NULL DEFAULT '',
+			original_name  TEXT NOT NULL,
+			stored_name    TEXT NOT NULL UNIQUE,
+			mime_type      TEXT NOT NULL,
+			byte_size      BIGINT NOT NULL CHECK (byte_size >= 0 AND byte_size <= 5242880),
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_patient_files_patient ON patient_files(patient_id);
 	`)
 	return err
 }
