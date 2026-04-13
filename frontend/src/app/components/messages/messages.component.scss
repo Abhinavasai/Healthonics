@@ -657,3 +657,27 @@
     line-height: 1.55;
   }
 }
+
+/* F10 — compose limits (matches backend max runes) */
+.char-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  align-self: flex-end;
+}
+
+.char-count--warn {
+  color: #fbbf24;
+}
+
+.char-count--bad {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.field .char-count {
+  margin-top: 0.15rem;
+}
+
+.composer .char-count {
+  margin-top: -0.25rem;
+}
