@@ -32,6 +32,7 @@ export class AppShellComponent {
     const all = [
       { path: '/patient/find-care', label: 'Find care', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
+      { path: '/patient/documents', label: 'My documents', roles: ['patient'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] }

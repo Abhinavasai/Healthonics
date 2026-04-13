@@ -9,6 +9,7 @@ import { PatientAppointmentDetailComponent } from './components/patient-appointm
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
 import { DoctorAppointmentDetailComponent } from './components/doctor-appointment-detail/doctor-appointment-detail.component';
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
+import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
@@ -44,6 +45,12 @@ export const routes: Routes = [
             path: 'appointments',
             component: PatientAppointmentsComponent,
             data: { title: 'Patient Appointments', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'documents',
+            component: PatientDocumentsComponent,
+            data: { title: 'My documents', roles: ['patient'] },
             canActivate: [roleGuard]
           }
         ]
