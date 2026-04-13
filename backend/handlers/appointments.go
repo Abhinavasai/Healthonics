@@ -351,8 +351,16 @@ func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	status := strings.ToLower(strings.TrimSpace(req.Status))
-	if status != models.AppointmentStatusApproved && status != models.AppointmentStatusRejected {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be approved or rejected"})
+	allowedDoctor := map[string]bool{
+		models.AppointmentStatusApproved:                  true,
+		models.AppointmentStatusRejected:                  true,
+		models.AppointmentStatusCompleted:               true,
+		models.AppointmentStatusNoShow:                    true,
+		models.AppointmentStatusCancelled:                 true,
+		models.AppointmentStatusRescheduleRequested:       true,
+	}
+	if !allowedDoctor[status] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status for doctor update"})
 		return
 	}
 
@@ -384,6 +392,63 @@ func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
 		INSERT INTO appointment_activities (appointment_id, actor_user_id, action, detail)
 		VALUES ($1, $2, $3, $4)
 	`, appt.ID, claims.UserID, "status_changed", status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, appt)
+}
+
+func (h *AppointmentHandler) PatientCancel(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "patient" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appointment id"})
+		return
+	}
+
+	tx, err := db.Pool.Begin(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	var appt models.Appointment
+	err = tx.QueryRow(c.Request.Context(), `
+		UPDATE appointments
+		SET status = $1, updated_at = NOW()
+		WHERE id = $2 AND patient_id = $3 AND status IN ($4, $5)
+		RETURNING id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
+	`, models.AppointmentStatusCancelled, id, claims.UserID, models.AppointmentStatusPending, models.AppointmentStatusApproved).
+		Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found or cannot be cancelled"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	_, err = tx.Exec(c.Request.Context(), `
+		INSERT INTO appointment_activities (appointment_id, actor_user_id, action, detail)
+		VALUES ($1, $2, $3, $4)
+	`, appt.ID, claims.UserID, "patient_cancelled", "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return

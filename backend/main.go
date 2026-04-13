@@ -90,6 +90,7 @@ func main() {
 		api.POST("/appointments/book-slot", auth.RequireAuth(), auth.RequireRole("patient"), geo.BookSlot)
 
 		api.POST("/appointments", auth.RequireAuth(), auth.RequireRole("patient"), appointments.Create)
+		api.POST("/patient/appointments/:id/cancel", auth.RequireAuth(), auth.RequireRole("patient"), appointments.PatientCancel)
 		api.GET("/appointments/patient", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListPatient)
 		api.GET("/appointments/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.ListDoctor)
 		api.GET("/appointments/:id/activity", auth.RequireAuth(), appointments.ListActivity)
