@@ -274,10 +274,11 @@ func (h *AppointmentHandler) ListActivity(c *gin.Context) {
 	}
 
 	rows, err := db.Pool.Query(c.Request.Context(), `
-		SELECT id, appointment_id, actor_user_id, action, detail, created_at
-		FROM appointment_activities
-		WHERE appointment_id = $1
-		ORDER BY created_at ASC
+		SELECT a.id, a.appointment_id, a.actor_user_id, COALESCE(u.email, ''), a.action, a.detail, a.created_at
+		FROM appointment_activities a
+		LEFT JOIN users u ON u.id = a.actor_user_id
+		WHERE a.appointment_id = $1
+		ORDER BY a.created_at ASC
 	`, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
@@ -288,7 +289,7 @@ func (h *AppointmentHandler) ListActivity(c *gin.Context) {
 	activities := make([]models.AppointmentActivity, 0)
 	for rows.Next() {
 		var row models.AppointmentActivity
-		if err := rows.Scan(&row.ID, &row.AppointmentID, &row.ActorUserID, &row.Action, &row.Detail, &row.CreatedAt); err != nil {
+		if err := rows.Scan(&row.ID, &row.AppointmentID, &row.ActorUserID, &row.ActorEmail, &row.Action, &row.Detail, &row.CreatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
 		}
