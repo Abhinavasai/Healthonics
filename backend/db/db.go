@@ -100,6 +100,17 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
 
+		CREATE TABLE IF NOT EXISTS knowledge_docs (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			title       TEXT NOT NULL,
+			body        TEXT NOT NULL,
+			created_by  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_knowledge_docs_title ON knowledge_docs(title);
+
 		CREATE TABLE IF NOT EXISTS doctor_slots (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			doctor_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
