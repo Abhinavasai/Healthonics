@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
 	"github.com/healthonyx/backend/models"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -152,8 +153,22 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims := claimsVal.(*Claims)
-	c.JSON(http.StatusOK, models.UserProfile{ID: claims.UserID, Email: claims.Email, Role: claims.Role})
+	claims, ok := claimsVal.(*Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	var email, role string
+	err := db.Pool.QueryRow(c.Request.Context(), `SELECT email, role FROM users WHERE id = $1`, claims.UserID).Scan(&email, &role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Account no longer exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, models.UserProfile{ID: claims.UserID, Email: email, Role: role})
 }
 
 func (h *AuthHandler) createToken(id uuid.UUID, email, role string) (string, error) {
@@ -214,7 +229,12 @@ func (h *AuthHandler) RequireRole(roles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		claims := claimsVal.(*Claims)
+		claims, ok := claimsVal.(*Claims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
 		if !allowed[claims.Role] {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			c.Abort()
