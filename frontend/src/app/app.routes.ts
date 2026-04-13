@@ -11,6 +11,8 @@ import { DoctorAppointmentDetailComponent } from './components/doctor-appointmen
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { MessagesComponent } from './components/messages/messages.component';
+import { PatientDashboardComponent } from './components/patient-dashboard/patient-dashboard.component';
+import { DoctorDashboardComponent } from './components/doctor-dashboard/doctor-dashboard.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -28,7 +30,13 @@ export const routes: Routes = [
         data: { roles: ['patient'] },
         canActivate: [roleGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+          {
+            path: 'dashboard',
+            component: PatientDashboardComponent,
+            data: { title: 'Dashboard', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'find-care',
             component: PatientFindCareComponent,
@@ -66,7 +74,13 @@ export const routes: Routes = [
         data: { roles: ['doctor'] },
         canActivate: [roleGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+          {
+            path: 'dashboard',
+            component: DoctorDashboardComponent,
+            data: { title: 'Dashboard', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'availability',
             component: DoctorAvailabilityComponent,
