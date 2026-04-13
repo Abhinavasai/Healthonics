@@ -18,6 +18,7 @@ func TestAppointmentActivity_JSONFields(t *testing.T) {
 		ID:            id,
 		AppointmentID: apptID,
 		ActorUserID:   actor,
+		ActorEmail:    "doc@example.com",
 		Action:        "status_changed",
 		Detail:        "approved",
 		CreatedAt:     ts,
@@ -35,5 +36,8 @@ func TestAppointmentActivity_JSONFields(t *testing.T) {
 	}
 	if out["detail"] != "approved" {
 		t.Fatalf("detail: got %v", out["detail"])
+	}
+	if out["actor_email"] != "doc@example.com" {
+		t.Fatalf("actor_email: got %v", out["actor_email"])
 	}
 }

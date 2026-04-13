@@ -132,6 +132,9 @@ func TestAppointmentActivity_flow(t *testing.T) {
 	if resp.Activities[0].Action != "status_changed" || resp.Activities[0].Detail != "approved" {
 		t.Fatalf("unexpected row: %+v", resp.Activities[0])
 	}
+	if resp.Activities[0].ActorEmail != doctorEmail {
+		t.Fatalf("actor_email: got %q want %q", resp.Activities[0].ActorEmail, doctorEmail)
+	}
 
 	patientTok := token(patientID, patientEmail, "patient")
 	req3 := httptest.NewRequest(http.MethodGet, "/api/appointments/"+apptID.String()+"/activity", nil)
