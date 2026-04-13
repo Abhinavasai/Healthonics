@@ -45,7 +45,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
 
   /** False for routes with detail children (appointments/:id, messages/:threadId). */
   isExactNavPath(path: string): boolean {
-    if (path.endsWith('/appointments') || path.endsWith('/messages')) {
+    if (path.endsWith('/appointments') || path.endsWith('/messages') || path.endsWith('/notifications')) {
       return false;
     }
     return true;
@@ -56,9 +56,11 @@ export class AppShellComponent implements OnInit, OnDestroy {
       { path: '/patient/find-care', label: 'Find care', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
       { path: '/patient/messages', label: 'Messages', roles: ['patient'] },
+      { path: '/patient/notifications', label: 'Notifications', roles: ['patient'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
       { path: '/doctor/messages', label: 'Messages', roles: ['doctor'] },
+      { path: '/doctor/notifications', label: 'Notifications', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] }
     ];
     return all.filter((l) => l.roles.includes(this.role));
