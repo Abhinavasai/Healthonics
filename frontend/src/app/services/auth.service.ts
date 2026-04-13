@@ -48,6 +48,12 @@ export class AuthService {
       .pipe(tap((res) => this.setSession(res)));
   }
 
+  refreshProfile(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.API}/me`).pipe(
+      tap((user) => localStorage.setItem('user', JSON.stringify(user)))
+    );
+  }
+
   logout(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
