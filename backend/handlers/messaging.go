@@ -21,13 +21,16 @@ func NewMessagingHandler() *MessagingHandler {
 
 const maxMessageRunes = 8000
 
+// previewMaxRunes caps thread list previews (must match SQL preview logic expectations).
+const previewMaxRunes = 160
+
 func previewText(s string) string {
 	s = strings.TrimSpace(s)
-	if utf8.RuneCountInString(s) <= 160 {
+	if utf8.RuneCountInString(s) <= previewMaxRunes {
 		return s
 	}
 	runes := []rune(s)
-	return string(runes[:160]) + "…"
+	return string(runes[:previewMaxRunes]) + "…"
 }
 
 // validPatientDoctorPair returns (patientID, doctorID) if peer is the opposite role of caller.
@@ -105,6 +108,17 @@ func (h *MessagingHandler) UnreadTotal(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"unread_total": total})
+}
+
+// ComposeLimits implements GET /api/messages/compose-limits (Sprint 3 F10 — client-side validation contract).
+func (h *MessagingHandler) ComposeLimits(c *gin.Context) {
+	if _, ok := getClaims(c); !ok {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"max_body_runes":    maxMessageRunes,
+		"preview_max_runes": previewMaxRunes,
+	})
 }
 
 // ListThreads implements GET /api/messages/threads

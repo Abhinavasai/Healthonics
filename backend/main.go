@@ -92,6 +92,7 @@ func main() {
 
 		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
 		{
+			msg.GET("/compose-limits", messaging.ComposeLimits)
 			msg.GET("/unread", messaging.UnreadTotal)
 			msg.GET("/threads", messaging.ListThreads)
 			msg.POST("/threads", messaging.CreateThread)
