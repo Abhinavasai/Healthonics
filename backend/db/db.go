@@ -87,6 +87,17 @@ func Migrate(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_doctor_slots_open ON doctor_slots(doctor_id) WHERE patient_id IS NULL;
 
 		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id UUID UNIQUE REFERENCES doctor_slots(id) ON DELETE SET NULL;
+
+		CREATE TABLE IF NOT EXISTS patient_documents (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			filename      TEXT NOT NULL,
+			content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
+			size_bytes    BIGINT NOT NULL DEFAULT 0,
+			file_data     BYTEA,
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_patient_documents_patient_id ON patient_documents(patient_id);
 	`)
 	return err
 }
