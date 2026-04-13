@@ -12,7 +12,8 @@ import { PatientFindCareComponent } from './components/patient-find-care/patient
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
 import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
-import { PatientDocumentsUploadComponent } from './components/patient-documents-upload/patient-documents-upload.component';
+import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
+import { MessagesComponent } from './components/messages/messages.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -51,8 +52,20 @@ export const routes: Routes = [
           },
           {
             path: 'documents',
-            component: PatientDocumentsUploadComponent,
+            component: PatientDocumentsComponent,
             data: { title: 'My documents', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages/:threadId',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['patient'] },
             canActivate: [roleGuard]
           }
         ]
@@ -91,6 +104,18 @@ export const routes: Routes = [
             path: 'documents/:documentId',
             component: DoctorDocumentDetailComponent,
             data: { title: 'Document', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages/:threadId',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['doctor'] },
             canActivate: [roleGuard]
           }
         ]
