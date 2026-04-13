@@ -87,6 +87,37 @@ func Migrate(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_doctor_slots_open ON doctor_slots(doctor_id) WHERE patient_id IS NULL;
 
 		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id UUID UNIQUE REFERENCES doctor_slots(id) ON DELETE SET NULL;
+
+		CREATE TABLE IF NOT EXISTS message_threads (
+			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			doctor_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			last_preview    TEXT NOT NULL DEFAULT '',
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CHECK (patient_id <> doctor_id),
+			UNIQUE (patient_id, doctor_id)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_message_threads_patient ON message_threads(patient_id);
+		CREATE INDEX IF NOT EXISTS idx_message_threads_doctor ON message_threads(doctor_id);
+
+		CREATE TABLE IF NOT EXISTS messages (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			thread_id  UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+			sender_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			body       TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_messages_thread_time ON messages(thread_id, created_at);
+
+		CREATE TABLE IF NOT EXISTS message_thread_reads (
+			thread_id    UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+			user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (thread_id, user_id)
+		);
 	`)
 	return err
 }
