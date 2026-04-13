@@ -36,6 +36,8 @@ func main() {
 	appointments := handlers.NewAppointmentHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
+	doctorDocs := handlers.NewDoctorDocumentsHandler()
+	patientDocs := handlers.NewPatientDocumentsHandler()
 	r := gin.Default()
 
 	// CORS: allow Angular dev server and any configured origins
@@ -88,6 +90,12 @@ func main() {
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
+
+		api.POST("/patient/documents", auth.RequireAuth(), auth.RequireRole("patient"), patientDocs.Upload)
+
+		api.GET("/doctor/documents", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocs.List)
+		api.POST("/doctor/documents/:id/summarize", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocs.Summarize)
+		api.GET("/doctor/documents/:id", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocs.Get)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

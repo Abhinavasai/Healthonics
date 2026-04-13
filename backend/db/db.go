@@ -87,6 +87,56 @@ func Migrate(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_doctor_slots_open ON doctor_slots(doctor_id) WHERE patient_id IS NULL;
 
 		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id UUID UNIQUE REFERENCES doctor_slots(id) ON DELETE SET NULL;
+
+		CREATE TABLE IF NOT EXISTS patient_documents (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			filename      TEXT NOT NULL,
+			content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
+			size_bytes    BIGINT NOT NULL DEFAULT 0,
+			file_data     BYTEA,
+			summary       TEXT,
+			summary_status TEXT NOT NULL DEFAULT 'none'
+				CHECK (summary_status IN ('none', 'pending', 'ready', 'failed')),
+			summary_error TEXT,
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_patient_documents_patient_id ON patient_documents(patient_id);
+
+		-- Older branches used patient_documents(body, status) without AI summary columns.
+		DO $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = 'public' AND table_name = 'patient_documents' AND column_name = 'body'
+			) AND NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = 'public' AND table_name = 'patient_documents' AND column_name = 'file_data'
+			) THEN
+				ALTER TABLE patient_documents RENAME COLUMN body TO file_data;
+			END IF;
+		END $$;
+
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary TEXT;
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary_error TEXT;
+
+		DO $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = 'public' AND table_name = 'patient_documents' AND column_name = 'status'
+			) AND NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = 'public' AND table_name = 'patient_documents' AND column_name = 'summary_status'
+			) THEN
+				ALTER TABLE patient_documents DROP CONSTRAINT IF EXISTS patient_documents_status_check;
+				ALTER TABLE patient_documents RENAME COLUMN status TO summary_status;
+				ALTER TABLE patient_documents ADD CONSTRAINT patient_documents_summary_status_check
+					CHECK (summary_status IN ('none', 'pending', 'ready', 'failed'));
+				ALTER TABLE patient_documents ALTER COLUMN summary_status SET DEFAULT 'none';
+			END IF;
+		END $$;
 	`)
 	return err
 }

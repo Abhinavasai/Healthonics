@@ -1,0 +1,42 @@
+<div class="page" data-cy="patient-documents-upload-page">
+  <h1>My documents</h1>
+  <p class="lede">
+    Upload lab results or visit summaries (PDF, images, etc.). Doctors you have an appointment with can review them and request an AI summary.
+  </p>
+
+  <div class="card">
+    <label class="file-label" for="doc-file">Choose file</label>
+    <input
+      id="doc-file"
+      data-cy="patient-document-file"
+      type="file"
+      (change)="onFileChange($event)"
+      [disabled]="loading"
+    />
+
+    @if (selectedFile) {
+      <p class="file-name">{{ selectedFile.name }}</p>
+    }
+
+    <button
+      type="button"
+      class="btn-primary"
+      data-cy="patient-document-upload"
+      (click)="submit()"
+      [disabled]="loading || !selectedFile"
+    >
+      @if (loading) {
+        <span>Uploading…</span>
+      } @else {
+        <span>Upload</span>
+      }
+    </button>
+
+    @if (error) {
+      <p class="banner error" data-cy="patient-document-error">{{ error }}</p>
+    }
+    @if (success) {
+      <p class="banner ok" data-cy="patient-document-success">{{ success }}</p>
+    }
+  </div>
+</div>
