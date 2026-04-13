@@ -12,7 +12,7 @@ func NewBootstrapHandler() *BootstrapHandler {
 	return &BootstrapHandler{}
 }
 
-// Get implements GET /api/bootstrap (Sprint 3 F02 — Rohith: SPA shell config for clients, e.g. mobile breakpoint parity with app-shell).
+// Get implements GET /api/bootstrap — SPA shell config (e.g. mobile breakpoint parity with app-shell).
 func (h *BootstrapHandler) Get(c *gin.Context) {
 	if _, ok := getClaims(c); !ok {
 		return
