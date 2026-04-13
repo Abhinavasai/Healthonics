@@ -1,0 +1,182 @@
+<section class="messages-page" data-cy="messages-page">
+  <div class="messages-hero">
+    <div class="hero-content">
+      <h1 class="page-title">
+        <span class="title-icon" aria-hidden="true">💬</span>
+        Messages
+      </h1>
+      <p class="hero-subtitle">
+        Secure, HIPAA-style messaging with your care team — encrypted in transit via the platform.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn-new"
+      (click)="showNewThread = !showNewThread"
+      [class.btn-new--open]="showNewThread"
+      data-cy="messages-toggle-new"
+    >
+      <span class="btn-new__icon">{{ showNewThread ? '✕' : '＋' }}</span>
+      {{ showNewThread ? 'Close' : 'New conversation' }}
+    </button>
+  </div>
+
+  <p *ngIf="error" class="error-banner" data-cy="messages-error">{{ error }}</p>
+
+  <div class="layout" data-cy="messages-layout">
+    <aside class="thread-panel glass" data-cy="messages-thread-list">
+      <div *ngIf="showNewThread" class="new-thread card-elevated" data-cy="messages-new-thread">
+        <div class="card-elevated__head">
+          <span class="spark">✦</span>
+          <h3>Start a conversation</h3>
+        </div>
+        <ng-container *ngIf="role === 'patient'">
+          <label class="field">
+            <span>Doctor</span>
+            <select [(ngModel)]="selectedDoctorId" name="doctor" data-cy="messages-select-doctor">
+              <option value="">Select a doctor</option>
+              <option *ngFor="let d of doctors" [value]="d.id">{{ d.email }}</option>
+            </select>
+          </label>
+        </ng-container>
+        <ng-container *ngIf="role === 'doctor'">
+          <label class="field">
+            <span>Patient user ID</span>
+            <input
+              [(ngModel)]="peerPatientId"
+              name="peerPatient"
+              placeholder="UUID from your records"
+              data-cy="messages-patient-id"
+            />
+          </label>
+          <p class="hint">Use the patient’s account ID until a patient picker is available.</p>
+        </ng-container>
+        <label class="field">
+          <span>First message</span>
+          <textarea
+            [(ngModel)]="newThreadBody"
+            name="newBody"
+            rows="3"
+            placeholder="Say hello and add context…"
+            data-cy="messages-new-body"
+          ></textarea>
+        </label>
+        <button
+          type="button"
+          class="btn-send-primary"
+          (click)="createThread()"
+          [disabled]="sending"
+          data-cy="messages-send-new"
+        >
+          {{ sending ? 'Starting…' : 'Start conversation' }}
+        </button>
+      </div>
+
+      <div class="panel-header">
+        <h2>Inbox</h2>
+        <button
+          type="button"
+          class="btn-refresh"
+          (click)="loadThreads()"
+          [disabled]="loadingThreads"
+          title="Refresh threads"
+        >
+          {{ loadingThreads ? '…' : '↻' }}
+        </button>
+      </div>
+
+      <div *ngIf="loadingThreads && threads.length === 0" class="skeleton-list" aria-hidden="true">
+        <div class="skeleton-row" *ngFor="let _ of [1, 2, 3, 4]"></div>
+      </div>
+
+      <p *ngIf="!loadingThreads && threads.length === 0" class="empty-inbox" data-cy="messages-empty-list">
+        <span class="empty-inbox__icon">📭</span>
+        <span class="empty-inbox__text">No conversations yet.</span>
+        <span class="empty-inbox__hint">Use <strong>New conversation</strong> to reach your doctor or patient.</span>
+      </p>
+
+      <ul *ngIf="threads.length > 0" class="thread-ul">
+        <li *ngFor="let t of threads">
+          <button
+            type="button"
+            class="thread-row"
+            [class.thread-row--active]="selectedThreadId === t.id"
+            (click)="selectThread(t)"
+            data-cy="messages-thread-row"
+          >
+            <div class="thread-row__top">
+              <span class="thread-row__avatar">{{ t.peer_email.charAt(0) | uppercase }}</span>
+              <div class="thread-row__meta">
+                <strong>{{ t.peer_email }}</strong>
+                <span *ngIf="t.unread_count > 0" class="badge" data-cy="messages-unread-badge">{{
+                  t.unread_count
+                }}</span>
+              </div>
+            </div>
+            <div class="thread-row__preview">{{ t.last_preview || '—' }}</div>
+            <div class="thread-row__time">{{ t.last_message_at | date: 'short' }}</div>
+          </button>
+        </li>
+      </ul>
+    </aside>
+
+    <main class="thread-pane glass" data-cy="messages-thread-pane">
+      <ng-container *ngIf="selectedThreadId; else pickThread">
+        <div class="chat-header">
+          <div class="chat-header__peer">
+            <span class="chat-header__avatar">{{
+              selectedPeerEmail.charAt(0) | uppercase
+            }}</span>
+            <div>
+              <h2 data-cy="messages-thread-title">{{ selectedPeerEmail }}</h2>
+              <p class="chat-header__status">
+                <span class="pulse-dot"></span>
+                Active thread
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div #chatBody class="chat-body" data-cy="messages-chat-body">
+          <p *ngIf="loadingMessages" class="loading-line">Loading messages…</p>
+          <div *ngFor="let m of messages" class="bubble-row" [class.bubble-row--mine]="isMine(m)">
+            <div class="bubble" [class.bubble--mine]="isMine(m)" data-cy="messages-bubble">
+              <div class="bubble-text">{{ m.body }}</div>
+              <div class="bubble-meta">{{ m.created_at | date: 'short' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer" data-cy="messages-composer">
+          <textarea
+            [(ngModel)]="replyBody"
+            name="reply"
+            rows="2"
+            placeholder="Write a message… (Ctrl+Enter to send)"
+            data-cy="messages-reply-input"
+            (keydown.control.enter)="send()"
+            (keydown.meta.enter)="send()"
+          ></textarea>
+          <button
+            type="button"
+            class="btn-send-primary"
+            (click)="send()"
+            [disabled]="sending || !replyBody.trim()"
+            data-cy="messages-send-reply"
+          >
+            {{ sending ? 'Sending…' : 'Send' }}
+          </button>
+        </div>
+      </ng-container>
+      <ng-template #pickThread>
+        <div class="empty-pane" data-cy="messages-pick-thread">
+          <div class="empty-pane__card">
+            <span class="empty-pane__icon">💬</span>
+            <h3>Select a conversation</h3>
+            <p>Pick a thread on the left or start a new one to connect with your care team.</p>
+          </div>
+        </div>
+      </ng-template>
+    </main>
+  </div>
+</section>

@@ -11,6 +11,7 @@ import { DoctorAppointmentDetailComponent } from './components/doctor-appointmen
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
 import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
+import { MessagesComponent } from './components/messages/messages.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -52,6 +53,18 @@ export const routes: Routes = [
             component: PatientDocumentsComponent,
             data: { title: 'My documents', roles: ['patient'] },
             canActivate: [roleGuard]
+          },
+          {
+            path: 'messages',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages/:threadId',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['patient'] },
+            canActivate: [roleGuard]
           }
         ]
       },
@@ -77,6 +90,18 @@ export const routes: Routes = [
             path: 'appointments',
             component: DoctorAppointmentsComponent,
             data: { title: 'Doctor Appointments', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'messages/:threadId',
+            component: MessagesComponent,
+            data: { title: 'Messages', roles: ['doctor'] },
             canActivate: [roleGuard]
           }
         ]
