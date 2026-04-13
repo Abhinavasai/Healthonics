@@ -265,6 +265,54 @@ func (h *GeoBookingHandler) ListOpenSlotsForDoctor(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"slots": slots})
 }
 
+// ListMyOpenSlots returns unbooked future slots for the authenticated doctor.
+func (h *GeoBookingHandler) ListMyOpenSlots(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "doctor" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT id, doctor_id, start_at, end_at, patient_id
+		FROM doctor_slots
+		WHERE doctor_id = $1 AND start_at > NOW() AND patient_id IS NULL
+		ORDER BY start_at ASC
+	`, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+
+	slots := make([]slotJSON, 0)
+	for rows.Next() {
+		var id, docID uuid.UUID
+		var startAt, endAt time.Time
+		var patientID *uuid.UUID
+		if err := rows.Scan(&id, &docID, &startAt, &endAt, &patientID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		slots = append(slots, slotJSON{
+			ID:        id.String(),
+			DoctorID:  docID.String(),
+			StartAt:   startAt,
+			EndAt:     endAt,
+			Available: patientID == nil,
+		})
+	}
+	if rows.Err() != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"slots": slots})
+}
+
 type createSlotRequest struct {
 	StartAt time.Time `json:"start_at" binding:"required"`
 	EndAt   time.Time `json:"end_at" binding:"required"`

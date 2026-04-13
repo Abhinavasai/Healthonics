@@ -125,6 +125,34 @@
       ]
     },
     {
+      "name": "GET /api/doctor/slots (doctor own open slots)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/api/doctor/slots",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "slots"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "GET /api/hospitals/near (lat/lng + radius)",
       "request": {
         "method": "GET",

@@ -59,7 +59,9 @@ func main() {
 	}{
 		{"admin@healthonyx.demo", "admin123", "admin"},
 		{"doctor@healthonyx.demo", "doctor123", "doctor"},
+		{"doctor2@healthonyx.demo", "doctor123", "doctor"},
 		{"patient@healthonyx.demo", "patient123", "patient"},
+		{"patient2@healthonyx.demo", "patient123", "patient"},
 	}
 
 	for _, u := range users {

@@ -79,6 +79,7 @@ func main() {
 		api.GET("/hospitals/near", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListHospitalsNear)
 		api.GET("/doctors/search", auth.RequireAuth(), auth.RequireRole("patient"), geo.SearchDoctors)
 		api.GET("/doctors/:id/slots", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListOpenSlotsForDoctor)
+		api.GET("/doctor/slots", auth.RequireAuth(), auth.RequireRole("doctor"), geo.ListMyOpenSlots)
 		api.POST("/doctor/slots", auth.RequireAuth(), auth.RequireRole("doctor"), geo.CreateSlot)
 		api.DELETE("/doctor/slots/:id", auth.RequireAuth(), auth.RequireRole("doctor"), geo.DeleteOpenSlot)
 		api.POST("/appointments/book-slot", auth.RequireAuth(), auth.RequireRole("patient"), geo.BookSlot)
