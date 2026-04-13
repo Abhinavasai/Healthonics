@@ -229,6 +229,7 @@ func (h *AppointmentHandler) GetByID(c *gin.Context) {
 }
 
 // ListActivity returns audit rows for an appointment when the caller is the patient or assigned doctor.
+// Response items include actor_email when the actor user row exists (joined from users; empty string if missing).
 func (h *AppointmentHandler) ListActivity(c *gin.Context) {
 	claims, ok := getClaims(c)
 	if !ok {
