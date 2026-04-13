@@ -37,6 +37,7 @@ func main() {
 	appointments := handlers.NewAppointmentHandler()
 	messaging := handlers.NewMessagingHandler()
 	prescriptions := handlers.NewPrescriptionsHandler()
+	notifications := handlers.NewNotificationsHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
 	patientFiles := handlers.NewPatientFilesHandler(cfg.UploadDir)
@@ -66,6 +67,7 @@ func main() {
 
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
+		api.GET("/notifications", auth.RequireAuth(), notifications.ListMine)
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
 
 		// Role-protected: demonstrates 403 when role doesn't match

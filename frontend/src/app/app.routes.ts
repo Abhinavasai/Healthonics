@@ -13,6 +13,7 @@ import { DoctorAvailabilityComponent } from './components/doctor-availability/do
 import { MessagesComponent } from './components/messages/messages.component';
 import { PatientFilesComponent } from './components/patient-files/patient-files.component';
 import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
+import { NotificationsInboxComponent } from './components/notifications-inbox/notifications-inbox.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -72,6 +73,12 @@ export const routes: Routes = [
             component: PatientPrescriptionsComponent,
             data: { title: 'My prescriptions', roles: ['patient'] },
             canActivate: [roleGuard]
+          },
+          {
+            path: 'notifications',
+            component: NotificationsInboxComponent,
+            data: { title: 'Notifications', roles: ['patient'] },
+            canActivate: [roleGuard]
           }
         ]
       },
@@ -109,6 +116,12 @@ export const routes: Routes = [
             path: 'messages/:threadId',
             component: MessagesComponent,
             data: { title: 'Messages', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'notifications',
+            component: NotificationsInboxComponent,
+            data: { title: 'Notifications', roles: ['doctor'] },
             canActivate: [roleGuard]
           }
         ]

@@ -129,6 +129,19 @@ func Migrate(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_prescriptions_patient ON prescriptions(patient_id);
 		CREATE INDEX IF NOT EXISTS idx_prescriptions_doctor ON prescriptions(doctor_id);
 
+		CREATE TABLE IF NOT EXISTS notifications (
+			id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			title          TEXT NOT NULL,
+			body           TEXT NOT NULL,
+			channel        TEXT NOT NULL DEFAULT 'in_app',
+			status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+			scheduled_for  TIMESTAMPTZ,
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
 		CREATE TABLE IF NOT EXISTS message_thread_reads (
 			thread_id    UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
 			user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

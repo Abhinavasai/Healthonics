@@ -49,7 +49,8 @@ export class AppShellComponent implements OnInit, OnDestroy {
       path.endsWith('/appointments') ||
       path.endsWith('/messages') ||
       path.endsWith('/my-files') ||
-      path.endsWith('/prescriptions')
+      path.endsWith('/prescriptions') ||
+      path.endsWith('/notifications')
     ) {
       return false;
     }
@@ -63,9 +64,11 @@ export class AppShellComponent implements OnInit, OnDestroy {
       { path: '/patient/prescriptions', label: 'Prescriptions', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
       { path: '/patient/messages', label: 'Messages', roles: ['patient'] },
+      { path: '/patient/notifications', label: 'Notifications', roles: ['patient'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
       { path: '/doctor/messages', label: 'Messages', roles: ['doctor'] },
+      { path: '/doctor/notifications', label: 'Notifications', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] }
     ];
     return all.filter((l) => l.roles.includes(this.role));
