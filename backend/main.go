@@ -35,6 +35,7 @@ func main() {
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	bootstrap := handlers.NewBootstrapHandler()
 	appointments := handlers.NewAppointmentHandler()
+	documents := handlers.NewDocumentsHandler()
 	messaging := handlers.NewMessagingHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
@@ -91,6 +92,10 @@ func main() {
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
+
+		api.GET("/documents", auth.RequireAuth(), auth.RequireRole("patient"), documents.List)
+		api.POST("/documents", auth.RequireAuth(), auth.RequireRole("patient"), documents.Upload)
+		api.GET("/documents/:id/download", auth.RequireAuth(), auth.RequireRole("patient"), documents.Download)
 
 		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
 		{
