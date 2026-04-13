@@ -1,0 +1,80 @@
+<section class="detail-page" data-cy="doctor-document-detail-page">
+  <a routerLink="/doctor/documents" class="back-link" data-cy="doctor-document-back">← Patient documents</a>
+
+  <div *ngIf="loading && !doc" class="loading-state" data-cy="doctor-document-loading">
+    <span class="pulse">Loading document…</span>
+  </div>
+
+  <p *ngIf="error" class="error-banner" data-cy="doctor-document-error">{{ error }}</p>
+
+  <ng-container *ngIf="doc as d">
+    <div class="hero">
+      <h1 class="page-title" data-cy="doctor-document-filename">
+        <span class="title-icon" aria-hidden="true">📄</span>
+        {{ d.filename }}
+      </h1>
+      <p class="patient-line" data-cy="doctor-document-patient">
+        Patient: <strong>{{ d.patient_email }}</strong>
+      </p>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-card glass" data-cy="doctor-document-meta">
+        <span class="meta-label">Uploaded</span>
+        <span class="meta-value">{{ d.created_at | date: 'medium' }}</span>
+      </div>
+      <div class="meta-card glass">
+        <span class="meta-label">Size</span>
+        <span class="meta-value">{{ formatBytes(d.size_bytes) }}</span>
+      </div>
+      <div class="meta-card glass">
+        <span class="meta-label">Type</span>
+        <span class="meta-value">{{ d.content_type || '—' }}</span>
+      </div>
+    </div>
+
+    <div class="summary-section glass" data-cy="doctor-document-summary-section">
+      <div class="summary-head">
+        <h2>AI summary</h2>
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="requestSummary()"
+          [disabled]="summarizeLoading || d.summary_status === 'pending'"
+          data-cy="doctor-document-summarize"
+        >
+          {{
+            summarizeLoading
+              ? 'Starting…'
+              : d.summary_status === 'pending'
+                ? 'Generating…'
+                : d.summary_status === 'ready'
+                  ? 'Regenerate summary'
+                  : 'Generate summary'
+          }}
+        </button>
+      </div>
+
+      <div *ngIf="d.summary_status === 'pending'" class="pending-box" data-cy="doctor-document-summary-pending">
+        <span class="spinner" aria-hidden="true"></span>
+        Generating summary… This may take a few seconds.
+      </div>
+
+      <div *ngIf="d.summary_status === 'failed'" class="failed-box" data-cy="doctor-document-summary-failed">
+        <strong>Summary could not be generated.</strong>
+        <span *ngIf="d.summary_error">{{ d.summary_error }}</span>
+        <span *ngIf="!d.summary_error">Please try again later.</span>
+      </div>
+
+      <div *ngIf="showSummaryBlock()" class="summary-body" data-cy="doctor-document-summary-text">
+        <p *ngIf="d.summary">{{ d.summary }}</p>
+        <p *ngIf="!d.summary && d.summary_status === 'ready'" class="muted">No summary text returned.</p>
+      </div>
+
+      <p *ngIf="d.summary_status === 'none' && !d.summary" class="muted hint">
+        No summary yet. Click <strong>Generate summary</strong> to run the AI pipeline (when the backend is
+        configured).
+      </p>
+    </div>
+  </ng-container>
+</section>

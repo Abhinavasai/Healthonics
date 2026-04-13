@@ -1,0 +1,49 @@
+<section class="doc-list-page" data-cy="doctor-documents-list-page">
+  <div class="hero">
+    <h1 class="page-title">
+      <span class="title-icon" aria-hidden="true">📋</span>
+      Patient documents
+    </h1>
+    <p class="subtitle">Review uploads from your patients and open a file to see details and AI summary.</p>
+  </div>
+
+  <p *ngIf="error" class="error-banner" data-cy="doctor-documents-list-error">{{ error }}</p>
+
+  <div class="card glass">
+    <div class="card-head">
+      <h2>Recent uploads</h2>
+      <button type="button" class="btn-ghost" (click)="load()" [disabled]="loading">
+        {{ loading ? '…' : 'Refresh' }}
+      </button>
+    </div>
+
+    <p *ngIf="loading && documents.length === 0" class="muted" data-cy="doctor-documents-loading">Loading…</p>
+
+    <p *ngIf="!loading && documents.length === 0" class="empty" data-cy="doctor-documents-empty">
+      No patient documents yet. They will appear here after patients upload files.
+    </p>
+
+    <table *ngIf="documents.length > 0" class="table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>File</th>
+          <th>Uploaded</th>
+          <th>Summary</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of documents" data-cy="doctor-documents-row">
+          <td>{{ d.patient_email }}</td>
+          <td>{{ d.filename }}</td>
+          <td>{{ d.created_at | date: 'medium' }}</td>
+          <td>{{ statusLabel(d.summary_status) }}</td>
+          <td>
+            <a [routerLink]="['/doctor/documents', d.id]" class="link" data-cy="doctor-documents-open">Open</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

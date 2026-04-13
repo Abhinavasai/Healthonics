@@ -43,9 +43,13 @@ export class AppShellComponent implements OnInit, OnDestroy {
     this.auth.logout();
   }
 
-  /** False for routes with detail children (appointments/:id, messages/:threadId). */
+  /** False for routes with detail children (appointments/:id, documents/:documentId, messages/:threadId). */
   isExactNavPath(path: string): boolean {
-    if (path.endsWith('/appointments') || path.endsWith('/messages')) {
+    if (
+      path.endsWith('/appointments') ||
+      path.endsWith('/documents') ||
+      path.endsWith('/messages')
+    ) {
       return false;
     }
     return true;
@@ -59,6 +63,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
       { path: '/patient/messages', label: 'Messages', roles: ['patient'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
+      { path: '/doctor/documents', label: 'Patient documents', roles: ['doctor'] },
       { path: '/doctor/messages', label: 'Messages', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] }
     ];

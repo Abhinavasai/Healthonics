@@ -11,6 +11,8 @@ import { DoctorAppointmentDetailComponent } from './components/doctor-appointmen
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
 import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
+import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
+import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
 import { MessagesComponent } from './components/messages/messages.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
@@ -90,6 +92,18 @@ export const routes: Routes = [
             path: 'appointments',
             component: DoctorAppointmentsComponent,
             data: { title: 'Doctor Appointments', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'documents',
+            component: DoctorDocumentsListComponent,
+            data: { title: 'Patient documents', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'documents/:documentId',
+            component: DoctorDocumentDetailComponent,
+            data: { title: 'Document', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
