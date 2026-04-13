@@ -4,6 +4,8 @@ import { LoginComponent } from './components/login/login.component';
 import { LandingComponent } from './components/landing/landing.component';
 import { AppShellComponent } from './components/app-shell/app-shell.component';
 import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
+import { AdminShellComponent } from './components/admin-shell/admin-shell.component';
+import { AdminAuditComponent } from './components/admin-audit/admin-audit.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
@@ -101,9 +103,23 @@ export const routes: Routes = [
       },
       {
         path: 'admin',
-        component: DashboardPlaceholderComponent,
-        data: { title: 'Admin', roles: ['admin'] },
-        canActivate: [roleGuard]
+        component: AdminShellComponent,
+        data: { roles: ['admin'] },
+        canActivate: [roleGuard],
+        children: [
+          {
+            path: '',
+            component: DashboardPlaceholderComponent,
+            data: { title: 'Admin', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'audit',
+            component: AdminAuditComponent,
+            data: { title: 'Audit log', roles: ['admin'] },
+            canActivate: [roleGuard]
+          }
+        ]
       }
     ]
   },

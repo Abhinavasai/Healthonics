@@ -389,6 +389,11 @@ func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "appointment_status_changed", "appointment", appt.ID.String(), status); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
 	if err := tx.Commit(c.Request.Context()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return

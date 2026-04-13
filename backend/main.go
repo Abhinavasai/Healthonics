@@ -66,9 +66,11 @@ func main() {
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
 
 		// Role-protected: demonstrates 403 when role doesn't match
+		adminAudit := handlers.NewAdminAuditHandler()
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Admin only"})
 		})
+		api.GET("/admin/audit-log", auth.RequireAuth(), auth.RequireRole("admin"), adminAudit.List)
 		api.GET("/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Doctor only"})
 		})
