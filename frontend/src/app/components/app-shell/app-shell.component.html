@@ -7,6 +7,19 @@
 
   <!-- Header -->
   <header class="header">
+    <button
+      type="button"
+      class="menu-toggle"
+      (click)="toggleMobileNav()"
+      [attr.aria-expanded]="mobileNavOpen"
+      aria-controls="app-sidebar"
+      aria-label="Open navigation menu"
+      data-cy="mobile-nav-toggle"
+    >
+      <span class="menu-toggle__bar" aria-hidden="true"></span>
+      <span class="menu-toggle__bar" aria-hidden="true"></span>
+      <span class="menu-toggle__bar" aria-hidden="true"></span>
+    </button>
     <a routerLink="/" class="brand">
       <span class="brand-icon">⬡</span>
       <span class="brand-text">Healthonyx</span>
@@ -30,8 +43,18 @@
     </div>
   </header>
 
+  <button
+    type="button"
+    class="nav-backdrop"
+    [class.nav-backdrop--visible]="mobileNavOpen"
+    (click)="closeMobileNav()"
+    tabindex="-1"
+    aria-hidden="true"
+    data-cy="mobile-nav-backdrop"
+  ></button>
+
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside id="app-sidebar" class="sidebar" [class.open]="mobileNavOpen">
     <nav>
       @for (link of navLinks; track link.path) {
         <a
@@ -39,6 +62,7 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: isExactNavPath(link.path) }"
           class="nav-item"
+          (click)="closeMobileNav()"
         >
           <span class="nav-icon">
             @if (link.path === '/patient/find-care') { 📍 }
@@ -47,6 +71,8 @@
             @if (link.path === '/doctor/availability') { 📅 }
             @if (link.path === '/doctor/appointments') { 👨‍⚕️ }
             @if (link.path === '/doctor/messages') { 💬 }
+            @if (link.path === '/patient/settings') { 👤 }
+            @if (link.path === '/doctor/settings') { 👤 }
             @if (link.path === '/admin') { 🛡️ }
           </span>
           <span class="nav-label">{{ link.label }}</span>
