@@ -71,9 +71,23 @@ import {
           Radius (km)
           <input type="number" step="1" min="1" [(ngModel)]="radiusKm" />
         </label>
-        <label class="span-2">
+        <label>
+          Department
+          <select
+            class="department-select"
+            data-cy="department-select"
+            [(ngModel)]="selectedDepartment"
+            (ngModelChange)="onDepartmentChange()"
+          >
+            <option value="">Any department</option>
+            <option *ngFor="let department of departments" [value]="department">
+              {{ department }}
+            </option>
+          </select>
+        </label>
+        <label>
           Specialty / problem keyword
-          <input type="text" [(ngModel)]="specialization" placeholder="e.g. Internal Medicine" />
+          <input type="text" [(ngModel)]="specialization" placeholder="Optional keyword (or pick department)" />
         </label>
       </div>
 
@@ -157,6 +171,10 @@ import {
         border: 1px solid #334155;
         border-radius: 8px;
         padding: 0.5rem;
+      }
+      .department-select {
+        max-height: 220px;
+        overflow-y: auto;
       }
       .actions {
         display: flex;
@@ -248,11 +266,34 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   lng = -82.3248;
   radiusKm = 50;
   specialization = '';
+  selectedDepartment = '';
   locationQuery = '';
   selectedLocationLabel = '';
   geocodeSuggestions: GeocodeHit[] = [];
   hospitals: HospitalNear[] = [];
   doctors: DoctorSearchRow[] = [];
+  readonly departments: string[] = [
+    'General Medicine',
+    'Internal Medicine',
+    'Family Medicine',
+    'Cardiology',
+    'Dermatology',
+    'Endocrinology',
+    'Gastroenterology',
+    'Neurology',
+    'Nephrology',
+    'Oncology',
+    'Orthopedics',
+    'Pediatrics',
+    'Psychiatry',
+    'Pulmonology',
+    'Radiology',
+    'Urology',
+    'ENT',
+    'Gynecology',
+    'Ophthalmology',
+    'Emergency Medicine'
+  ];
   loading = false;
   loadingGeocode = false;
   loadingGeo = false;
@@ -408,6 +449,12 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
         this.loading = false;
       },
     });
+  }
+
+  onDepartmentChange(): void {
+    if (this.selectedDepartment) {
+      this.specialization = this.selectedDepartment;
+    }
   }
 
   private plotHospitals(): void {
