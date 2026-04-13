@@ -1,6 +1,7 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { AsyncPipe, TitleCasePipe, DatePipe, LowerCasePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { BootstrapService } from '../../services/bootstrap.service';
 
 @Component({
   selector: 'app-dashboard-placeholder',
@@ -20,6 +21,7 @@ import { ActivatedRoute } from '@angular/router';
             {{ roleTitle }} Dashboard
           </h1>
           <p class="dashboard-date">{{ today | date:'EEEE, MMMM d, y' }}</p>
+          <p class="dashboard-date">{{ appName }} · API {{ apiVersion }}</p>
         </div>
       </div>
 
@@ -367,11 +369,25 @@ import { ActivatedRoute } from '@angular/router';
     }
   `]
 })
-export class DashboardPlaceholderComponent {
+export class DashboardPlaceholderComponent implements OnInit {
   @Input() title = 'Patient';
   today = new Date();
+  appName = 'Healthonyx';
+  apiVersion = 'v1';
   
-  constructor(public route: ActivatedRoute) {}
+  constructor(
+    public route: ActivatedRoute,
+    private bootstrap: BootstrapService
+  ) {}
+
+  ngOnInit(): void {
+    this.bootstrap.get().subscribe({
+      next: (cfg) => {
+        this.appName = cfg.app_name || this.appName;
+        this.apiVersion = cfg.api_version || this.apiVersion;
+      }
+    });
+  }
   
   get roleTitle(): string {
     return this.title;
