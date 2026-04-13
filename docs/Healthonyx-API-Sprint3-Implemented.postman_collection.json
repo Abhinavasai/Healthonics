@@ -2,7 +2,7 @@
   "info": {
     "name": "Healthonyx API - Sprint3 Implemented",
     "_postman_id": "d2a16dd6-6db6-4f6c-bdf2-bf8d8c95a774",
-    "description": "Backend collection for implemented Sprint 1/2/3 features: auth, bootstrap, appointments/activity, geo, messaging. Use cmd/seed for demo logins.",
+    "description": "Backend collection for implemented Sprint 1/2/3 + Sprint 3.5: auth, bootstrap, dashboards, admin users, notification preferences, appointments lifecycle (cancel/reschedule), geo + hospital departments, messaging. Use cmd/seed for demo logins. Documents API is not in this backend yet.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -217,6 +217,20 @@
         },
         {
           "name": "GET /api/hospitals/near",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.hospitals && j.hospitals[0] && j.hospitals[0].id) {",
+                  "  pm.collectionVariables.set('hospitalId', j.hospitals[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
@@ -247,6 +261,37 @@
                 { "key": "radius_km", "value": "30" },
                 { "key": "specialization", "value": "Internal Medicine" }
               ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/doctors/search (with hospital_id)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctors/search?lat={{lat}}&lng={{lng}}&radius_km=50&specialization=&hospital_id={{hospitalId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctors", "search"],
+              "query": [
+                { "key": "lat", "value": "{{lat}}" },
+                { "key": "lng", "value": "{{lng}}" },
+                { "key": "radius_km", "value": "50" },
+                { "key": "specialization", "value": "" },
+                { "key": "hospital_id", "value": "{{hospitalId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/hospitals/:id/departments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/hospitals/{{hospitalId}}/departments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hospitals", "{{hospitalId}}", "departments"]
             }
           }
         },
@@ -344,6 +389,117 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "appointments", "{{appointmentId}}"]
             }
+          }
+        },
+        {
+          "name": "PATCH /api/appointments/:id/cancel (patient)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Postman cancel test\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/appointments/:id/request-reschedule (patient)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduled_at\": \"{{rescheduleAtIso}}\",\n  \"reason\": \"Postman reschedule request\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/request-reschedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}", "request-reschedule"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3.5 — Dashboards and ops",
+      "item": [
+        {
+          "name": "GET /api/dashboard/patient",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/patient", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "patient"] }
+          }
+        },
+        {
+          "name": "GET /api/dashboard/doctor",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/doctor", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "doctor"] }
+          }
+        },
+        {
+          "name": "GET /api/dashboard/admin",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/admin", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "admin"] }
+          }
+        },
+        {
+          "name": "GET /api/admin/users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/users", "host": ["{{baseUrl}}"], "path": ["api", "admin", "users"] }
+          }
+        },
+        {
+          "name": "PATCH /api/admin/users/:id (toggle active)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"active\": false\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{targetUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{targetUserId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/me/notification-preferences",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/me/notification-preferences", "host": ["{{baseUrl}}"], "path": ["api", "me", "notification-preferences"] }
+          }
+        },
+        {
+          "name": "PUT /api/me/notification-preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_appointment_reminders\": true,\n  \"sms_appointment_reminders\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/me/notification-preferences", "host": ["{{baseUrl}}"], "path": ["api", "me", "notification-preferences"] }
           }
         }
       ]
@@ -464,6 +620,9 @@
     { "key": "geoQuery", "value": "Gainesville, FL" },
     { "key": "lat", "value": "29.6516" },
     { "key": "lng", "value": "-82.3248" },
-    { "key": "scheduledAtIso", "value": "2026-12-01T14:00:00Z" }
+    { "key": "scheduledAtIso", "value": "2026-12-01T14:00:00Z" },
+    { "key": "hospitalId", "value": "" },
+    { "key": "rescheduleAtIso", "value": "2026-12-15T16:00:00Z" },
+    { "key": "targetUserId", "value": "" }
   ]
 }

@@ -140,7 +140,7 @@ describe('PatientFindCareComponent', () => {
 
     component.loadDoctors();
 
-    expect(geoMock.searchDoctors).toHaveBeenCalledWith(10, 20, 50, 'Internal Medicine');
+    expect(geoMock.searchDoctors).toHaveBeenCalledWith(10, 20, 50, 'Internal Medicine', undefined);
     expect(component.doctors.length).toBe(1);
     expect(component.doctors[0].email).toBe('doc@healthonyx.demo');
   });
