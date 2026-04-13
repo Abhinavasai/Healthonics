@@ -79,7 +79,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
             name="reason"
             [(ngModel)]="reason"
             required
-            minlength="5"
+            minlength="1"
             rows="3"
             placeholder="Brief reason for the appointment"
           ></textarea>
