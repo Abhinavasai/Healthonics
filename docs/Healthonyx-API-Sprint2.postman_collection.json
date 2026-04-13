@@ -66,6 +66,49 @@
       ]
     },
     {
+      "name": "GET /api/me",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/api/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "me"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Me returns current user profile', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('id');",
+              "  pm.expect(json).to.have.property('email');",
+              "  pm.expect(json).to.have.property('role');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "GET /api/geocode (text -> lat/lng)",
       "request": {
         "method": "GET",

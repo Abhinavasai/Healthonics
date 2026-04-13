@@ -154,7 +154,11 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims := claimsVal.(*Claims)
+	claims, ok := claimsVal.(*Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 	ctx := c.Request.Context()
 	var email, role string
 	err := db.Pool.QueryRow(ctx, `SELECT email, role FROM users WHERE id = $1`, claims.UserID).Scan(&email, &role)
@@ -227,7 +231,12 @@ func (h *AuthHandler) RequireRole(roles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		claims := claimsVal.(*Claims)
+		claims, ok := claimsVal.(*Claims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
 		if !allowed[claims.Role] {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			c.Abort()

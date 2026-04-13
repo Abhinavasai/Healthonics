@@ -21,3 +21,18 @@ func TestMe_UnauthorizedWithoutClaims(t *testing.T) {
 		t.Fatalf("expected 401, got %d body=%s", w.Code, w.Body.String())
 	}
 }
+
+func TestMe_UnauthorizedWithInvalidClaimsType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	c.Set("claims", "bad-claims-shape")
+
+	h := NewAuthHandler("test-secret-for-me-handler")
+	h.Me(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d body=%s", w.Code, w.Body.String())
+	}
+}
