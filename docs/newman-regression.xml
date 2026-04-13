@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Healthonyx API - Complete Regression" tests="23" time="0.565">
+  <testsuite name="Auth and Core / GET /health" id="37a3d8f0-ab15-4344-ad82-17846ff7433e" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.031"/>
+  <testsuite name="Auth and Core / POST /api/login (patient)" id="2efeb46e-08e9-4b6b-967a-4655237deaf2" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.070"/>
+  <testsuite name="Auth and Core / POST /api/login (doctor)" id="bdb9634e-746b-45b6-a3a2-3201df2a4e70" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.061"/>
+  <testsuite name="Auth and Core / POST /api/login (admin)" id="4630a624-8e9e-4bba-931b-de6d3da44c57" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.075"/>
+  <testsuite name="Auth and Core / GET /api/me" id="6a7bc3fe-aaa1-40be-a780-61b83c2ad4a7" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.005"/>
+  <testsuite name="Auth and Core / GET /api/bootstrap" id="7ae6742a-de4d-457b-9b14-5c84e8d5ed01" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.005"/>
+  <testsuite name="Geo and Slots / GET /api/geocode" id="47922221-ca44-4e39-8f9c-122cbacca7a1" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.135"/>
+  <testsuite name="Geo and Slots / GET /api/hospitals/near" id="22e0dfe2-41cb-4239-acd6-cf0482ed3898" timestamp="2026-04-13T20:58:44.073Z" tests="2" failures="0" errors="0" time="0.010">
+    <testcase name="status is 200" time="0.010" classname="GeoAndSlotsGetApiHospitalsNear"/>
+    <testcase name="hospitals is array" time="0.010" classname="GeoAndSlotsGetApiHospitalsNear"/>
+  </testsuite>
+  <testsuite name="Geo and Slots / GET /api/doctors/search" id="0796bf3b-f4d4-4eff-8f04-bb91f6741435" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.005"/>
+  <testsuite name="Geo and Slots / GET /api/doctors/:id/slots" id="9501925b-006e-47d1-821b-417a2a2d8531" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.006"/>
+  <testsuite name="Appointments and Activity / POST /api/appointments" id="2d72a835-0168-4361-a415-0a366dcd19ef" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.045"/>
+  <testsuite name="Appointments and Activity / PATCH /api/appointments/:id/status" id="5790cb04-f9c2-4db6-9c3f-3f5e9af3deba" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.032"/>
+  <testsuite name="Appointments and Activity / GET /api/appointments/:id/activity" id="5e304ada-4f9a-432e-909a-d149f3fd521a" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.008"/>
+  <testsuite name="Messaging / GET /api/messages/compose-limits" id="0fd8b13f-23d7-4fdd-92aa-29df6cfc12cc" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.005"/>
+  <testsuite name="Messaging / GET /api/messages/threads" id="088b41c0-68c9-4398-9d12-b6d411d43e38" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.007"/>
+  <testsuite name="Messaging / GET /api/messages/unread" id="4e429cdf-ab76-47e2-ab93-b84f96b05729" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.009"/>
+  <testsuite name="Sprint 3.5 / GET /api/dashboard/patient" id="1fec24e5-36c4-4571-9e8b-d4f1e6d673b9" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.011"/>
+  <testsuite name="Sprint 3.5 / GET /api/dashboard/doctor" id="a7fa2109-1861-4f2a-adb0-d0cc792f2f4c" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.007"/>
+  <testsuite name="Sprint 3.5 / GET /api/dashboard/admin" id="b99d568a-b78c-4ead-88e9-ae552366a446" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.009"/>
+  <testsuite name="Sprint 3.5 / GET /api/admin/users" id="e7b5b397-7172-42f2-a929-028f74565bff" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.007"/>
+  <testsuite name="Sprint 3.5 / GET /api/me/notification-preferences" id="ab2052a8-c0b4-4756-b679-e11f1021f4f1" timestamp="2026-04-13T20:58:44.073Z" tests="0" failures="0" errors="0" time="0.006"/>
+  <testsuite name="Sprint 3.5 / GET /api/hospitals/:id/departments" id="5d0e13d3-1708-4a6a-833e-888ad4b7c287" timestamp="2026-04-13T20:58:44.073Z" tests="2" failures="0" errors="0" time="0.011">
+    <testcase name="status is 200" time="0.011" classname="Sprint35GetApiHospitalsIdDepartments"/>
+    <testcase name="departments is array" time="0.011" classname="Sprint35GetApiHospitalsIdDepartments"/>
+  </testsuite>
+  <testsuite name="Sprint 3.5 / GET /api/hospitals/:id/departments (invalid id -> 400)" id="b5b18a9e-d0da-4b1f-9ccd-52bc13a885da" timestamp="2026-04-13T20:58:44.073Z" tests="1" failures="1" errors="0" time="0.005">
+    <testcase name="status is 400" time="0.005" classname="Sprint35GetApiHospitalsIdDepartmentsInvalidId400">
+      <failure type="AssertionFailure" message="expected response to have status code 400 but got 404">
+        <![CDATA[Failed 1 times.]]>
+        <![CDATA[Collection JSON ID: ff6eb274-a91d-445a-85e4-1f8ea2f117aa.]]>
+        <![CDATA[Collection name: Healthonyx API - Complete Regression.]]>
+        <![CDATA[Request name: Sprint 3.5 / GET /api/hospitals/:id/departments (invalid id -> 400).]]>
+        <![CDATA[Test description: status is 400.]]>
+        <![CDATA[Error message: expected response to have status code 400 but got 404.]]>
+        <![CDATA[Stacktrace: AssertionError: expected response to have status code 400 but got 404
+   at Object.eval sandbox-script.js:1:23).]]>
+      </failure>
+    </testcase>
+  </testsuite>
+</testsuites>
