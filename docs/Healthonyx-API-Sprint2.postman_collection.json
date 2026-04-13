@@ -125,6 +125,34 @@
       ]
     },
     {
+      "name": "GET /api/messages/compose-limits",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{baseUrl}}/api/messages/compose-limits",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "messages",
+            "compose-limits"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "GET /api/hospitals/near (lat/lng + radius)",
       "request": {
         "method": "GET",
