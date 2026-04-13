@@ -4,6 +4,8 @@ import { LoginComponent } from './components/login/login.component';
 import { LandingComponent } from './components/landing/landing.component';
 import { AppShellComponent } from './components/app-shell/app-shell.component';
 import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
+import { AdminShellKnowledgeComponent } from './components/admin-shell-knowledge/admin-shell-knowledge.component';
+import { AdminKnowledgeComponent } from './components/admin-knowledge/admin-knowledge.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
@@ -101,9 +103,23 @@ export const routes: Routes = [
       },
       {
         path: 'admin',
-        component: DashboardPlaceholderComponent,
-        data: { title: 'Admin', roles: ['admin'] },
-        canActivate: [roleGuard]
+        component: AdminShellKnowledgeComponent,
+        data: { roles: ['admin'] },
+        canActivate: [roleGuard],
+        children: [
+          {
+            path: '',
+            component: DashboardPlaceholderComponent,
+            data: { title: 'Admin', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'knowledge',
+            component: AdminKnowledgeComponent,
+            data: { title: 'Knowledge', roles: ['admin'] },
+            canActivate: [roleGuard]
+          }
+        ]
       }
     ]
   },

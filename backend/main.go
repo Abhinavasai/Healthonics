@@ -66,9 +66,13 @@ func main() {
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
 
 		// Role-protected: demonstrates 403 when role doesn't match
+		knowledge := handlers.NewKnowledgeAdminHandler()
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Admin only"})
 		})
+		api.GET("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.List)
+		api.POST("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Create)
+		api.GET("/admin/knowledge-docs/:id", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Get)
 		api.GET("/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Doctor only"})
 		})
