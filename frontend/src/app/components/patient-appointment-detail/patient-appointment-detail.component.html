@@ -26,6 +26,12 @@
       </div>
     </div>
 
-    <app-appointment-activity-timeline [loading]="false" [error]="activityError" [activities]="activities" />
+    <app-appointment-activity-timeline
+      [loading]="false"
+      [refreshing]="activityRefreshing"
+      [error]="activityError"
+      [activities]="activities"
+      (refreshRequested)="refreshActivities()"
+    />
   }
 </section>

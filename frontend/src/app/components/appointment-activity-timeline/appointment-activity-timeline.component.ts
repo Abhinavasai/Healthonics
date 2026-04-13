@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { AppointmentActivity } from '../../services/appointments.service';
 
@@ -11,8 +11,13 @@ import { AppointmentActivity } from '../../services/appointments.service';
 })
 export class AppointmentActivityTimelineComponent {
   @Input() loading = false;
+  @Input() refreshing = false;
   @Input() error = '';
   @Input() activities: AppointmentActivity[] = [];
+
+  @Output() refreshRequested = new EventEmitter<void>();
+
+  expandedId: string | null = null;
 
   headline(a: AppointmentActivity): string {
     switch (a.action) {
@@ -30,7 +35,30 @@ export class AppointmentActivityTimelineComponent {
   }
 
   subline(a: AppointmentActivity): string {
+    const em = a.actor_email?.trim();
+    if (em) {
+      return `By ${em}`;
+    }
     const short = a.actor_user_id?.slice(0, 8) ?? '';
     return short ? `Actor ${short}…` : '';
+  }
+
+  onRefresh(): void {
+    if (this.refreshing) {
+      return;
+    }
+    this.refreshRequested.emit();
+  }
+
+  toggleExpand(id: string): void {
+    this.expandedId = this.expandedId === id ? null : id;
+  }
+
+  isExpanded(a: AppointmentActivity): boolean {
+    return this.expandedId === a.id;
+  }
+
+  hasExpandable(a: AppointmentActivity): boolean {
+    return !!(a.detail || a.action);
   }
 }

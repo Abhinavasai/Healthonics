@@ -17,6 +17,7 @@ describe('Appointment detail + activity timeline', () => {
           id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
           appointment_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
           actor_user_id: '33333333-3333-3333-3333-333333333333',
+          actor_email: 'doctor@healthonyx.demo',
           action: 'status_changed',
           detail: 'approved',
           created_at: '2026-05-02T10:00:00Z',
@@ -44,6 +45,11 @@ describe('Appointment detail + activity timeline', () => {
     cy.contains('Follow-up').should('be.visible');
     cy.get('[data-cy="appointment-activity-row"]').should('have.length', 1);
     cy.contains('Request approved').should('be.visible');
+    cy.get('[data-cy="appointment-activity-actor"]').should('contain', 'doctor@healthonyx.demo');
+    cy.contains('button', 'Details').click();
+    cy.get('[data-cy="appointment-activity-expanded"]').should('be.visible');
+    cy.get('[data-cy="appointment-activity-refresh"]').should('be.visible').click();
+    cy.wait('@act');
   });
 
   it('patient detail shows empty activity message when none', () => {

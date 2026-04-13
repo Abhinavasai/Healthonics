@@ -21,8 +21,10 @@ export class PatientAppointmentDetailComponent implements OnInit, OnDestroy {
   appointment: Appointment | null = null;
   activities: AppointmentActivity[] = [];
   loading = false;
+  activityRefreshing = false;
   activityError = '';
   pageError = '';
+  private appointmentId = '';
   private sub?: Subscription;
 
   constructor(
@@ -38,6 +40,7 @@ export class PatientAppointmentDetailComponent implements OnInit, OnDestroy {
         filter((id): id is string => !!id),
         distinctUntilChanged(),
         switchMap((id) => {
+          this.appointmentId = id;
           this.loading = true;
           this.pageError = '';
           this.activityError = '';
@@ -71,6 +74,24 @@ export class PatientAppointmentDetailComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+  }
+
+  refreshActivities(): void {
+    if (!this.appointmentId) {
+      return;
+    }
+    this.activityRefreshing = true;
+    this.activityError = '';
+    this.appointmentsService
+      .getActivity(this.appointmentId)
+      .pipe(
+        finalize(() => (this.activityRefreshing = false)),
+        catchError(() => {
+          this.activityError = 'Unable to load activity history.';
+          return of([] as AppointmentActivity[]);
+        })
+      )
+      .subscribe((rows) => (this.activities = rows));
   }
 
   back(): void {

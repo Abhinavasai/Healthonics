@@ -21,6 +21,7 @@ export class DoctorAppointmentDetailComponent implements OnInit, OnDestroy {
   appointment: Appointment | null = null;
   activities: AppointmentActivity[] = [];
   loading = false;
+  activityRefreshing = false;
   deciding = false;
   activityError = '';
   pageError = '';
@@ -110,6 +111,24 @@ export class DoctorAppointmentDetailComponent implements OnInit, OnDestroy {
         finalize(() => (this.deciding = false))
       )
       .subscribe();
+  }
+
+  refreshActivities(): void {
+    if (!this.appointmentId) {
+      return;
+    }
+    this.activityRefreshing = true;
+    this.activityError = '';
+    this.appointmentsService
+      .getActivity(this.appointmentId)
+      .pipe(
+        finalize(() => (this.activityRefreshing = false)),
+        catchError(() => {
+          this.activityError = 'Unable to load activity history.';
+          return of([] as AppointmentActivity[]);
+        })
+      )
+      .subscribe((rows) => (this.activities = rows));
   }
 
   back(): void {
