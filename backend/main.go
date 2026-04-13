@@ -33,6 +33,7 @@ func main() {
 	}
 
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
+	bootstrap := handlers.NewBootstrapHandler()
 	appointments := handlers.NewAppointmentHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
@@ -61,6 +62,7 @@ func main() {
 
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
+		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
 
 		// Role-protected: demonstrates 403 when role doesn't match
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
