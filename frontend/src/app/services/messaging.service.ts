@@ -32,6 +32,11 @@ export interface UnreadResponse {
   unread_total: number;
 }
 
+export interface ComposeLimitsResponse {
+  max_body_runes: number;
+  preview_max_runes: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
   private readonly API = '/api/messages';
@@ -96,5 +101,11 @@ export class MessagingService {
     return this.http
       .post<void>(`${this.API}/threads/${encodeURIComponent(threadId)}/read`, {})
       .pipe(catchError(() => of(undefined)));
+  }
+
+  composeLimits(): Observable<ComposeLimitsResponse | null> {
+    return this.http.get<ComposeLimitsResponse>(`${this.API}/compose-limits`).pipe(
+      catchError(() => of(null))
+    );
   }
 }

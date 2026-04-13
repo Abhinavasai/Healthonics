@@ -43,7 +43,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
   private readonly pollMs = 25000;
 
   /** Matches backend `maxMessageRunes` in messaging handler. */
-  readonly maxMessageRunes = 8000;
+  maxMessageRunes = 8000;
 
   constructor(
     private messaging: MessagingService,
@@ -92,6 +92,13 @@ export class MessagesComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.messaging.composeLimits().subscribe({
+      next: (limits) => {
+        if (limits?.max_body_runes && limits.max_body_runes > 0) {
+          this.maxMessageRunes = limits.max_body_runes;
+        }
+      }
+    });
     if (this.role === 'patient') {
       this.appointments.listDoctors().subscribe({
         next: (res) => (this.doctors = res.doctors ?? []),
