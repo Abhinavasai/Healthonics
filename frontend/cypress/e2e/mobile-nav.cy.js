@@ -8,18 +8,17 @@ describe('Mobile app shell navigation', () => {
 
     cy.viewport(390, 844);
 
-    cy.visit('/patient/appointments', {
-      onBeforeLoad(win) {
-        win.localStorage.setItem('token', 'cypress-token');
-        win.localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-            email: 'mobile@test.demo',
-            role: 'patient',
-          })
-        );
-      },
+    cy.request('POST', '/api/login', {
+      email: 'patient@healthonyx.demo',
+      password: 'patient123',
+    }).then((res) => {
+      const { token, user } = res.body;
+      cy.visit('/patient/appointments', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('token', token);
+          win.localStorage.setItem('user', JSON.stringify(user));
+        },
+      });
     });
 
     cy.url().should('include', '/patient/appointments');

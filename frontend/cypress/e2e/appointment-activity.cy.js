@@ -25,18 +25,17 @@ describe('Appointment detail + activity timeline', () => {
       ],
     }).as('act');
 
-    cy.visit('/doctor/appointments/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', {
-      onBeforeLoad(win) {
-        win.localStorage.setItem('token', 'cypress-token');
-        win.localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: '33333333-3333-3333-3333-333333333333',
-            email: 'doctor@healthonyx.demo',
-            role: 'doctor',
-          })
-        );
-      },
+    cy.request('POST', '/api/login', {
+      email: 'doctor@healthonyx.demo',
+      password: 'doctor123',
+    }).then((res) => {
+      const { token, user } = res.body;
+      cy.visit('/doctor/appointments/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('token', token);
+          win.localStorage.setItem('user', JSON.stringify(user));
+        },
+      });
     });
 
     cy.wait('@appt');
@@ -69,18 +68,17 @@ describe('Appointment detail + activity timeline', () => {
       activities: [],
     }).as('act2');
 
-    cy.visit('/patient/appointments/cccccccc-cccc-cccc-cccc-cccccccccccc', {
-      onBeforeLoad(win) {
-        win.localStorage.setItem('token', 'cypress-token');
-        win.localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: '22222222-2222-2222-2222-222222222222',
-            email: 'patient@healthonyx.demo',
-            role: 'patient',
-          })
-        );
-      },
+    cy.request('POST', '/api/login', {
+      email: 'patient@healthonyx.demo',
+      password: 'patient123',
+    }).then((res) => {
+      const { token, user } = res.body;
+      cy.visit('/patient/appointments/cccccccc-cccc-cccc-cccc-cccccccccccc', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('token', token);
+          win.localStorage.setItem('user', JSON.stringify(user));
+        },
+      });
     });
 
     cy.wait('@appt2');

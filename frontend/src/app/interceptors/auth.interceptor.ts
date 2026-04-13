@@ -17,7 +17,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401) {
+      // Avoid global auto-logout on any 401: many endpoints can legitimately return 401/403
+      // (e.g. optional polling) and should be handled by the calling UI.
+      // We only hard-redirect when the profile endpoint rejects the token.
+      if (err.status === 401 && req.url.startsWith('/api/me')) {
         auth.logout();
         router.navigate(['/login']);
       }

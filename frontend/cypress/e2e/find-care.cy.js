@@ -1,18 +1,16 @@
 describe('Patient find-care (location -> nearby hospitals)', () => {
   it('loads and shows hospitals after geocoding + search', () => {
-    // Stub auth (guards use localStorage token + user.role)
-    cy.visit('/patient/find-care', {
-      onBeforeLoad(win) {
-        win.localStorage.setItem('token', 'cypress-token');
-        win.localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: 'cypress-user-id',
-            email: 'patient@healthonyx.demo',
-            role: 'patient',
-          })
-        );
-      },
+    cy.request('POST', '/api/login', {
+      email: 'patient@healthonyx.demo',
+      password: 'patient123',
+    }).then((res) => {
+      const { token, user } = res.body;
+      cy.visit('/patient/find-care', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('token', token);
+          win.localStorage.setItem('user', JSON.stringify(user));
+        },
+      });
     });
 
     cy.intercept('GET', '**/api/geocode*', {
@@ -51,18 +49,17 @@ describe('Patient find-care (location -> nearby hospitals)', () => {
   });
 
   it('can also find doctors after searching for a location', () => {
-    cy.visit('/patient/find-care', {
-      onBeforeLoad(win) {
-        win.localStorage.setItem('token', 'cypress-token');
-        win.localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: 'cypress-user-id',
-            email: 'patient@healthonyx.demo',
-            role: 'patient',
-          })
-        );
-      },
+    cy.request('POST', '/api/login', {
+      email: 'patient@healthonyx.demo',
+      password: 'patient123',
+    }).then((res) => {
+      const { token, user } = res.body;
+      cy.visit('/patient/find-care', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('token', token);
+          win.localStorage.setItem('user', JSON.stringify(user));
+        },
+      });
     });
 
     cy.intercept('GET', '**/api/geocode*', {
