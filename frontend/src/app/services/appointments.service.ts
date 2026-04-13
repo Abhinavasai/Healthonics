@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface Appointment {
   id: string;
@@ -26,6 +27,22 @@ export interface DoctorListResponse {
   doctors: DoctorOption[];
 }
 
+/** Audit row from GET /api/appointments/:id/activity */
+export interface AppointmentActivity {
+  id: string;
+  appointment_id: string;
+  actor_user_id: string;
+  /** When provided by API (joined user email). */
+  actor_email?: string;
+  action: string;
+  detail?: string;
+  created_at: string;
+}
+
+interface AppointmentActivityListResponse {
+  activities?: AppointmentActivity[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsService {
   private readonly API = '/api/appointments';
@@ -39,6 +56,12 @@ export class AppointmentsService {
 
   getById(id: string): Observable<Appointment> {
     return this.http.get<Appointment>(`${this.API}/${id}`);
+  }
+
+  getActivity(id: string): Observable<AppointmentActivity[]> {
+    return this.http
+      .get<AppointmentActivityListResponse>(`${this.API}/${id}/activity`)
+      .pipe(map((r) => r.activities ?? []));
   }
 
   listPatient(): Observable<AppointmentListResponse> {
