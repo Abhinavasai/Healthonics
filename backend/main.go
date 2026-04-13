@@ -35,6 +35,7 @@ func main() {
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	bootstrap := handlers.NewBootstrapHandler()
 	appointments := handlers.NewAppointmentHandler()
+	messaging := handlers.NewMessagingHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
 	r := gin.Default()
@@ -91,6 +92,16 @@ func main() {
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
+
+		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
+		{
+			msg.GET("/unread", messaging.UnreadTotal)
+			msg.GET("/threads", messaging.ListThreads)
+			msg.POST("/threads", messaging.CreateThread)
+			msg.GET("/threads/:threadId", messaging.ListMessages)
+			msg.POST("/threads/:threadId/messages", messaging.SendMessage)
+			msg.POST("/threads/:threadId/read", messaging.MarkRead)
+		}
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
