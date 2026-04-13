@@ -43,7 +43,13 @@
               <p class="detail">{{ a.detail }}</p>
             }
             @if (hasExpandable(a)) {
-              <button type="button" class="btn-details" (click)="toggleExpand(a.id)" [attr.aria-expanded]="isExpanded(a)">
+              <button
+                type="button"
+                class="btn-details"
+                data-cy="appointment-activity-details"
+                (click)="toggleExpand(a.id)"
+                [attr.aria-expanded]="isExpanded(a)"
+              >
                 {{ isExpanded(a) ? 'Hide details' : 'Details' }}
               </button>
             }

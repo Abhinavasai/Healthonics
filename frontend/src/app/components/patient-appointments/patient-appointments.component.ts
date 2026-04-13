@@ -117,7 +117,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
                   {{ appointment.status | titlecase }}
                 </span>
               </div>
-              <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
+              <div class="meta">Doctor: {{ doctorLabel(appointment) }}</div>
               <div class="reason">{{ appointment.reason }}</div>
               <span class="hint">View details</span>
             </a>
@@ -271,6 +271,12 @@ export class PatientAppointmentsComponent implements OnInit {
           this.error = err?.error?.error ?? 'Unable to load appointments';
         }
       });
+  }
+
+  /** Prefer doctor email from the directory; fall back to id if unknown. */
+  doctorLabel(appointment: Appointment): string {
+    const match = this.doctors.find((d) => d.id === appointment.doctor_id);
+    return match?.email ?? appointment.doctor_id;
   }
 
   get sortedAppointments(): Appointment[] {

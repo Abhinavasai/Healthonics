@@ -46,7 +46,8 @@ describe('Appointment detail + activity timeline', () => {
     cy.get('[data-cy="appointment-activity-row"]').should('have.length', 1);
     cy.contains('Request approved').should('be.visible');
     cy.get('[data-cy="appointment-activity-actor"]').should('contain', 'doctor@healthonyx.demo');
-    cy.contains('button', 'Details').click();
+    // Top-layer backdrop (e.g. browser popover layer) can intercept naive clicks in headless runs.
+    cy.get('[data-cy="appointment-activity-details"]').scrollIntoView().click({ force: true });
     cy.get('[data-cy="appointment-activity-expanded"]').should('be.visible');
     cy.get('[data-cy="appointment-activity-refresh"]').should('be.visible').click();
     cy.wait('@act');
