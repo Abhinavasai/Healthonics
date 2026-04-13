@@ -165,16 +165,38 @@ import {
         gap: 0.35rem;
         font-size: 0.9rem;
       }
-      input {
+      input,
+      select {
         background: #0b1220;
         color: #e5e7eb;
         border: 1px solid #334155;
         border-radius: 8px;
-        padding: 0.5rem;
+        padding: 0.6rem 0.7rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      }
+      input:hover,
+      select:hover {
+        border-color: #475569;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #22d3ee;
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.2);
+        background: #0f172a;
       }
       .department-select {
-        max-height: 220px;
-        overflow-y: auto;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+        padding-right: 2rem;
+        background-image:
+          linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+          linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+        background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 10px) calc(50% - 2px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
       }
       .actions {
         display: flex;
