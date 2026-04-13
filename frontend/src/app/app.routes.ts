@@ -12,6 +12,7 @@ import { PatientFindCareComponent } from './components/patient-find-care/patient
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { MessagesComponent } from './components/messages/messages.component';
 import { PatientFilesComponent } from './components/patient-files/patient-files.component';
+import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -64,6 +65,12 @@ export const routes: Routes = [
             path: 'my-files',
             component: PatientFilesComponent,
             data: { title: 'My files', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'prescriptions',
+            component: PatientPrescriptionsComponent,
+            data: { title: 'My prescriptions', roles: ['patient'] },
             canActivate: [roleGuard]
           }
         ]

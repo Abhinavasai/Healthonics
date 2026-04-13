@@ -36,6 +36,7 @@ func main() {
 	bootstrap := handlers.NewBootstrapHandler()
 	appointments := handlers.NewAppointmentHandler()
 	messaging := handlers.NewMessagingHandler()
+	prescriptions := handlers.NewPrescriptionsHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
 	patientFiles := handlers.NewPatientFilesHandler(cfg.UploadDir)
@@ -97,6 +98,10 @@ func main() {
 		api.GET("/patients/:patientId/files", auth.RequireAuth(), patientFiles.List)
 		api.POST("/patients/:patientId/files", auth.RequireAuth(), patientFiles.Upload)
 		api.GET("/files/:id", auth.RequireAuth(), patientFiles.Download)
+
+		api.GET("/patients/:patientId/prescriptions", auth.RequireAuth(), prescriptions.ListByPatient)
+		api.POST("/patients/:patientId/prescriptions", auth.RequireAuth(), auth.RequireRole("doctor"), prescriptions.Create)
+		api.PATCH("/prescriptions/:id/revoke", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), prescriptions.Revoke)
 
 		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
 		{
