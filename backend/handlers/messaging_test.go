@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -44,6 +45,49 @@ func TestValidPatientDoctorPair(t *testing.T) {
 	_, _, ok = validPatientDoctorPair("patient", p, d, "patient")
 	if ok {
 		t.Fatalf("expected invalid when peer is not doctor")
+	}
+}
+
+func TestComposeLimits_OK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/api/messages/compose-limits", nil)
+	c.Set("claims", &Claims{
+		UserID: uuid.New(),
+		Email:  "pat@b.com",
+		Role:   "patient",
+	})
+
+	h := NewMessagingHandler()
+	h.ComposeLimits(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	var body struct {
+		MaxBodyRunes    int `json:"max_body_runes"`
+		PreviewMaxRunes int `json:"preview_max_runes"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.MaxBodyRunes != maxMessageRunes || body.PreviewMaxRunes != previewMaxRunes {
+		t.Fatalf("unexpected limits: %+v", body)
+	}
+}
+
+func TestComposeLimits_Unauthorized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/api/messages/compose-limits", nil)
+
+	h := NewMessagingHandler()
+	h.ComposeLimits(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
 	}
 }
 
