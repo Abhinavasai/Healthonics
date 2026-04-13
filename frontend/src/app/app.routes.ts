@@ -9,10 +9,10 @@ import { PatientAppointmentDetailComponent } from './components/patient-appointm
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
 import { DoctorAppointmentDetailComponent } from './components/doctor-appointment-detail/doctor-appointment-detail.component';
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
+import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
 import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
 import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
-import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
 import { MessagesComponent } from './components/messages/messages.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';

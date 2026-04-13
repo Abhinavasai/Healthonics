@@ -1,0 +1,95 @@
+<section class="docs-page" data-cy="documents-page">
+  <div class="docs-hero">
+    <h1 class="page-title">
+      <span class="title-icon" aria-hidden="true">📄</span>
+      My documents
+    </h1>
+    <p class="hero-subtitle">
+      Upload lab results, imaging reports, or other files your care team should review. Files are
+      encrypted in transit and stored securely.
+    </p>
+  </div>
+
+  <div class="upload-card glass" data-cy="documents-upload">
+    <div class="upload-card__head">
+      <span class="spark">✦</span>
+      <h2>Upload a file</h2>
+    </div>
+    <p class="hint">PDF and common images (PNG, JPEG, WebP) are supported. Max size depends on server settings.</p>
+    <div class="upload-row">
+      <input
+        #fileInput
+        type="file"
+        class="file-input"
+        data-cy="documents-file-input"
+        accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf"
+        (change)="onFileSelected($event)"
+        [disabled]="uploading"
+      />
+      <button
+        type="button"
+        class="btn-pick"
+        data-cy="documents-choose-file"
+        [disabled]="uploading"
+        (click)="fileInput.click()"
+      >
+        {{ uploading ? 'Uploading…' : 'Choose file' }}
+      </button>
+    </div>
+    <div *ngIf="uploadPercent !== null" class="progress-wrap" data-cy="documents-upload-progress">
+      <div class="progress-bar" [style.width.%]="uploadPercent"></div>
+      <span class="progress-text">{{ uploadPercent }}%</span>
+    </div>
+    <p *ngIf="formMessage" class="ok-msg" data-cy="documents-upload-success">{{ formMessage }}</p>
+  </div>
+
+  <p *ngIf="error" class="error-banner" data-cy="documents-error">{{ error }}</p>
+
+  <div class="list-card glass" data-cy="documents-list">
+    <div class="list-head">
+      <h2>Your files</h2>
+      <button type="button" class="btn-ghost" (click)="load()" [disabled]="loading">
+        {{ loading ? '…' : 'Refresh' }}
+      </button>
+    </div>
+
+    <p *ngIf="loading && documents.length === 0" class="muted" data-cy="documents-loading">Loading…</p>
+
+    <p *ngIf="!loading && documents.length === 0" class="empty" data-cy="documents-empty">
+      <span class="empty__icon">📭</span>
+      No documents yet. Upload a file to get started.
+    </p>
+
+    <table *ngIf="documents.length > 0" class="doc-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Uploaded</th>
+          <th>Size</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of documents" data-cy="documents-row">
+          <td class="name">{{ d.filename }}</td>
+          <td>{{ d.created_at | date: 'medium' }}</td>
+          <td>{{ formatBytes(d.size_bytes) }}</td>
+          <td>
+            <span class="badge" [class]="'badge--' + (d.status || 'ready')">{{ statusLabel(d.status) }}</span>
+          </td>
+          <td class="actions">
+            <button
+              type="button"
+              class="btn-link"
+              data-cy="documents-download"
+              (click)="openInNewTab(d)"
+            >
+              Open / download
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
