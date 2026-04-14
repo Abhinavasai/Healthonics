@@ -68,26 +68,18 @@ Healthonyx AI Collective
    ```
    The app will be at `http://localhost:4200`. Use **Login** or **Register**; after login you are redirected to the role-specific dashboard (patient, doctor, or admin).
 
-4. Run frontend unit tests (Angular/Jasmine via Karma, headless, bundled Chromium via Puppeteer):
+4. Run frontend unit tests (Angular/Jasmine via Karma, once headless):
    ```bash
+   # from the repo root
    cd frontend
-   npm install
-   npm run test:ci
+   CI=true npx ng test --watch=false --browsers=ChromeHeadless --progress=false
    ```
-   This sets `CI=true` so Karma uses `ChromeHeadlessCI` (sandbox-friendly flags) and `CHROME_BIN` from `puppeteer` when system Chrome is missing.
 
-5. Run Cypress E2E (starts API + `ng serve`, then runs all headless specs):
+5. Run Cypress e2e test (Find-Care flow):
    ```bash
-   # Terminal A — database (once)
-   docker compose up -d
-   # Ensure backend/.env has DATABASE_URL matching docker-compose (see below)
-   cd backend && go run ./cmd/seed && cd ..
-   # Terminal B — from frontend (needs Go on PATH)
    cd frontend
-   npm install
-   npm run cypress:e2e
+   npx cypress run --headless --spec "cypress/e2e/find-care.cy.js"
    ```
-   The script starts the API on **port 28180** (avoids clashing with a dev API on 8080), proxies `/api` from Angular on **4300** to that API, and passes matching `API_URL` to Cypress. Prerequisites: PostgreSQL reachable, `backend/.env` with `DATABASE_URL` and `JWT_SECRET`, seed run at least once, and **ports 28180 and 4300 free** (change `PORT` / `proxy.e2e.conf.json` / `cy:run` together if you need a different port). For manual runs against the usual stack (API 8080, app 4200): start API + `npm start`, then `npx cypress run --headless --spec "cypress/e2e/find-care.cy.js"` (uses default `API_URL` from `cypress.config.js`).
 
 6. Production build:
    ```bash
@@ -108,17 +100,12 @@ Note: if you just cloned the repo and the database is empty, run the backend onc
 3. (Optional) Seed demo users: `go run ./cmd/seed`
 4. Start frontend: `cd frontend && npm start`
 
-### Docker (optional) for PostgreSQL
-From the repo root:
-```bash
-docker compose up -d
-```
-Then set `DATABASE_URL=postgres://healthonyx:healthonyx@localhost:5432/healthonyx?sslmode=disable` in `backend/.env`.
-
-Alternatively, a one-off container:
+### Docker (optional) for PostgreSQL only
+If you prefer to run Postgres in Docker:
 ```bash
 docker run -d --name healthonyx-db -e POSTGRES_USER=healthonyx -e POSTGRES_PASSWORD=healthonyx -e POSTGRES_DB=healthonyx -p 5432:5432 postgres:16
 ```
+Then set `DATABASE_URL=postgres://healthonyx:healthonyx@localhost:5432/healthonyx?sslmode=disable` in `backend/.env`.
 
 ---
 

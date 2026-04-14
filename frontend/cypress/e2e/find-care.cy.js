@@ -1,4 +1,4 @@
-const API = Cypress.env('API_URL');
+const API = 'http://localhost:8080';
 
 /** Real login: app shell polls /api/messages/unread; a fake token 401s and auth interceptor sends user to /login. */
 function visitPatientFindCare() {

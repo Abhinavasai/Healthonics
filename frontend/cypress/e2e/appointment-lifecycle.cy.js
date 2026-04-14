@@ -1,5 +1,5 @@
 /** S4 — Kaushik — appointment lifecycle UI shell */
-const API = Cypress.env('API_URL');
+const API = 'http://localhost:8080';
 
 describe('Appointment lifecycle (S4 Kaushik)', () => {
   it('patient appointments list is reachable', () => {

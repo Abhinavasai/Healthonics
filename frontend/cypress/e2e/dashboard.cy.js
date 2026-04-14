@@ -1,5 +1,5 @@
 /** S4 — Karthik — role dashboards */
-const API = Cypress.env('API_URL');
+const API = 'http://localhost:8080';
 
 describe('Dashboards (S4 Karthik)', () => {
   it('patient dashboard loads', () => {
