@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
 import { Appointment, AppointmentsService } from '../../services/appointments.service';
@@ -7,7 +8,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
 @Component({
   selector: 'app-patient-appointment-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, DatePipe, TitleCasePipe],
+  imports: [CommonModule, FormsModule, RouterModule, DatePipe, TitleCasePipe],
   template: `
     <section class="detail">
       <header class="toolbar">
@@ -26,6 +27,21 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
         <div class="meta">Doctor: {{ appointment.doctor_id }}</div>
         <div class="reason">{{ appointment.reason }}</div>
       </div>
+
+      <div *ngIf="!loading && appointment" class="card" data-cy="appointment-comments-section">
+        <h2>Comments</h2>
+        <ul *ngIf="comments.length" data-cy="appointment-comments-list">
+          <li *ngFor="let c of comments">{{ c.body }} — <small>{{ c.created_at }}</small></li>
+        </ul>
+        <p *ngIf="!comments.length" class="muted">No comments yet.</p>
+        <label class="cmt">
+          Add comment
+          <textarea [(ngModel)]="newComment" rows="2" data-cy="appointment-comment-input"></textarea>
+        </label>
+        <button type="button" (click)="submitComment()" [disabled]="!newComment.trim() || posting" data-cy="appointment-comment-submit">
+          Post
+        </button>
+      </div>
     </section>
   `,
   styles: [`
@@ -41,12 +57,17 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
     .rejected { color: #f87171; border-color: rgba(248, 113, 113, 0.5); }
     .meta { color: #94a3b8; margin-top: 0.35rem; font-size: 0.9rem; }
     .reason { margin-top: 0.5rem; }
-    .error { color: #f87171; }
+      .error { color: #f87171; }
     .muted { color: #94a3b8; }
+    .cmt { display: grid; gap: 0.35rem; margin-top: 0.75rem; }
+    ul { margin: 0.5rem 0; padding-left: 1.1rem; }
   `]
 })
 export class PatientAppointmentDetailComponent implements OnInit {
   appointment: Appointment | null = null;
+  comments: { id: string; author_user_id: string; body: string; created_at: string }[] = [];
+  newComment = '';
+  posting = false;
   loading = false;
   error = '';
 
@@ -72,9 +93,43 @@ export class PatientAppointmentDetailComponent implements OnInit {
       .getById(id)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: (appt) => (this.appointment = appt),
+        next: (appt) => {
+          this.appointment = appt;
+          this.reloadComments(id);
+        },
         error: (err) => {
           this.error = err?.error?.error ?? 'Unable to load appointment';
+        }
+      });
+  }
+
+  reloadComments(id: string): void {
+    this.appointmentsService.listComments(id).subscribe({
+      next: (r) => (this.comments = r.comments ?? []),
+      error: () => {}
+    });
+  }
+
+  submitComment(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id || !this.appointment) {
+      return;
+    }
+    const body = this.newComment.trim();
+    if (!body) {
+      return;
+    }
+    this.posting = true;
+    this.appointmentsService
+      .postComment(id, body)
+      .pipe(finalize(() => (this.posting = false)))
+      .subscribe({
+        next: () => {
+          this.newComment = '';
+          this.reloadComments(id);
+        },
+        error: (err) => {
+          this.error = err?.error?.error ?? 'Could not post comment';
         }
       });
   }

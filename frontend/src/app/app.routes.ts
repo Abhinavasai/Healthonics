@@ -4,6 +4,9 @@ import { LoginComponent } from './components/login/login.component';
 import { LandingComponent } from './components/landing/landing.component';
 import { AppShellComponent } from './components/app-shell/app-shell.component';
 import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
+import { AdminShellComponent } from './components/admin-shell/admin-shell.component';
+import { AdminAuditComponent } from './components/admin-audit/admin-audit.component';
+import { AdminKnowledgeComponent } from './components/admin-knowledge/admin-knowledge.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
@@ -14,6 +17,11 @@ import { DoctorAvailabilityComponent } from './components/doctor-availability/do
 import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
 import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
 import { MessagesComponent } from './components/messages/messages.component';
+import { PatientFilesComponent } from './components/patient-files/patient-files.component';
+import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
+import { NotificationsInboxComponent } from './components/notifications-inbox/notifications-inbox.component';
+import { PatientDashboardComponent } from './components/patient-dashboard/patient-dashboard.component';
+import { DoctorDashboardComponent } from './components/doctor-dashboard/doctor-dashboard.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -31,7 +39,13 @@ export const routes: Routes = [
         data: { roles: ['patient'] },
         canActivate: [roleGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+          {
+            path: 'dashboard',
+            component: PatientDashboardComponent,
+            data: { title: 'Dashboard', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'find-care',
             component: PatientFindCareComponent,
@@ -67,6 +81,24 @@ export const routes: Routes = [
             component: MessagesComponent,
             data: { title: 'Messages', roles: ['patient'] },
             canActivate: [roleGuard]
+          },
+          {
+            path: 'my-files',
+            component: PatientFilesComponent,
+            data: { title: 'My files', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'prescriptions',
+            component: PatientPrescriptionsComponent,
+            data: { title: 'My prescriptions', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'notifications',
+            component: NotificationsInboxComponent,
+            data: { title: 'Notifications', roles: ['patient'] },
+            canActivate: [roleGuard]
           }
         ]
       },
@@ -75,7 +107,13 @@ export const routes: Routes = [
         data: { roles: ['doctor'] },
         canActivate: [roleGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'appointments' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+          {
+            path: 'dashboard',
+            component: DoctorDashboardComponent,
+            data: { title: 'Dashboard', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
           {
             path: 'availability',
             component: DoctorAvailabilityComponent,
@@ -117,14 +155,40 @@ export const routes: Routes = [
             component: MessagesComponent,
             data: { title: 'Messages', roles: ['doctor'] },
             canActivate: [roleGuard]
+          },
+          {
+            path: 'notifications',
+            component: NotificationsInboxComponent,
+            data: { title: 'Notifications', roles: ['doctor'] },
+            canActivate: [roleGuard]
           }
         ]
       },
       {
         path: 'admin',
-        component: DashboardPlaceholderComponent,
-        data: { title: 'Admin', roles: ['admin'] },
-        canActivate: [roleGuard]
+        component: AdminShellComponent,
+        data: { roles: ['admin'] },
+        canActivate: [roleGuard],
+        children: [
+          {
+            path: '',
+            component: DashboardPlaceholderComponent,
+            data: { title: 'Admin', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'audit',
+            component: AdminAuditComponent,
+            data: { title: 'Audit log', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'knowledge',
+            component: AdminKnowledgeComponent,
+            data: { title: 'Knowledge', roles: ['admin'] },
+            canActivate: [roleGuard]
+          }
+        ]
       }
     ]
   },

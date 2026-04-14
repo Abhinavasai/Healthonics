@@ -30,7 +30,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
           <button type="button" class="chip" (click)="activeFilter = 'approved'" [class.active]="activeFilter === 'approved'" data-cy="doctor-filter-approved">Approved {{ approvedCount }}</button>
           <button type="button" class="chip" (click)="activeFilter = 'rejected'" [class.active]="activeFilter === 'rejected'" data-cy="doctor-filter-rejected">Rejected {{ rejectedCount }}</button>
         </div>
-        <ul *ngIf="visibleAppointments.length > 0">
+        <ul *ngIf="visibleAppointments.length > 0" data-cy="doctor-appointments-queue">
           <li *ngFor="let appointment of visibleAppointments" data-cy="doctor-appointment-item">
             <div class="row">
               <a class="row-link" [routerLink]="['/doctor/appointments', appointment.id]">
@@ -50,6 +50,24 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
                 </button>
                 <button type="button" (click)="updateStatus(appointment.id, 'rejected')" [disabled]="processingId === appointment.id">
                   Reject
+                </button>
+              </div>
+              <div class="actions" *ngIf="appointment.status === 'approved'">
+                <button
+                  type="button"
+                  data-cy="doctor-mark-completed"
+                  (click)="updateStatus(appointment.id, 'completed')"
+                  [disabled]="processingId === appointment.id"
+                >
+                  Complete
+                </button>
+                <button
+                  type="button"
+                  data-cy="doctor-mark-noshow"
+                  (click)="updateStatus(appointment.id, 'no_show')"
+                  [disabled]="processingId === appointment.id"
+                >
+                  No-show
                 </button>
               </div>
             </div>
@@ -121,7 +139,7 @@ export class DoctorAppointmentsComponent implements OnInit {
       });
   }
 
-  updateStatus(id: string, status: 'approved' | 'rejected'): void {
+  updateStatus(id: string, status: string): void {
     this.processingId = id;
     this.appointmentsService.updateStatus(id, status)
       .pipe(finalize(() => (this.processingId = '')))

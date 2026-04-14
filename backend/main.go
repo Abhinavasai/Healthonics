@@ -34,12 +34,18 @@ func main() {
 
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	bootstrap := handlers.NewBootstrapHandler()
+	dashboard := handlers.NewDashboardHandler()
 	appointments := handlers.NewAppointmentHandler()
+	apptComments := handlers.NewAppointmentCommentsHandler()
 	documents := handlers.NewDocumentsHandler()
 	messaging := handlers.NewMessagingHandler()
+	prescriptions := handlers.NewPrescriptionsHandler()
+	notifications := handlers.NewNotificationsHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
+	patientFiles := handlers.NewPatientFilesHandler(cfg.UploadDir)
 	r := gin.Default()
+	r.MaxMultipartMemory = 8 << 20 // 8 MiB multipart buffer (handler still enforces 5 MiB file cap)
 
 	// CORS: allow Angular dev server and any configured origins
 	var origins []string
@@ -64,12 +70,21 @@ func main() {
 
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
+		api.GET("/notifications", auth.RequireAuth(), notifications.ListMine)
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
+		api.GET("/patient/dashboard/summary", auth.RequireAuth(), auth.RequireRole("patient"), dashboard.PatientSummary)
+		api.GET("/doctor/dashboard/summary", auth.RequireAuth(), auth.RequireRole("doctor"), dashboard.DoctorSummary)
 
 		// Role-protected: demonstrates 403 when role doesn't match
+		adminAudit := handlers.NewAdminAuditHandler()
+		knowledge := handlers.NewKnowledgeAdminHandler()
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Admin only"})
 		})
+		api.GET("/admin/audit-log", auth.RequireAuth(), auth.RequireRole("admin"), adminAudit.List)
+		api.GET("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.List)
+		api.POST("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Create)
+		api.GET("/admin/knowledge-docs/:id", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Get)
 		api.GET("/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Doctor only"})
 		})
@@ -86,9 +101,12 @@ func main() {
 		api.POST("/appointments/book-slot", auth.RequireAuth(), auth.RequireRole("patient"), geo.BookSlot)
 
 		api.POST("/appointments", auth.RequireAuth(), auth.RequireRole("patient"), appointments.Create)
+		api.POST("/patient/appointments/:id/cancel", auth.RequireAuth(), auth.RequireRole("patient"), appointments.PatientCancel)
 		api.GET("/appointments/patient", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListPatient)
 		api.GET("/appointments/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.ListDoctor)
 		api.GET("/appointments/:id/activity", auth.RequireAuth(), appointments.ListActivity)
+		api.GET("/appointments/:id/comments", auth.RequireAuth(), apptComments.List)
+		api.POST("/appointments/:id/comments", auth.RequireAuth(), apptComments.Create)
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
@@ -96,6 +114,14 @@ func main() {
 		api.GET("/documents", auth.RequireAuth(), auth.RequireRole("patient"), documents.List)
 		api.POST("/documents", auth.RequireAuth(), auth.RequireRole("patient"), documents.Upload)
 		api.GET("/documents/:id/download", auth.RequireAuth(), auth.RequireRole("patient"), documents.Download)
+
+		api.GET("/patients/:patientId/files", auth.RequireAuth(), patientFiles.List)
+		api.POST("/patients/:patientId/files", auth.RequireAuth(), patientFiles.Upload)
+		api.GET("/files/:id", auth.RequireAuth(), patientFiles.Download)
+
+		api.GET("/patients/:patientId/prescriptions", auth.RequireAuth(), prescriptions.ListByPatient)
+		api.POST("/patients/:patientId/prescriptions", auth.RequireAuth(), auth.RequireRole("doctor"), prescriptions.Create)
+		api.PATCH("/prescriptions/:id/revoke", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), prescriptions.Revoke)
 
 		msg := api.Group("/messages", auth.RequireAuth(), auth.RequireRole("patient", "doctor"))
 		{

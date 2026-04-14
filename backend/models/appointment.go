@@ -7,9 +7,13 @@ import (
 )
 
 const (
-	AppointmentStatusPending  = "pending"
-	AppointmentStatusApproved = "approved"
-	AppointmentStatusRejected = "rejected"
+	AppointmentStatusPending            = "pending"
+	AppointmentStatusApproved         = "approved"
+	AppointmentStatusRejected         = "rejected"
+	AppointmentStatusCancelled        = "cancelled"
+	AppointmentStatusCompleted        = "completed"
+	AppointmentStatusNoShow           = "no_show"
+	AppointmentStatusRescheduleRequested = "reschedule_requested"
 )
 
 type Appointment struct {

@@ -33,11 +33,16 @@ func Migrate(ctx context.Context) error {
 			doctor_id    UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 			scheduled_at TIMESTAMPTZ NOT NULL,
 			reason       TEXT NOT NULL,
-			status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+			status       TEXT NOT NULL DEFAULT 'pending',
 			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			CHECK (patient_id <> doctor_id)
 		);
+
+		ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
+		ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN (
+			'pending', 'approved', 'rejected', 'cancelled', 'completed', 'no_show', 'reschedule_requested'
+		));
 
 		CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id);
 		CREATE INDEX IF NOT EXISTS idx_appointments_doctor_id ON appointments(doctor_id);
@@ -54,6 +59,16 @@ func Migrate(ctx context.Context) error {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_appointment_activities_appt ON appointment_activities(appointment_id);
+
+		CREATE TABLE IF NOT EXISTS appointment_comments (
+			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			appointment_id  UUID NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+			author_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			body            TEXT NOT NULL,
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_appointment_comments_appt ON appointment_comments(appointment_id);
 
 		CREATE TABLE IF NOT EXISTS hospitals (
 			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,6 +87,29 @@ func Migrate(ctx context.Context) error {
 		ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_longitude DOUBLE PRECISION;
 
 		CREATE INDEX IF NOT EXISTS idx_users_doctor_spec ON users(role, specialization) WHERE role = 'doctor';
+
+		CREATE TABLE IF NOT EXISTS audit_logs (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+			action        TEXT NOT NULL,
+			entity_type   TEXT NOT NULL,
+			entity_id     TEXT NOT NULL DEFAULT '',
+			detail        TEXT NOT NULL DEFAULT '',
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
+
+		CREATE TABLE IF NOT EXISTS knowledge_docs (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			title       TEXT NOT NULL,
+			body        TEXT NOT NULL,
+			created_by  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_knowledge_docs_title ON knowledge_docs(title);
 
 		CREATE TABLE IF NOT EXISTS doctor_slots (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -125,12 +163,56 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_messages_thread_time ON messages(thread_id, created_at);
 
+		CREATE TABLE IF NOT EXISTS prescriptions (
+			id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			doctor_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			medication_name  TEXT NOT NULL,
+			dosage           TEXT NOT NULL,
+			frequency        TEXT NOT NULL,
+			duration_days    INTEGER NOT NULL DEFAULT 0 CHECK (duration_days >= 0),
+			instructions     TEXT NOT NULL DEFAULT '',
+			status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+			created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CHECK (patient_id <> doctor_id)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_prescriptions_patient ON prescriptions(patient_id);
+		CREATE INDEX IF NOT EXISTS idx_prescriptions_doctor ON prescriptions(doctor_id);
+
+		CREATE TABLE IF NOT EXISTS notifications (
+			id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			title          TEXT NOT NULL,
+			body           TEXT NOT NULL,
+			channel        TEXT NOT NULL DEFAULT 'in_app',
+			status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+			scheduled_for  TIMESTAMPTZ,
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
 		CREATE TABLE IF NOT EXISTS message_thread_reads (
 			thread_id    UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
 			user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (thread_id, user_id)
 		);
+
+		CREATE TABLE IF NOT EXISTS patient_files (
+			id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			uploaded_by    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			description    TEXT NOT NULL DEFAULT '',
+			original_name  TEXT NOT NULL,
+			stored_name    TEXT NOT NULL UNIQUE,
+			mime_type      TEXT NOT NULL,
+			byte_size      BIGINT NOT NULL CHECK (byte_size >= 0 AND byte_size <= 5242880),
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_patient_files_patient ON patient_files(patient_id);
 	`)
 	return err
 }
