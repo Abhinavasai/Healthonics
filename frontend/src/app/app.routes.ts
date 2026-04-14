@@ -12,7 +12,10 @@ import { PatientAppointmentDetailComponent } from './components/patient-appointm
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
 import { DoctorAppointmentDetailComponent } from './components/doctor-appointment-detail/doctor-appointment-detail.component';
 import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
+import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
 import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
+import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
+import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
 import { MessagesComponent } from './components/messages/messages.component';
 import { PatientFilesComponent } from './components/patient-files/patient-files.component';
 import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
@@ -59,6 +62,12 @@ export const routes: Routes = [
             path: 'appointments',
             component: PatientAppointmentsComponent,
             data: { title: 'Patient Appointments', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'documents',
+            component: PatientDocumentsComponent,
+            data: { title: 'My documents', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
@@ -121,6 +130,18 @@ export const routes: Routes = [
             path: 'appointments',
             component: DoctorAppointmentsComponent,
             data: { title: 'Doctor Appointments', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'documents',
+            component: DoctorDocumentsListComponent,
+            data: { title: 'Patient documents', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'documents/:documentId',
+            component: DoctorDocumentDetailComponent,
+            data: { title: 'Document', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {

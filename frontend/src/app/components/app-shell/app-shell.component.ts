@@ -43,7 +43,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
     this.auth.logout();
   }
 
-  /** False for routes with detail children (appointments/:id, messages/:threadId). */
+  /** False for routes with detail children (appointments/:id, documents/:documentId, messages/:threadId). */
   isExactNavPath(path: string): boolean {
     if (
       path.endsWith('/appointments') ||
@@ -53,7 +53,8 @@ export class AppShellComponent implements OnInit, OnDestroy {
       path.endsWith('/notifications') ||
       path.endsWith('/dashboard') ||
       path.endsWith('/knowledge') ||
-      path.endsWith('/audit')
+      path.endsWith('/audit') ||
+      path.endsWith('/documents')
     ) {
       return false;
     }
@@ -67,11 +68,13 @@ export class AppShellComponent implements OnInit, OnDestroy {
       { path: '/patient/my-files', label: 'My files', roles: ['patient'] },
       { path: '/patient/prescriptions', label: 'Prescriptions', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
+      { path: '/patient/documents', label: 'My documents', roles: ['patient'] },
       { path: '/patient/messages', label: 'Messages', roles: ['patient'] },
       { path: '/patient/notifications', label: 'Notifications', roles: ['patient'] },
       { path: '/doctor/dashboard', label: 'Dashboard', roles: ['doctor'] },
       { path: '/doctor/availability', label: 'Availability', roles: ['doctor'] },
       { path: '/doctor/appointments', label: 'Appointment Queue', roles: ['doctor'] },
+      { path: '/doctor/documents', label: 'Patient documents', roles: ['doctor'] },
       { path: '/doctor/messages', label: 'Messages', roles: ['doctor'] },
       { path: '/doctor/notifications', label: 'Notifications', roles: ['doctor'] },
       { path: '/admin', label: 'Admin Dashboard', roles: ['admin'] },

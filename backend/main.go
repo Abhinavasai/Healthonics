@@ -37,6 +37,7 @@ func main() {
 	dashboard := handlers.NewDashboardHandler()
 	appointments := handlers.NewAppointmentHandler()
 	apptComments := handlers.NewAppointmentCommentsHandler()
+	documents := handlers.NewDocumentsHandler()
 	messaging := handlers.NewMessagingHandler()
 	prescriptions := handlers.NewPrescriptionsHandler()
 	notifications := handlers.NewNotificationsHandler()
@@ -109,6 +110,10 @@ func main() {
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)
+
+		api.GET("/documents", auth.RequireAuth(), auth.RequireRole("patient"), documents.List)
+		api.POST("/documents", auth.RequireAuth(), auth.RequireRole("patient"), documents.Upload)
+		api.GET("/documents/:id/download", auth.RequireAuth(), auth.RequireRole("patient"), documents.Download)
 
 		api.GET("/patients/:patientId/files", auth.RequireAuth(), patientFiles.List)
 		api.POST("/patients/:patientId/files", auth.RequireAuth(), patientFiles.Upload)

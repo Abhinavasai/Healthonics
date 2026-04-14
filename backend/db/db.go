@@ -126,6 +126,19 @@ func Migrate(ctx context.Context) error {
 
 		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id UUID UNIQUE REFERENCES doctor_slots(id) ON DELETE SET NULL;
 
+		CREATE TABLE IF NOT EXISTS patient_documents (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			filename      TEXT NOT NULL,
+			content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
+			size_bytes    BIGINT NOT NULL,
+			status        TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('pending', 'ready', 'failed')),
+			body          BYTEA NOT NULL,
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id);
+
 		CREATE TABLE IF NOT EXISTS message_threads (
 			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			patient_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

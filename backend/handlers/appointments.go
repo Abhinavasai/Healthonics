@@ -117,8 +117,10 @@ func (h *AppointmentHandler) ListPatient(c *gin.Context) {
 	}
 
 	rows, err := db.Pool.Query(c.Request.Context(), `
-		SELECT id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
-		FROM appointments
+		SELECT a.id, a.patient_id, COALESCE(p.email, ''), a.doctor_id, COALESCE(d.email, ''), a.scheduled_at, a.reason, a.status, a.created_at, a.updated_at
+		FROM appointments a
+		LEFT JOIN users p ON p.id = a.patient_id
+		LEFT JOIN users d ON d.id = a.doctor_id
 		WHERE patient_id = $1
 		ORDER BY scheduled_at DESC, created_at DESC
 	`, claims.UserID)
@@ -131,7 +133,7 @@ func (h *AppointmentHandler) ListPatient(c *gin.Context) {
 	appointments := make([]models.Appointment, 0)
 	for rows.Next() {
 		var appt models.Appointment
-		if err := rows.Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt); err != nil {
+		if err := rows.Scan(&appt.ID, &appt.PatientID, &appt.PatientEmail, &appt.DoctorID, &appt.DoctorEmail, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
 		}
@@ -152,8 +154,10 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 	}
 
 	rows, err := db.Pool.Query(c.Request.Context(), `
-		SELECT id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
-		FROM appointments
+		SELECT a.id, a.patient_id, COALESCE(p.email, ''), a.doctor_id, COALESCE(d.email, ''), a.scheduled_at, a.reason, a.status, a.created_at, a.updated_at
+		FROM appointments a
+		LEFT JOIN users p ON p.id = a.patient_id
+		LEFT JOIN users d ON d.id = a.doctor_id
 		WHERE doctor_id = $1
 		ORDER BY status ASC, scheduled_at ASC, created_at DESC
 	`, claims.UserID)
@@ -166,7 +170,7 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 	appointments := make([]models.Appointment, 0)
 	for rows.Next() {
 		var appt models.Appointment
-		if err := rows.Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt); err != nil {
+		if err := rows.Scan(&appt.ID, &appt.PatientID, &appt.PatientEmail, &appt.DoctorID, &appt.DoctorEmail, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
 		}
@@ -199,10 +203,12 @@ func (h *AppointmentHandler) GetByID(c *gin.Context) {
 
 	var appt models.Appointment
 	err = db.Pool.QueryRow(c.Request.Context(), `
-		SELECT id, patient_id, doctor_id, scheduled_at, reason, status, created_at, updated_at
-		FROM appointments
-		WHERE id = $1
-	`, id).Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+		SELECT a.id, a.patient_id, COALESCE(p.email, ''), a.doctor_id, COALESCE(d.email, ''), a.scheduled_at, a.reason, a.status, a.created_at, a.updated_at
+		FROM appointments a
+		LEFT JOIN users p ON p.id = a.patient_id
+		LEFT JOIN users d ON d.id = a.doctor_id
+		WHERE a.id = $1
+	`, id).Scan(&appt.ID, &appt.PatientID, &appt.PatientEmail, &appt.DoctorID, &appt.DoctorEmail, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})

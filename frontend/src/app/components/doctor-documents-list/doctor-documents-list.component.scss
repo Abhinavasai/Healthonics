@@ -1,0 +1,108 @@
+.doc-list-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 0 var(--space-2xl);
+}
+
+.hero {
+  margin-bottom: var(--space-lg);
+}
+
+.page-title {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(1.4rem, 2.5vw, 1.85rem);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.title-icon {
+  -webkit-text-fill-color: initial;
+}
+
+.subtitle {
+  margin: var(--space-sm) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 40rem;
+  line-height: 1.5;
+}
+
+.error-banner {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 68, 102, 0.45);
+  background: rgba(255, 68, 102, 0.1);
+  color: var(--color-error);
+  margin-bottom: var(--space-md);
+}
+
+.glass {
+  background: var(--gradient-card);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+}
+
+.btn-ghost {
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: var(--border-subtle);
+  background: var(--bg-glass);
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.muted,
+.empty {
+  color: var(--text-muted);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th,
+  td {
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  th {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.link {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

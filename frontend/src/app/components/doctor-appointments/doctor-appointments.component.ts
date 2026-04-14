@@ -9,7 +9,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
   standalone: true,
   imports: [CommonModule, RouterModule, DatePipe, TitleCasePipe],
   template: `
-    <section class="appointments">
+    <section class="appointments" data-cy="doctor-appointments-page">
       <h1>Doctor Appointments</h1>
       <p class="subtitle">Review incoming requests and record your decision.</p>
 
@@ -24,8 +24,14 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
         <p *ngIf="!error && !loading && appointments.length === 0" class="muted">
           No assigned appointments.
         </p>
-        <ul *ngIf="appointments.length > 0" data-cy="doctor-appointments-queue">
-          <li *ngFor="let appointment of appointments">
+        <div class="summary" *ngIf="appointments.length > 0">
+          <button type="button" class="chip" (click)="activeFilter = 'all'" [class.active]="activeFilter === 'all'" data-cy="doctor-filter-all">All {{ appointments.length }}</button>
+          <button type="button" class="chip" (click)="activeFilter = 'pending'" [class.active]="activeFilter === 'pending'" data-cy="doctor-filter-pending">Pending {{ pendingCount }}</button>
+          <button type="button" class="chip" (click)="activeFilter = 'approved'" [class.active]="activeFilter === 'approved'" data-cy="doctor-filter-approved">Approved {{ approvedCount }}</button>
+          <button type="button" class="chip" (click)="activeFilter = 'rejected'" [class.active]="activeFilter === 'rejected'" data-cy="doctor-filter-rejected">Rejected {{ rejectedCount }}</button>
+        </div>
+        <ul *ngIf="visibleAppointments.length > 0" data-cy="doctor-appointments-queue">
+          <li *ngFor="let appointment of visibleAppointments" data-cy="doctor-appointment-item">
             <div class="row">
               <a class="row-link" [routerLink]="['/doctor/appointments', appointment.id]">
                 <div class="top-row">
@@ -34,7 +40,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
                     {{ appointment.status | titlecase }}
                   </span>
                 </div>
-                <div class="meta">Patient: {{ appointment.patient_id }}</div>
+                <div class="meta">Patient: {{ shortId(appointment.patient_id) }}</div>
                 <div class="reason">{{ appointment.reason }}</div>
                 <span class="hint">View details</span>
               </a>
@@ -75,6 +81,9 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
     .subtitle { color: #a7b0be; margin-top: -0.4rem; }
     .card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 1rem; }
     .list-header { display: flex; justify-content: space-between; align-items: center; }
+    .summary { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .chip { border-color: #334155; color: #cbd5e1; }
+    .chip.active { border-color: #22d3ee; color: #22d3ee; }
     button { width: fit-content; padding: 0.55rem 0.85rem; border-radius: 8px; border: 1px solid #22d3ee; background: #0f172a; color: #22d3ee; cursor: pointer; }
     button:disabled { opacity: 0.7; cursor: not-allowed; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
@@ -102,6 +111,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
 })
 export class DoctorAppointmentsComponent implements OnInit {
   appointments: Appointment[] = [];
+  activeFilter: 'all' | 'pending' | 'approved' | 'rejected' = 'all';
   loading = false;
   error = '';
   processingId = '';
@@ -139,5 +149,24 @@ export class DoctorAppointmentsComponent implements OnInit {
           this.error = err?.error?.error ?? 'Unable to update appointment status';
         }
       });
+  }
+
+  get pendingCount(): number {
+    return this.appointments.filter((a) => a.status === 'pending').length;
+  }
+  get approvedCount(): number {
+    return this.appointments.filter((a) => a.status === 'approved').length;
+  }
+  get rejectedCount(): number {
+    return this.appointments.filter((a) => a.status === 'rejected').length;
+  }
+  get visibleAppointments(): Appointment[] {
+    if (this.activeFilter === 'all') {
+      return this.appointments;
+    }
+    return this.appointments.filter((a) => a.status === this.activeFilter);
+  }
+  shortId(value: string): string {
+    return value?.slice(0, 8) ?? '';
   }
 }
