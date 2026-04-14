@@ -38,6 +38,7 @@ func main() {
 	appointments := handlers.NewAppointmentHandler()
 	apptComments := handlers.NewAppointmentCommentsHandler()
 	documents := handlers.NewDocumentsHandler()
+	doctorDocuments := handlers.NewDoctorDocumentsHandler()
 	messaging := handlers.NewMessagingHandler()
 	prescriptions := handlers.NewPrescriptionsHandler()
 	notifications := handlers.NewNotificationsHandler()
@@ -74,6 +75,9 @@ func main() {
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
 		api.GET("/patient/dashboard/summary", auth.RequireAuth(), auth.RequireRole("patient"), dashboard.PatientSummary)
 		api.GET("/doctor/dashboard/summary", auth.RequireAuth(), auth.RequireRole("doctor"), dashboard.DoctorSummary)
+		api.GET("/doctor/documents", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.List)
+		api.GET("/doctor/documents/:id", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.Get)
+		api.POST("/doctor/documents/:id/summarize", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.Summarize)
 
 		// Role-protected: demonstrates 403 when role doesn't match
 		adminAudit := handlers.NewAdminAuditHandler()
