@@ -139,6 +139,10 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id);
 
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary TEXT;
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary_status TEXT NOT NULL DEFAULT 'none';
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary_error TEXT;
+
 		CREATE TABLE IF NOT EXISTS message_threads (
 			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			patient_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
