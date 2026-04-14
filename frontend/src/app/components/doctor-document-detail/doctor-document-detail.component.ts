@@ -1,3 +1,4 @@
+/** Doctor document detail + AI summary (Sprint 3 F4) — lane s3.5-abhinav. */
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
