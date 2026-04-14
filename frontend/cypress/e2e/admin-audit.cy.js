@@ -1,5 +1,5 @@
 /** S4 — Karthik — admin audit log */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Admin audit (S4 Karthik)', () => {
   it('admin can open audit page', () => {

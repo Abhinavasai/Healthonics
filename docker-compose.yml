@@ -1,0 +1,19 @@
+# Local PostgreSQL for Healthonyx (backend + Cypress E2E).
+# Usage: docker compose up -d
+# Then set DATABASE_URL in backend/.env to:
+#   postgres://healthonyx:healthonyx@localhost:5432/healthonyx?sslmode=disable
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: healthonyx-postgres
+    environment:
+      POSTGRES_USER: healthonyx
+      POSTGRES_PASSWORD: healthonyx
+      POSTGRES_DB: healthonyx
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthonyx -d healthonyx"]
+      interval: 3s
+      timeout: 5s
+      retries: 10

@@ -2,7 +2,7 @@
  * S4 — Abhinav — Patient files (list shell; upload optional when backend running).
  * Run backend + seed + `ng serve`, then: npx cypress run --headless --spec cypress/e2e/patient-files.cy.js
  */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Patient files (S4 Abhinav)', () => {
   it('patient can open My files after login', () => {
