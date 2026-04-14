@@ -2,7 +2,7 @@
   "info": {
     "name": "Healthonyx API - Full Feature Coverage",
     "_postman_id": "2f0b1f3d-f67f-4576-bcd2-7d0de1f8d4a7",
-    "description": "Comprehensive API collection for Healthonyx feature testing across auth, dashboards, find-care, appointments, documents/files, prescriptions, messaging, notifications, and admin endpoints.",
+    "description": "Comprehensive API collection for Healthonyx feature testing across auth, dashboards, find-care, appointments, documents/files, prescriptions, messaging, notifications, and admin endpoints. Designed to run in Newman with token + ID extraction.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -27,6 +27,18 @@
     { "key": "query", "value": "Gainesville" },
     { "key": "lat", "value": "29.6516" },
     { "key": "lng", "value": "-82.3248" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Ensure newman runs against the intended backend; override baseUrl via env if needed.",
+          "if (pm.environment.get('baseUrl')) pm.collectionVariables.set('baseUrl', pm.environment.get('baseUrl'));"
+        ]
+      }
+    }
   ],
   "item": [
     {
@@ -56,7 +68,11 @@
                   "const json = pm.response.json();",
                   "pm.test('patient token exists', function () { pm.expect(json.token).to.be.a('string'); });",
                   "pm.collectionVariables.set('patientToken', json.token);",
-                  "if (json.user && json.user.id) pm.collectionVariables.set('patientId', json.user.id);"
+                  "pm.environment.set('patientToken', json.token);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.collectionVariables.set('patientId', json.user.id);",
+                  "  pm.environment.set('patientId', json.user.id);",
+                  "}"
                 ]
               }
             }
@@ -82,7 +98,11 @@
                   "const json = pm.response.json();",
                   "pm.test('doctor token exists', function () { pm.expect(json.token).to.be.a('string'); });",
                   "pm.collectionVariables.set('doctorToken', json.token);",
-                  "if (json.user && json.user.id) pm.collectionVariables.set('doctorId', json.user.id);"
+                  "pm.environment.set('doctorToken', json.token);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.collectionVariables.set('doctorId', json.user.id);",
+                  "  pm.environment.set('doctorId', json.user.id);",
+                  "}"
                 ]
               }
             }
@@ -107,7 +127,8 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('admin token exists', function () { pm.expect(json.token).to.be.a('string'); });",
-                  "pm.collectionVariables.set('adminToken', json.token);"
+                  "pm.collectionVariables.set('adminToken', json.token);",
+                  "pm.environment.set('adminToken', json.token);"
                 ]
               }
             }
@@ -117,7 +138,10 @@
           "name": "GET /api/bootstrap",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }]
+            },
             "url": "http://{{baseUrl}}/api/bootstrap"
           }
         }
@@ -126,58 +150,385 @@
     {
       "name": "01 - Dashboards",
       "item": [
-        { "name": "GET /api/patient/dashboard/summary", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/patient/dashboard/summary" } },
-        { "name": "GET /api/doctor/dashboard/summary", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }], "url": "http://{{baseUrl}}/api/doctor/dashboard/summary" } }
+        {
+          "name": "GET /api/patient/dashboard/summary",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/patient/dashboard/summary"
+          }
+        },
+        {
+          "name": "GET /api/doctor/dashboard/summary",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/doctor/dashboard/summary"
+          }
+        }
       ]
     },
     {
       "name": "02 - Find Care + Slots",
       "item": [
-        { "name": "GET /api/geocode", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/geocode?q={{query}}&limit=3" } },
-        { "name": "GET /api/hospitals/near", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/hospitals/near?lat={{lat}}&lng={{lng}}&radiusKm=10&limit=5" } },
-        { "name": "GET /api/doctors/search", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/doctors/search?lat={{lat}}&lng={{lng}}&radiusKm=10&limit=5" } },
-        { "name": "POST /api/doctor/slots", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"start_at\": \"2026-06-01T10:00:00Z\",\n  \"end_at\": \"2026-06-01T10:20:00Z\"\n}" }, "url": "http://{{baseUrl}}/api/doctor/slots" } },
-        { "name": "GET /api/doctors/{{doctorId}}/slots", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/doctors/{{doctorId}}/slots" } }
+        {
+          "name": "GET /api/geocode",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/geocode?q={{query}}&limit=3"
+          }
+        },
+        {
+          "name": "GET /api/hospitals/near",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/hospitals/near?lat={{lat}}&lng={{lng}}&radiusKm=10&limit=5"
+          }
+        },
+        {
+          "name": "GET /api/doctors/search",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/doctors/search?lat={{lat}}&lng={{lng}}&radiusKm=10&limit=5"
+          }
+        },
+        {
+          "name": "GET /api/doctors (set doctorId if empty)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/doctors"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const doctors = json.doctors || [];",
+                  "  const cur = pm.collectionVariables.get('doctorId');",
+                  "  if ((!cur || cur === '') && doctors.length > 0 && doctors[0].id) {",
+                  "    pm.collectionVariables.set('doctorId', doctors[0].id);",
+                  "    pm.environment.set('doctorId', doctors[0].id);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/doctor/slots",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_at\": \"2026-06-01T10:00:00Z\",\n  \"end_at\": \"2026-06-01T10:20:00Z\"\n}"
+            },
+            "url": "http://{{baseUrl}}/api/doctor/slots"
+          }
+        },
+        {
+          "name": "GET /api/doctors/{{doctorId}}/slots",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/doctors/{{doctorId}}/slots"
+          }
+        }
       ]
     },
     {
       "name": "03 - Appointments + Comments",
       "item": [
-        { "name": "POST /api/appointments", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"doctor_id\": \"{{doctorId}}\",\n  \"starts_at\": \"2026-06-01T11:00:00Z\",\n  \"ends_at\": \"2026-06-01T11:20:00Z\",\n  \"reason\": \"Follow-up\"\n}" }, "url": "http://{{baseUrl}}/api/appointments" } },
-        { "name": "GET /api/appointments/patient", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/appointments/patient" } },
-        { "name": "GET /api/appointments/doctor", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }], "url": "http://{{baseUrl}}/api/appointments/doctor" } },
-        { "name": "PATCH /api/appointments/{{appointmentId}}/status", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"completed\"\n}" }, "url": "http://{{baseUrl}}/api/appointments/{{appointmentId}}/status" } },
-        { "name": "GET /api/appointments/{{appointmentId}}/activity", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }], "url": "http://{{baseUrl}}/api/appointments/{{appointmentId}}/activity" } },
-        { "name": "POST /api/appointments/{{appointmentId}}/comments", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"body\": \"Patient follow-up note\"\n}" }, "url": "http://{{baseUrl}}/api/appointments/{{appointmentId}}/comments" } }
+        {
+          "name": "POST /api/appointments (set appointmentId)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctor_id\": \"{{doctorId}}\",\n  \"scheduled_at\": \"2026-06-01T11:00:00Z\",\n  \"reason\": \"Follow-up\"\n}"
+            },
+            "url": "http://{{baseUrl}}/api/appointments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.id) {",
+                  "    pm.collectionVariables.set('appointmentId', json.id);",
+                  "    pm.environment.set('appointmentId', json.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/appointments/patient",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/appointments/patient"
+          }
+        },
+        {
+          "name": "GET /api/appointments/doctor",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/appointments/doctor"
+          }
+        },
+        {
+          "name": "PATCH /api/appointments/{{appointmentId}}/status",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"completed\"\n}" },
+            "url": "http://{{baseUrl}}/api/appointments/{{appointmentId}}/status"
+          }
+        },
+        {
+          "name": "GET /api/appointments/{{appointmentId}}/activity",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/appointments/{{appointmentId}}/activity"
+          }
+        },
+        {
+          "name": "POST /api/appointments/{{appointmentId}}/comments",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"Patient follow-up note\"\n}" },
+            "url": "http://{{baseUrl}}/api/appointments/{{appointmentId}}/comments"
+          }
+        }
       ]
     },
     {
       "name": "04 - Documents + Files + Prescriptions",
       "item": [
-        { "name": "GET /api/documents", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/documents" } },
-        { "name": "GET /api/doctor/documents", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }], "url": "http://{{baseUrl}}/api/doctor/documents" } },
-        { "name": "POST /api/doctor/documents/{{documentId}}/summarize", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }], "url": "http://{{baseUrl}}/api/doctor/documents/{{documentId}}/summarize" } },
-        { "name": "GET /api/patients/{{patientId}}/files", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/patients/{{patientId}}/files" } },
-        { "name": "GET /api/patients/{{patientId}}/prescriptions", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/patients/{{patientId}}/prescriptions" } },
-        { "name": "PATCH /api/prescriptions/{{prescriptionId}}/revoke", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }], "url": "http://{{baseUrl}}/api/prescriptions/{{prescriptionId}}/revoke" } }
+        {
+          "name": "GET /api/documents (patient)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/documents"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const docs = json.documents || [];",
+                  "  const cur = pm.collectionVariables.get('documentId');",
+                  "  if ((!cur || cur === '') && docs.length > 0 && docs[0].id) {",
+                  "    pm.collectionVariables.set('documentId', docs[0].id);",
+                  "    pm.environment.set('documentId', docs[0].id);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/doctor/documents",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/doctor/documents"
+          }
+        },
+        {
+          "name": "POST /api/doctor/documents/{{documentId}}/summarize (optional)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/doctor/documents/{{documentId}}/summarize"
+          }
+        },
+        {
+          "name": "GET /api/patients/{{patientId}}/files",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/patients/{{patientId}}/files"
+          }
+        },
+        {
+          "name": "POST /api/patients/{{patientId}}/prescriptions (doctor) (set prescriptionId)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medication_name\": \"Amoxicillin\",\n  \"dosage\": \"500mg\",\n  \"frequency\": \"twice daily\",\n  \"duration_days\": 5,\n  \"instructions\": \"Take after food\"\n}"
+            },
+            "url": "http://{{baseUrl}}/api/patients/{{patientId}}/prescriptions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.id) {",
+                  "    pm.collectionVariables.set('prescriptionId', json.id);",
+                  "    pm.environment.set('prescriptionId', json.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/patients/{{patientId}}/prescriptions",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/patients/{{patientId}}/prescriptions"
+          }
+        },
+        {
+          "name": "PATCH /api/prescriptions/{{prescriptionId}}/revoke",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/prescriptions/{{prescriptionId}}/revoke"
+          }
+        }
       ]
     },
     {
       "name": "05 - Messaging + Notifications",
       "item": [
-        { "name": "GET /api/messages/unread", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/messages/unread" } },
-        { "name": "GET /api/messages/threads", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/messages/threads" } },
-        { "name": "POST /api/messages/threads/{{threadId}}/messages", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"body\": \"Hello doctor\"\n}" }, "url": "http://{{baseUrl}}/api/messages/threads/{{threadId}}/messages" } },
-        { "name": "GET /api/notifications", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }], "url": "http://{{baseUrl}}/api/notifications" } }
+        {
+          "name": "GET /api/messages/unread",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/messages/unread"
+          }
+        },
+        {
+          "name": "POST /api/messages/threads (create thread; set threadId)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"peer_user_id\": \"{{doctorId}}\",\n  \"body\": \"Hello doctor\"\n}" },
+            "url": "http://{{baseUrl}}/api/messages/threads"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.id) {",
+                  "    pm.collectionVariables.set('threadId', json.id);",
+                  "    pm.environment.set('threadId', json.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/messages/threads",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/messages/threads"
+          }
+        },
+        {
+          "name": "POST /api/messages/threads/{{threadId}}/messages",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"Follow-up message\"\n}" },
+            "url": "http://{{baseUrl}}/api/messages/threads/{{threadId}}/messages"
+          }
+        },
+        {
+          "name": "GET /api/notifications",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{patientToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/notifications"
+          }
+        }
       ]
     },
     {
       "name": "06 - Admin",
       "item": [
-        { "name": "GET /api/admin", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "http://{{baseUrl}}/api/admin" } },
-        { "name": "GET /api/admin/audit-log", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "http://{{baseUrl}}/api/admin/audit-log" } },
-        { "name": "GET /api/admin/knowledge-docs", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "http://{{baseUrl}}/api/admin/knowledge-docs" } },
-        { "name": "POST /api/admin/knowledge-docs", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Hypertension Guideline\",\n  \"body\": \"Content...\"\n}" }, "url": "http://{{baseUrl}}/api/admin/knowledge-docs" } }
+        {
+          "name": "GET /api/admin",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/admin"
+          }
+        },
+        {
+          "name": "GET /api/admin/audit-log",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/admin/audit-log"
+          }
+        },
+        {
+          "name": "GET /api/admin/knowledge-docs",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "http://{{baseUrl}}/api/admin/knowledge-docs"
+          }
+        },
+        {
+          "name": "POST /api/admin/knowledge-docs",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Hypertension Guideline\",\n  \"body\": \"Content...\"\n}" },
+            "url": "http://{{baseUrl}}/api/admin/knowledge-docs"
+          }
+        }
       ]
     }
   ]
