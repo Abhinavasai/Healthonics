@@ -1,5 +1,5 @@
 /** S4 — Rohith — appointment comments API (invalid id → 400 when route is registered) */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Appointment comments (S4 Rohith)', function () {
   before(function () {
@@ -15,7 +15,7 @@ describe('Appointment comments (S4 Rohith)', function () {
       }).then((probe) => {
         if (probe.status === 404) {
           cy.log(
-            'Skipping appointment-comments API spec: GET /api/appointments/:id/comments is not registered on :8080 (restart API from this repo).'
+            'Skipping appointment-comments API spec: GET /api/appointments/:id/comments is not registered (restart API from this repo).'
           );
           this.skip();
         }

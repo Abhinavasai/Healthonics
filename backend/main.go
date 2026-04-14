@@ -63,6 +63,7 @@ func main() {
 	r.Use(middleware.CORS(origins))
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
+	r.HEAD("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	api := r.Group("/api")
 	{

@@ -2,7 +2,7 @@
  * S4 — Abhinav — Patient prescriptions list.
  * npx cypress run --headless --spec cypress/e2e/prescriptions.cy.js
  */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Prescriptions (S4 Abhinav)', () => {
   it('patient can open prescriptions page', () => {

@@ -1,5 +1,5 @@
 /** S4 — Kaushik — notifications inbox */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Notifications inbox (S4 Kaushik)', () => {
   it('patient opens notifications', () => {
