@@ -1,12 +1,12 @@
 /**
  * Feature 9 — Messaging (patient/doctor UI against real backend).
  * Prerequisites:
- *   - Backend: http://localhost:8080 (DATABASE_URL + JWT_SECRET; run `go run ./cmd/seed`)
- *   - Frontend: http://localhost:4200 with messaging routes (Sprint 3 feature 9 frontend)
+ *   - Backend: Cypress.env('API_URL') (default 127.0.0.1:8080; `npm run cypress:e2e` uses 18080)
+ *   - Frontend: baseUrl (e.g. 4200 or 4300 for `cypress:e2e`)
  *
  * Run: npx cypress run --headless --spec "cypress/e2e/messaging.cy.js"
  */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Messaging (feature 9)', () => {
   it('loads messages page for patient after login via API', () => {

@@ -7,6 +7,11 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:ci": "cross-env CI=true ng test --no-watch --progress=false",
+    "cy:backend": "cd ../backend && cross-env PORT=28180 go run .",
+    "cy:frontend": "ng serve --configuration=development --no-open --host 127.0.0.1 --port 4300 --proxy-config proxy.e2e.conf.json",
+    "cy:run": "wait-on http-get://127.0.0.1:28180/health http-get://127.0.0.1:4300/ --timeout 180000 && cypress run --headless --config baseUrl=http://127.0.0.1:4300 --env API_URL=http://127.0.0.1:28180",
+    "cypress:e2e": "concurrently -k -s command-2 -n api,web,cy -c blue,green,magenta \"npm run cy:backend\" \"npm run cy:frontend\" \"npm run cy:run\"",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run --headless"
   },
@@ -34,6 +39,8 @@
     "@angular/compiler-cli": "^18.2.0",
     "@types/jasmine": "~5.1.0",
     "@types/leaflet": "^1.9.21",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "cypress": "^15.13.0",
     "jasmine-core": "~5.2.0",
     "karma": "~6.4.0",
@@ -41,6 +48,8 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.5.2"
+    "puppeteer": "^24.2.0",
+    "typescript": "~5.5.2",
+    "wait-on": "^8.0.1"
   }
 }

@@ -1,5 +1,5 @@
 /** S4 — Rohith — admin knowledge base */
-const API = 'http://localhost:8080';
+const API = Cypress.env('API_URL');
 
 describe('Knowledge base (S4 Rohith)', () => {
   it('admin can open knowledge page', () => {
