@@ -1,3 +1,4 @@
+/** Doctor documents inbox (Sprint 3 F4) — lane s3.5-karthik. */
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
