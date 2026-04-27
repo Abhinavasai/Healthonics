@@ -1,0 +1,766 @@
+openapi: 3.0.3
+info:
+  title: Healthonyx API
+  version: 0.1.0
+  description: |
+    Contract-first API surface for the current Healthonyx backend.
+    This file mirrors the active route wiring in backend/main.go and is intended
+    to be updated as part of each backend endpoint change.
+servers:
+  - url: http://localhost:8080
+    description: Local backend
+tags:
+  - name: Health
+  - name: Auth
+  - name: Bootstrap
+  - name: Notifications
+  - name: Dashboard
+  - name: GeoBooking
+  - name: Appointments
+  - name: Documents
+  - name: PatientFiles
+  - name: Prescriptions
+  - name: Messaging
+  - name: Admin
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+    head:
+      tags: [Health]
+      summary: Health check (HEAD)
+      responses:
+        "200":
+          description: Service is healthy
+
+  /api/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/bootstrap:
+    get:
+      tags: [Bootstrap]
+      summary: Bootstrap application data for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Bootstrap payload
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notification list
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/patient/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Patient dashboard summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard summary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/doctor/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Doctor dashboard summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard summary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/doctor/documents:
+    get:
+      tags: [Documents]
+      summary: List doctor-visible patient documents
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Documents list
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/doctor/documents/{id}:
+    get:
+      tags: [Documents]
+      summary: Get doctor-visible patient document details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Document detail
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/doctor/documents/{id}/summarize:
+    post:
+      tags: [Documents]
+      summary: Trigger doctor document summary generation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "202":
+          description: Summary request accepted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin:
+    get:
+      tags: [Admin]
+      summary: Admin validation endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin access granted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/audit-log:
+    get:
+      tags: [Admin]
+      summary: List audit log entries
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Audit log list
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/knowledge-docs:
+    get:
+      tags: [Admin]
+      summary: List knowledge docs
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Knowledge docs list
+    post:
+      tags: [Admin]
+      summary: Create knowledge doc
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Knowledge doc created
+
+  /api/admin/knowledge-docs/{id}:
+    get:
+      tags: [Admin]
+      summary: Get knowledge doc
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Knowledge doc details
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/doctor:
+    get:
+      tags: [Auth]
+      summary: Doctor role validation endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Doctor access granted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/patient:
+    get:
+      tags: [Auth]
+      summary: Patient role validation endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Patient access granted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/geocode:
+    get:
+      tags: [GeoBooking]
+      summary: Geocode patient search query
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Geocode result list
+
+  /api/hospitals/near:
+    get:
+      tags: [GeoBooking]
+      summary: List nearby hospitals
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Nearby hospitals
+
+  /api/doctors/search:
+    get:
+      tags: [GeoBooking]
+      summary: Search doctors
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Doctor list
+
+  /api/doctors/{id}/slots:
+    get:
+      tags: [GeoBooking]
+      summary: List open slots for doctor
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Slot list
+
+  /api/doctor/slots:
+    post:
+      tags: [GeoBooking]
+      summary: Create doctor slot
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Slot created
+
+  /api/doctor/slots/{id}:
+    delete:
+      tags: [GeoBooking]
+      summary: Delete doctor slot
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Slot deleted
+
+  /api/appointments/book-slot:
+    post:
+      tags: [Appointments]
+      summary: Book appointment from open slot
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Appointment booked
+
+  /api/appointments:
+    post:
+      tags: [Appointments]
+      summary: Create appointment
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Appointment created
+
+  /api/patient/appointments/{id}/cancel:
+    post:
+      tags: [Appointments]
+      summary: Patient cancel appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Appointment canceled
+
+  /api/appointments/patient:
+    get:
+      tags: [Appointments]
+      summary: List patient appointments
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Appointment list
+
+  /api/appointments/doctor:
+    get:
+      tags: [Appointments]
+      summary: List doctor appointments
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Appointment list
+
+  /api/appointments/{id}:
+    get:
+      tags: [Appointments]
+      summary: Get appointment by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Appointment detail
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/appointments/{id}/status:
+    patch:
+      tags: [Appointments]
+      summary: Update appointment status
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Appointment updated
+
+  /api/appointments/{id}/activity:
+    get:
+      tags: [Appointments]
+      summary: List appointment activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Activity list
+
+  /api/appointments/{id}/comments:
+    get:
+      tags: [Appointments]
+      summary: List appointment comments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Comments list
+    post:
+      tags: [Appointments]
+      summary: Create appointment comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "201":
+          description: Comment created
+
+  /api/doctors:
+    get:
+      tags: [GeoBooking]
+      summary: List doctors for appointment booking
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Doctor list
+
+  /api/documents:
+    get:
+      tags: [Documents]
+      summary: List patient documents
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Document list
+    post:
+      tags: [Documents]
+      summary: Upload patient document
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Document uploaded
+
+  /api/documents/{id}/download:
+    get:
+      tags: [Documents]
+      summary: Download patient document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Document stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/patients/{patientId}/files:
+    get:
+      tags: [PatientFiles]
+      summary: List patient files
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PatientIdPath"
+      responses:
+        "200":
+          description: Patient file list
+    post:
+      tags: [PatientFiles]
+      summary: Upload patient file
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PatientIdPath"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                description:
+                  type: string
+      responses:
+        "201":
+          description: File uploaded
+
+  /api/files/{id}:
+    get:
+      tags: [PatientFiles]
+      summary: Download patient file
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/patients/{patientId}/prescriptions:
+    get:
+      tags: [Prescriptions]
+      summary: List prescriptions for patient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PatientIdPath"
+      responses:
+        "200":
+          description: Prescription list
+    post:
+      tags: [Prescriptions]
+      summary: Create prescription for patient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PatientIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePrescriptionRequest"
+      responses:
+        "201":
+          description: Prescription created
+
+  /api/prescriptions/{id}/revoke:
+    patch:
+      tags: [Prescriptions]
+      summary: Revoke prescription
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Prescription revoked
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/messages/unread:
+    get:
+      tags: [Messaging]
+      summary: Unread message total for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unread count
+
+  /api/messages/threads:
+    get:
+      tags: [Messaging]
+      summary: List message threads
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Thread list
+    post:
+      tags: [Messaging]
+      summary: Create message thread and first message
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Thread created
+
+  /api/messages/threads/{threadId}:
+    get:
+      tags: [Messaging]
+      summary: List messages in thread
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ThreadIdPath"
+      responses:
+        "200":
+          description: Message list
+
+  /api/messages/threads/{threadId}/messages:
+    post:
+      tags: [Messaging]
+      summary: Send message in thread
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ThreadIdPath"
+      responses:
+        "201":
+          description: Message created
+
+  /api/messages/threads/{threadId}/read:
+    post:
+      tags: [Messaging]
+      summary: Mark thread read for current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ThreadIdPath"
+      responses:
+        "200":
+          description: Thread marked read
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PatientIdPath:
+      name: patientId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ThreadIdPath:
+      name: threadId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, role]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [patient, doctor, admin]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            role:
+              type: string
+              enum: [patient, doctor, admin]
+    CreatePrescriptionRequest:
+      type: object
+      required: [medication_name, dosage, frequency]
+      properties:
+        medication_name:
+          type: string
+        dosage:
+          type: string
+        frequency:
+          type: string
+        duration_days:
+          type: integer
+          minimum: 0
+        instructions:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
