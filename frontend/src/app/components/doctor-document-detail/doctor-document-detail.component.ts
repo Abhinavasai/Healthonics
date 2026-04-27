@@ -18,6 +18,8 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
   loading = true;
   summarizeLoading = false;
   error = '';
+  /** Last error from POST /summarize (shown inline; distinct from page load error). */
+  summaryRequestError = '';
   summarizeInfo = '';
   private documentId = '';
   private pollSub?: Subscription;
@@ -48,6 +50,7 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
   private loadInitial(): void {
     this.loading = true;
     this.error = '';
+    this.summaryRequestError = '';
     this.summarizeInfo = '';
     this.doc = null;
     this.api.getDetail(this.documentId).subscribe({
@@ -95,12 +98,14 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
     this.pollSub = undefined;
   }
 
+  /** Re-run the async summary pipeline (generate, regenerate, or retry after failure). */
   requestSummary(): void {
     if (!this.documentId || this.summarizeLoading) {
       return;
     }
     this.summarizeLoading = true;
     this.error = '';
+    this.summaryRequestError = '';
     this.summarizeInfo = '';
     this.api
       .requestSummary(this.documentId)
@@ -108,9 +113,10 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res) => {
           if (res === null) {
-            this.error = 'Could not start summarization.';
+            this.summaryRequestError = 'Could not start summarization. Please try again.';
             return;
           }
+          this.summaryRequestError = '';
           if (res.message) {
             this.summarizeInfo = res.message;
           } else if (res.job_id) {
@@ -126,9 +132,14 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
           });
         },
         error: (err) => {
-          this.error = err?.error?.error ?? 'Could not start summarization.';
+          this.summaryRequestError = err?.error?.error ?? 'Could not start summarization. Check your connection and try again.';
         }
       });
+  }
+
+  /** Alias for template clarity on failed state. */
+  retrySummary(): void {
+    this.requestSummary();
   }
 
   formatBytes(n: number): string {
@@ -181,5 +192,26 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
       return 'Inline preview is enabled for this file type. Secure viewer endpoint will stream content in the next PR.';
     }
     return 'Inline preview is unavailable for this file type. Open/download support will use secure access flow.';
+  }
+
+  /** Primary CTA label for the summary action button. */
+  primarySummaryLabel(d: DoctorDocumentDetail): string {
+    if (this.summarizeLoading) {
+      return 'Starting…';
+    }
+    switch (d.summary_status) {
+      case 'pending':
+        return 'Generating…';
+      case 'ready':
+        return 'Regenerate summary';
+      case 'failed':
+        return 'Try again';
+      default:
+        return 'Generate summary';
+    }
+  }
+
+  primarySummaryDisabled(d: DoctorDocumentDetail): boolean {
+    return this.summarizeLoading || d.summary_status === 'pending';
   }
 }
