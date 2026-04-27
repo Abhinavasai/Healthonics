@@ -49,6 +49,29 @@ func extractDocumentText(contentType, filename string, body []byte) (string, err
 	}
 }
 
+// Exported wrappers for worker package use without duplicating logic.
+func ExtractDocumentTextForWorker(contentType, filename string, body []byte) (string, error) {
+	return extractDocumentText(contentType, filename, body)
+}
+
+func BuildSummaryFromExtractedTextForWorker(filename string, sizeBytes int64, extracted string) string {
+	return buildSummaryFromExtractedText(filename, sizeBytes, extracted)
+}
+
+func NormalizeSummaryExtractionErrorForWorker(err error) string {
+	switch {
+	case errors.Is(err, errUnsupportedDocument):
+		return "summary extraction is only supported for PDF and image documents"
+	case errors.Is(err, errNoExtractableText):
+		return "could not extract readable text from document"
+	default:
+		return err.Error()
+	}
+}
+
+func ErrUnsupportedDocumentForWorker() error { return errUnsupportedDocument }
+func ErrNoExtractableTextForWorker() error   { return errNoExtractableText }
+
 func extractTextFromPDF(body []byte) (string, error) {
 	if len(body) == 0 {
 		return "", errors.New("empty pdf payload")

@@ -6,12 +6,14 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/healthonyx/backend/config"
 	"github.com/healthonyx/backend/db"
 	"github.com/healthonyx/backend/handlers"
 	"github.com/healthonyx/backend/middleware"
+	"github.com/healthonyx/backend/workers"
 )
 
 func main() {
@@ -147,6 +149,7 @@ func main() {
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
+	go workers.NewDocumentSummaryWorker(2 * time.Second).Run(context.Background())
 	log.Printf("Listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)

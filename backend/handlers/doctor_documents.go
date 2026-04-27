@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -161,15 +160,11 @@ func (h *DoctorDocumentsHandler) Summarize(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	var patientID uuid.UUID
-	var filename string
-	var sizeBytes int64
-	var contentType string
-	var body []byte
 	err = db.Pool.QueryRow(ctx, `
-		SELECT patient_id, filename, size_bytes, content_type, body
+		SELECT patient_id
 		FROM patient_documents
 		WHERE id = $1
-	`, docID).Scan(&patientID, &filename, &sizeBytes, &contentType, &body)
+	`, docID).Scan(&patientID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
@@ -189,44 +184,29 @@ func (h *DoctorDocumentsHandler) Summarize(c *gin.Context) {
 		WHERE id = $1
 	`, docID)
 
-	go h.completeStubSummary(docID, filename, sizeBytes, contentType, body)
-
-	c.JSON(http.StatusAccepted, gin.H{"status": "pending"})
-}
-
-func (h *DoctorDocumentsHandler) completeStubSummary(docID uuid.UUID, filename string, sizeBytes int64, contentType string, body []byte) {
-	time.Sleep(800 * time.Millisecond)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	extracted, extractErr := extractDocumentText(contentType, filename, body)
-	if extractErr != nil {
-		msg := extractErr.Error()
-		switch {
-		case errors.Is(extractErr, errUnsupportedDocument):
-			msg = "summary extraction is only supported for PDF and image documents"
-		case errors.Is(extractErr, errNoExtractableText):
-			msg = "could not extract readable text from document"
+	var jobID uuid.UUID
+	err = db.Pool.QueryRow(ctx, `
+		WITH existing AS (
+			SELECT id
+			FROM document_summary_jobs
+			WHERE document_id = $1
+			  AND status IN ('pending', 'processing')
+			ORDER BY created_at DESC
+			LIMIT 1
+		)
+		INSERT INTO document_summary_jobs (document_id, status, run_after)
+		SELECT $1, 'pending', NOW()
+		WHERE NOT EXISTS (SELECT 1 FROM existing)
+		RETURNING id
+	`, docID).Scan(&jobID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusAccepted, gin.H{"status": "pending", "message": "summary job already queued"})
+			return
 		}
-		_, _ = db.Pool.Exec(ctx, `
-			UPDATE patient_documents
-			SET summary_status = 'failed', summary_error = $2
-			WHERE id = $1
-		`, docID, msg)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to enqueue summary job"})
 		return
 	}
 
-	text := buildSummaryFromExtractedText(filename, sizeBytes, extracted)
-	_, err := db.Pool.Exec(ctx, `
-		UPDATE patient_documents
-		SET summary = $2, summary_status = 'ready', summary_error = NULL
-		WHERE id = $1 AND summary_status = 'pending'
-	`, docID, text)
-	if err != nil {
-		_, _ = db.Pool.Exec(ctx, `
-			UPDATE patient_documents
-			SET summary_status = 'failed', summary_error = $2
-			WHERE id = $1
-		`, docID, err.Error())
-	}
+	c.JSON(http.StatusAccepted, gin.H{"status": "pending", "job_id": jobID.String()})
 }
