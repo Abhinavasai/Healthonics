@@ -75,4 +75,38 @@ describe('PatientPrescriptionsComponent', () => {
     expect(el.querySelectorAll('[data-cy="patient-prescriptions-history-row"]').length).toBe(1);
     expect(el.querySelector('[data-cy="patient-prescriptions-summary"]')).toBeTruthy();
   });
+
+  it('toggles reminder preference for active prescription', () => {
+    fixture = TestBed.createComponent(PatientPrescriptionsComponent);
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/patients/p1/prescriptions').flush({
+      prescriptions: [
+        {
+          id: 'rx1',
+          patient_id: 'p1',
+          doctor_id: 'd1',
+          medication_name: 'Atenolol',
+          dosage: '25mg',
+          frequency: 'daily',
+          duration_days: 30,
+          instructions: 'after food',
+          status: 'active',
+          created_at: '2026-04-20T10:00:00Z'
+        }
+      ]
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const statusBefore = el.querySelector('.rem-status')?.textContent ?? '';
+    expect(statusBefore).toContain('On');
+
+    const btn = el.querySelector('[data-cy="patient-prescriptions-reminder-toggle"]') as HTMLButtonElement;
+    btn.click();
+    fixture.detectChanges();
+
+    const statusAfter = (fixture.nativeElement as HTMLElement).querySelector('.rem-status')?.textContent ?? '';
+    expect(statusAfter).toContain('Off');
+  });
 });

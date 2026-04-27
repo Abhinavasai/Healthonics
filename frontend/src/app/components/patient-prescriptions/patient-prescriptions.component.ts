@@ -36,6 +36,19 @@ import { AuthService } from '../../services/auth.service';
           </div>
           <div class="meta">{{ r.dosage }} · {{ r.frequency }} · {{ r.duration_days }} days</div>
           <div class="ins" *ngIf="r.instructions">{{ r.instructions }}</div>
+          <div class="toggle-row">
+            <small class="rem-status">
+              Reminders: {{ remindersEnabled(r.id) ? 'On' : 'Off' }}
+            </small>
+            <button
+              type="button"
+              class="toggle-btn"
+              (click)="toggleReminders(r.id)"
+              data-cy="patient-prescriptions-reminder-toggle"
+            >
+              {{ remindersEnabled(r.id) ? 'Turn off reminders' : 'Turn on reminders' }}
+            </button>
+          </div>
           <small>Prescribed {{ r.created_at }}</small>
         </li>
       </ul>
@@ -102,6 +115,28 @@ import { AuthService } from '../../services/auth.service';
       .ins {
         margin-top: 0.25rem;
       }
+      .toggle-row {
+        margin-top: 0.35rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+      .rem-status {
+        color: #64748b;
+      }
+      .toggle-btn {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 9999px;
+        background: transparent;
+        color: #0f172a;
+        padding: 0.2rem 0.6rem;
+        font-size: 0.78rem;
+        cursor: pointer;
+      }
+      .toggle-btn:hover {
+        background: rgba(148, 163, 184, 0.1);
+      }
       .st {
         text-transform: uppercase;
         letter-spacing: 0.02em;
@@ -124,10 +159,12 @@ import { AuthService } from '../../services/auth.service';
   ]
 })
 export class PatientPrescriptionsComponent implements OnInit {
+  private readonly remindersStorageKey = 'prescriptionReminderPrefs';
   rows: PrescriptionRow[] = [];
   activeRows: PrescriptionRow[] = [];
   pastRows: PrescriptionRow[] = [];
   error: string | null = null;
+  reminderToggles: Record<string, boolean> = {};
 
   constructor(
     private rx: PrescriptionsService,
@@ -142,6 +179,7 @@ export class PatientPrescriptionsComponent implements OnInit {
     }
     this.rx.listByPatient(u.id).subscribe({
       next: (res) => {
+        this.reminderToggles = this.loadReminderToggles();
         this.rows = [...(res.prescriptions ?? [])].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
@@ -154,5 +192,33 @@ export class PatientPrescriptionsComponent implements OnInit {
 
   formatStatus(status: string): string {
     return (status || 'unknown').replace(/_/g, ' ');
+  }
+
+  remindersEnabled(id: string): boolean {
+    return this.reminderToggles[id] ?? true;
+  }
+
+  toggleReminders(id: string): void {
+    this.reminderToggles = {
+      ...this.reminderToggles,
+      [id]: !this.remindersEnabled(id)
+    };
+    this.saveReminderToggles();
+  }
+
+  private loadReminderToggles(): Record<string, boolean> {
+    try {
+      const raw = localStorage.getItem(this.remindersStorageKey);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== 'object') return {};
+      return parsed as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  }
+
+  private saveReminderToggles(): void {
+    localStorage.setItem(this.remindersStorageKey, JSON.stringify(this.reminderToggles));
   }
 }
