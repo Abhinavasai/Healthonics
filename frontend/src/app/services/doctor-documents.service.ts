@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 /**
  * Doctor view of patient-uploaded documents + AI summary (Sprint 3 feature 4).
@@ -36,19 +37,19 @@ export interface DoctorDocumentsListResponse {
 
 @Injectable({ providedIn: 'root' })
 export class DoctorDocumentsService {
-  private readonly API = '/api/doctor/documents';
-
   constructor(private http: HttpClient) {}
 
   list(): Observable<DoctorDocumentListItem[]> {
-    return this.http.get<DoctorDocumentsListResponse>(this.API).pipe(
+    return this.http.get<DoctorDocumentsListResponse>(ApiContract.doctorDocuments.base).pipe(
       map((r) => r.documents ?? []),
       catchError(() => of([]))
     );
   }
 
   getDetail(documentId: string): Observable<DoctorDocumentDetail | null> {
-    return this.http.get<DoctorDocumentDetail>(`${this.API}/${encodeURIComponent(documentId)}`).pipe(
+    return this.http
+      .get<DoctorDocumentDetail>(ApiContract.doctorDocuments.byId(encodeURIComponent(documentId)))
+      .pipe(
       catchError(() => of(null))
     );
   }
@@ -56,7 +57,10 @@ export class DoctorDocumentsService {
   /** Triggers async summarization; poll getDetail until ready/failed. */
   requestSummary(documentId: string): Observable<{ status?: string } | null> {
     return this.http
-      .post<{ status?: string }>(`${this.API}/${encodeURIComponent(documentId)}/summarize`, {})
+      .post<{ status?: string }>(
+        ApiContract.doctorDocuments.summarize(encodeURIComponent(documentId)),
+        {}
+      )
       .pipe(catchError(() => of(null)));
   }
 }

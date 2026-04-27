@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface UserProfile {
   id: string;
@@ -16,8 +17,6 @@ export interface AuthResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly API = '/api';
-
   constructor(
     private http: HttpClient,
     private router: Router
@@ -38,13 +37,13 @@ export class AuthService {
 
   register(email: string, password: string, role: string): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.API}/register`, { email, password, role })
+      .post<AuthResponse>(ApiContract.auth.register, { email, password, role })
       .pipe(tap((res) => this.setSession(res)));
   }
 
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.API}/login`, { email, password })
+      .post<AuthResponse>(ApiContract.auth.login, { email, password })
       .pipe(tap((res) => this.setSession(res)));
   }
 

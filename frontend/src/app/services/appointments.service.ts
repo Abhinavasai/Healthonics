@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface Appointment {
   id: string;
@@ -28,46 +29,43 @@ export interface DoctorListResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AppointmentsService {
-  private readonly API = '/api/appointments';
-  private readonly CoreAPI = '/api';
-
   constructor(private http: HttpClient) {}
 
   create(input: { doctor_id: string; scheduled_at: string; reason: string }): Observable<Appointment> {
-    return this.http.post<Appointment>(this.API, input);
+    return this.http.post<Appointment>(ApiContract.appointments.base, input);
   }
 
   getById(id: string): Observable<Appointment> {
-    return this.http.get<Appointment>(`${this.API}/${id}`);
+    return this.http.get<Appointment>(ApiContract.appointments.byId(id));
   }
 
   listPatient(): Observable<AppointmentListResponse> {
-    return this.http.get<AppointmentListResponse>(`${this.API}/patient`);
+    return this.http.get<AppointmentListResponse>(ApiContract.appointments.listPatient);
   }
 
   listDoctor(): Observable<AppointmentListResponse> {
-    return this.http.get<AppointmentListResponse>(`${this.API}/doctor`);
+    return this.http.get<AppointmentListResponse>(ApiContract.appointments.listDoctor);
   }
 
   listDoctors(): Observable<DoctorListResponse> {
-    return this.http.get<DoctorListResponse>(`${this.CoreAPI}/doctors`);
+    return this.http.get<DoctorListResponse>(ApiContract.geoBooking.doctors);
   }
 
   listComments(appointmentId: string): Observable<{ comments: { id: string; author_user_id: string; body: string; created_at: string }[] }> {
     return this.http.get<{ comments: { id: string; author_user_id: string; body: string; created_at: string }[] }>(
-      `${this.CoreAPI}/appointments/${appointmentId}/comments`
+      ApiContract.appointments.comments(appointmentId)
     );
   }
 
   postComment(appointmentId: string, body: string): Observable<{ id: string }> {
-    return this.http.post<{ id: string }>(`${this.CoreAPI}/appointments/${appointmentId}/comments`, { body });
+    return this.http.post<{ id: string }>(ApiContract.appointments.comments(appointmentId), { body });
   }
 
   updateStatus(id: string, status: string): Observable<Appointment> {
-    return this.http.patch<Appointment>(`${this.API}/${id}/status`, { status });
+    return this.http.patch<Appointment>(ApiContract.appointments.updateStatus(id), { status });
   }
 
   cancelAsPatient(id: string): Observable<Appointment> {
-    return this.http.post<Appointment>(`${this.CoreAPI}/patient/appointments/${id}/cancel`, {});
+    return this.http.post<Appointment>(ApiContract.appointments.patientCancel(id), {});
   }
 }

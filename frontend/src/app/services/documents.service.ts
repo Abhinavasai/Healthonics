@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable, catchError, filter, map, of } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 /**
  * Patient medical documents — aligns with Sprint 3 backend Kaushik:
@@ -21,12 +22,10 @@ export interface DocumentsListResponse {
 
 @Injectable({ providedIn: 'root' })
 export class DocumentsService {
-  private readonly API = '/api/documents';
-
   constructor(private http: HttpClient) {}
 
   list(): Observable<PatientDocument[]> {
-    return this.http.get<DocumentsListResponse>(this.API).pipe(
+    return this.http.get<DocumentsListResponse>(ApiContract.documents.base).pipe(
       map((r) => r.documents ?? []),
       catchError(() => of([]))
     );
@@ -43,7 +42,7 @@ export class DocumentsService {
     fd.append('file', file, file.name);
 
     return this.http
-      .post<PatientDocument>(this.API, fd, {
+      .post<PatientDocument>(ApiContract.documents.base, fd, {
         reportProgress: true,
         observe: 'events'
       })
@@ -68,7 +67,7 @@ export class DocumentsService {
 
   /** GET file stream; opens in new tab via blob URL in the component. */
   downloadBlob(id: string): Observable<Blob> {
-    return this.http.get(`${this.API}/${encodeURIComponent(id)}/download`, {
+    return this.http.get(ApiContract.documents.download(encodeURIComponent(id)), {
       responseType: 'blob'
     });
   }

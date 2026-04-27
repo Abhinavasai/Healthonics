@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface PatientDashboardSummary {
   role: string;
@@ -19,10 +20,10 @@ export class DashboardService {
   constructor(private http: HttpClient) {}
 
   patientSummary(): Observable<PatientDashboardSummary> {
-    return this.http.get<PatientDashboardSummary>('/api/patient/dashboard/summary');
+    return this.http.get<PatientDashboardSummary>(ApiContract.dashboard.patientSummary);
   }
 
   doctorSummary(): Observable<DoctorDashboardSummary> {
-    return this.http.get<DoctorDashboardSummary>('/api/doctor/dashboard/summary');
+    return this.http.get<DoctorDashboardSummary>(ApiContract.dashboard.doctorSummary);
   }
 }
