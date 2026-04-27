@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"strings"
@@ -133,6 +134,67 @@ func buildReminderSchedule(start time.Time, durationDays int, times []string) []
 		}
 	}
 	return out
+}
+
+func escapePDFText(s string) string {
+	replacer := strings.NewReplacer("\\", "\\\\", "(", "\\(", ")", "\\)")
+	return replacer.Replace(s)
+}
+
+func buildPrescriptionPDF(medication, dosage, frequency, instructions, status string, durationDays int, prescribedAt time.Time) []byte {
+	lines := []string{
+		"BT",
+		"/F1 18 Tf",
+		"50 790 Td",
+		fmt.Sprintf("(%s) Tj", escapePDFText("Healthonyx Prescription")),
+		"0 -28 Td",
+		"/F1 12 Tf",
+		fmt.Sprintf("(%s) Tj", escapePDFText("Medication: "+medication)),
+		"0 -18 Td",
+		fmt.Sprintf("(%s) Tj", escapePDFText("Dosage: "+dosage)),
+		"0 -18 Td",
+		fmt.Sprintf("(%s) Tj", escapePDFText("Frequency: "+frequency)),
+		"0 -18 Td",
+		fmt.Sprintf("(%s) Tj", escapePDFText(fmt.Sprintf("Duration: %d day(s)", durationDays))),
+		"0 -18 Td",
+		fmt.Sprintf("(%s) Tj", escapePDFText("Status: "+status)),
+		"0 -18 Td",
+		fmt.Sprintf("(%s) Tj", escapePDFText("Prescribed at: "+prescribedAt.UTC().Format(time.RFC3339))),
+	}
+	if strings.TrimSpace(instructions) != "" {
+		lines = append(lines, "0 -18 Td")
+		lines = append(lines, fmt.Sprintf("(%s) Tj", escapePDFText("Instructions: "+instructions)))
+	}
+	lines = append(lines, "ET")
+	stream := strings.Join(lines, "\n")
+
+	var buf bytes.Buffer
+	buf.WriteString("%PDF-1.4\n")
+	offsets := []int{}
+	writeObj := func(obj string) {
+		offsets = append(offsets, buf.Len())
+		buf.WriteString(obj)
+	}
+
+	writeObj("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+	writeObj("2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n")
+	writeObj("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n")
+	writeObj("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+	writeObj(fmt.Sprintf("5 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj\n", len(stream), stream))
+
+	xrefStart := buf.Len()
+	buf.WriteString("xref\n")
+	buf.WriteString(fmt.Sprintf("0 %d\n", len(offsets)+1))
+	buf.WriteString("0000000000 65535 f \n")
+	for _, off := range offsets {
+		buf.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
+	}
+	buf.WriteString("trailer\n")
+	buf.WriteString(fmt.Sprintf("<< /Size %d /Root 1 0 R >>\n", len(offsets)+1))
+	buf.WriteString("startxref\n")
+	buf.WriteString(fmt.Sprintf("%d\n", xrefStart))
+	buf.WriteString("%%EOF")
+	return buf.Bytes()
 }
 
 func schedulePrescriptionReminders(ctx *gin.Context, patientID uuid.UUID, medication, dosage, frequency string, durationDays int) error {
@@ -359,4 +421,44 @@ func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
 		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
 	`, patientID, "Prescription revoked", "One of your prescriptions has been revoked by your care team.")
 	c.JSON(http.StatusOK, gin.H{"id": id, "patient_id": patientID, "status": "revoked"})
+}
+
+func (h *PrescriptionsHandler) DownloadPDF(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
+	}
+
+	var patientID uuid.UUID
+	var medication, dosage, frequency, instructions, status string
+	var durationDays int
+	var createdAt time.Time
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT patient_id, medication_name, dosage, frequency, duration_days, instructions, status, created_at
+		FROM prescriptions
+		WHERE id = $1
+	`, id).Scan(&patientID, &medication, &dosage, &frequency, &durationDays, &instructions, &status, &createdAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	if !h.canAccessPatient(c, patientID, claims) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	pdf := buildPrescriptionPDF(medication, dosage, frequency, instructions, status, durationDays, createdAt)
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"prescription-%s.pdf\"", id.String()))
+	c.Data(http.StatusOK, "application/pdf", pdf)
 }
