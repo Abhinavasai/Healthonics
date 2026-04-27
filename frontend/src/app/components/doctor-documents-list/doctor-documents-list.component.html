@@ -38,7 +38,11 @@
           <td>{{ d.patient_email }}</td>
           <td>{{ d.filename }}</td>
           <td>{{ d.created_at | date: 'medium' }}</td>
-          <td>{{ statusLabel(d.summary_status) }}</td>
+          <td>
+            <span [class]="statusClass(d.summary_status)" data-cy="doctor-documents-summary-status">
+              {{ statusLabel(d.summary_status) }}
+            </span>
+          </td>
           <td>
             <a [routerLink]="['/doctor/documents', d.id]" class="link" data-cy="doctor-documents-open">Open</a>
           </td>

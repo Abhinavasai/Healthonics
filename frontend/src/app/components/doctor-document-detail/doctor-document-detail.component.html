@@ -31,6 +31,25 @@
         <span class="meta-label">Type</span>
         <span class="meta-value">{{ d.content_type || '—' }}</span>
       </div>
+      <div class="meta-card glass">
+        <span class="meta-label">Summary status</span>
+        <span [class]="statusClass(d.summary_status)" data-cy="doctor-document-summary-status">
+          {{ statusLabel(d.summary_status) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="preview-section glass" data-cy="doctor-document-preview-section">
+      <div class="preview-head">
+        <h2>Document preview</h2>
+        <span class="preview-type">{{ d.content_type || 'unknown type' }}</span>
+      </div>
+      <div class="preview-frame" [class.preview-disabled]="!canInlinePreview(d)">
+        <div class="preview-placeholder" data-cy="doctor-document-preview-placeholder">
+          <span class="preview-icon" aria-hidden="true">{{ canInlinePreview(d) ? '👁️' : '🔒' }}</span>
+          <p>{{ previewCaption(d) }}</p>
+        </div>
+      </div>
     </div>
 
     <div
@@ -64,6 +83,8 @@
         <span class="spinner" aria-hidden="true"></span>
         Generating summary… This may take a few seconds.
       </div>
+
+      <p *ngIf="summarizeInfo" class="muted hint" data-cy="doctor-document-summary-info">{{ summarizeInfo }}</p>
 
       <div *ngIf="d.summary_status === 'failed'" class="failed-box" data-cy="doctor-document-summary-failed">
         <strong>Summary could not be generated.</strong>

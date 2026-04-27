@@ -50,4 +50,17 @@ export class DoctorDocumentsListComponent implements OnInit {
         return '—';
     }
   }
+
+  statusClass(s?: string): string {
+    switch (s) {
+      case 'pending':
+        return 'pill pill-pending';
+      case 'ready':
+        return 'pill pill-ready';
+      case 'failed':
+        return 'pill pill-failed';
+      default:
+        return 'pill';
+    }
+  }
 }
