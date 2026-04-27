@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, catchError, map, of, tap } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 /** Aligns with Sprint 3 backend: GET/POST /api/messages/... */
 export interface MessageThread {
@@ -34,7 +35,6 @@ export interface UnreadResponse {
 
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
-  private readonly API = '/api/messages';
   private readonly unreadSubject = new BehaviorSubject<number>(0);
   readonly unread$ = this.unreadSubject.asObservable();
 
@@ -46,7 +46,7 @@ export class MessagingService {
 
   /** Preferred when backend exposes aggregate unread. */
   refreshUnread(): Observable<number> {
-    return this.http.get<UnreadResponse>(`${this.API}/unread`).pipe(
+    return this.http.get<UnreadResponse>(ApiContract.messaging.unread).pipe(
       map((r) => r.unread_total ?? 0),
       tap((n) => this.unreadSubject.next(n)),
       catchError(() => {
@@ -63,7 +63,7 @@ export class MessagingService {
   }
 
   listThreads(): Observable<MessageThread[]> {
-    return this.http.get<ThreadsResponse>(`${this.API}/threads`).pipe(
+    return this.http.get<ThreadsResponse>(ApiContract.messaging.threads).pipe(
       map((r) => r.threads ?? []),
       tap((threads) => this.applyUnreadFromThreads(threads)),
       catchError(() => {
@@ -75,7 +75,7 @@ export class MessagingService {
 
   listMessages(threadId: string): Observable<ChatMessage[]> {
     return this.http
-      .get<MessagesResponse>(`${this.API}/threads/${encodeURIComponent(threadId)}`)
+      .get<MessagesResponse>(ApiContract.messaging.threadMessages(encodeURIComponent(threadId)))
       .pipe(
         map((r) => r.messages ?? []),
         catchError(() => of([]))
@@ -83,18 +83,18 @@ export class MessagingService {
   }
 
   sendMessage(threadId: string, body: string): Observable<ChatMessage> {
-    return this.http.post<ChatMessage>(`${this.API}/threads/${encodeURIComponent(threadId)}/messages`, {
+    return this.http.post<ChatMessage>(ApiContract.messaging.sendMessage(encodeURIComponent(threadId)), {
       body
     });
   }
 
   createThread(peerUserId: string, body: string): Observable<MessageThread> {
-    return this.http.post<MessageThread>(`${this.API}/threads`, { peer_user_id: peerUserId, body });
+    return this.http.post<MessageThread>(ApiContract.messaging.threads, { peer_user_id: peerUserId, body });
   }
 
   markThreadRead(threadId: string): Observable<void> {
     return this.http
-      .post<void>(`${this.API}/threads/${encodeURIComponent(threadId)}/read`, {})
+      .post<void>(ApiContract.messaging.markRead(encodeURIComponent(threadId)), {})
       .pipe(catchError(() => of(undefined)));
   }
 }

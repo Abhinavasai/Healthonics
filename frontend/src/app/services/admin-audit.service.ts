@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface AuditLogEntry {
   id: string;
@@ -17,6 +18,6 @@ export class AdminAuditService {
   constructor(private http: HttpClient) {}
 
   list(): Observable<{ entries: AuditLogEntry[] }> {
-    return this.http.get<{ entries: AuditLogEntry[] }>('/api/admin/audit-log');
+    return this.http.get<{ entries: AuditLogEntry[] }>(ApiContract.admin.auditLog);
   }
 }

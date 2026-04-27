@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface NotificationRow {
   id: string;
@@ -14,11 +15,9 @@ export interface NotificationRow {
 
 @Injectable({ providedIn: 'root' })
 export class NotificationsInboxService {
-  private readonly API = '/api';
-
   constructor(private http: HttpClient) {}
 
   listMine(): Observable<{ notifications: NotificationRow[] }> {
-    return this.http.get<{ notifications: NotificationRow[] }>(`${this.API}/notifications`);
+    return this.http.get<{ notifications: NotificationRow[] }>(ApiContract.notifications.listMine);
   }
 }

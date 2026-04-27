@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface BootstrapPayload {
   app_name: string;
@@ -13,7 +14,7 @@ export class BootstrapService {
   constructor(private http: HttpClient) {}
 
   get(): Observable<BootstrapPayload> {
-    return this.http.get<BootstrapPayload>('/api/bootstrap');
+    return this.http.get<BootstrapPayload>(ApiContract.bootstrap.get);
   }
 }
 

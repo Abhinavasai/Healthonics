@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface HospitalNear {
   id: string;
@@ -37,20 +38,18 @@ export interface GeocodeHit {
 
 @Injectable({ providedIn: 'root' })
 export class GeoBookingService {
-  private readonly api = '/api';
-
   constructor(private http: HttpClient) {}
 
   /** Text/address search → coordinates (backend proxies Nominatim; ~1 req/s policy on public OSM). */
   geocodeSearch(query: string, limit = 5): Observable<{ results: GeocodeHit[] }> {
     const q = query?.trim() ?? '';
     let p = new HttpParams().set('q', q).set('limit', String(limit));
-    return this.http.get<{ results: GeocodeHit[] }>(`${this.api}/geocode`, { params: p });
+    return this.http.get<{ results: GeocodeHit[] }>(ApiContract.geoBooking.geocode, { params: p });
   }
 
   hospitalsNear(lat: number, lng: number, radiusKm: number): Observable<{ hospitals: HospitalNear[] }> {
     let p = new HttpParams().set('lat', String(lat)).set('lng', String(lng)).set('radius_km', String(radiusKm));
-    return this.http.get<{ hospitals: HospitalNear[] }>(`${this.api}/hospitals/near`, { params: p });
+    return this.http.get<{ hospitals: HospitalNear[] }>(ApiContract.geoBooking.hospitalsNear, { params: p });
   }
 
   searchDoctors(lat: number, lng: number, radiusKm: number, specialization: string): Observable<{ doctors: DoctorSearchRow[] }> {
@@ -59,22 +58,22 @@ export class GeoBookingService {
     if (spec) {
       p = p.set('specialization', spec);
     }
-    return this.http.get<{ doctors: DoctorSearchRow[] }>(`${this.api}/doctors/search`, { params: p });
+    return this.http.get<{ doctors: DoctorSearchRow[] }>(ApiContract.geoBooking.doctorsSearch, { params: p });
   }
 
   listDoctorSlots(doctorId: string): Observable<{ slots: DoctorSlotRow[] }> {
-    return this.http.get<{ slots: DoctorSlotRow[] }>(`${this.api}/doctors/${doctorId}/slots`);
+    return this.http.get<{ slots: DoctorSlotRow[] }>(ApiContract.geoBooking.doctorSlots(doctorId));
   }
 
   createSlot(body: { start_at: string; end_at: string }): Observable<{ id: string }> {
-    return this.http.post<{ id: string }>(`${this.api}/doctor/slots`, body);
+    return this.http.post<{ id: string }>(ApiContract.geoBooking.createDoctorSlot, body);
   }
 
   deleteSlot(slotId: string): Observable<{ ok: boolean }> {
-    return this.http.delete<{ ok: boolean }>(`${this.api}/doctor/slots/${slotId}`);
+    return this.http.delete<{ ok: boolean }>(ApiContract.geoBooking.deleteDoctorSlot(slotId));
   }
 
   bookSlot(slotId: string, reason: string): Observable<unknown> {
-    return this.http.post(`${this.api}/appointments/book-slot`, { slot_id: slotId, reason });
+    return this.http.post(ApiContract.geoBooking.bookSlot, { slot_id: slotId, reason });
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiContract } from './api-contract';
 
 export interface PatientFileRow {
   id: string;
@@ -15,22 +16,20 @@ export interface PatientFileRow {
 
 @Injectable({ providedIn: 'root' })
 export class PatientFilesService {
-  private readonly API = '/api';
-
   constructor(private http: HttpClient) {}
 
   list(patientId: string): Observable<{ files: PatientFileRow[] }> {
-    return this.http.get<{ files: PatientFileRow[] }>(`${this.API}/patients/${patientId}/files`);
+    return this.http.get<{ files: PatientFileRow[] }>(ApiContract.patientFiles.list(patientId));
   }
 
   upload(patientId: string, file: File, description: string): Observable<unknown> {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('description', description);
-    return this.http.post(`${this.API}/patients/${patientId}/files`, fd);
+    return this.http.post(ApiContract.patientFiles.upload(patientId), fd);
   }
 
   download(fileId: string): Observable<Blob> {
-    return this.http.get(`${this.API}/files/${fileId}`, { responseType: 'blob' });
+    return this.http.get(ApiContract.patientFiles.download(fileId), { responseType: 'blob' });
   }
 }
