@@ -143,6 +143,24 @@ func Migrate(ctx context.Context) error {
 		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary_status TEXT NOT NULL DEFAULT 'none';
 		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary_error TEXT;
 
+		CREATE TABLE IF NOT EXISTS document_summary_jobs (
+			id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			document_id  UUID NOT NULL REFERENCES patient_documents(id) ON DELETE CASCADE,
+			status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'done', 'failed')),
+			attempts     INTEGER NOT NULL DEFAULT 0,
+			last_error   TEXT,
+			run_after    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			started_at   TIMESTAMPTZ,
+			finished_at  TIMESTAMPTZ
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_doc_summary_jobs_status_run_after
+			ON document_summary_jobs(status, run_after, created_at);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_doc_summary_jobs_unique_open
+			ON document_summary_jobs(document_id)
+			WHERE status IN ('pending', 'processing');
+
 		CREATE TABLE IF NOT EXISTS message_threads (
 			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			patient_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
