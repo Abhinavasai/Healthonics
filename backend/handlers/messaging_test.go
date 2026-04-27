@@ -53,7 +53,7 @@ func TestUnreadTotal_Unauthorized(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("GET", "/api/messages/unread", nil)
 
-	h := NewMessagingHandler()
+	h := NewMessagingHandler(nil)
 	h.UnreadTotal(c)
 
 	if w.Code != http.StatusUnauthorized {
@@ -73,7 +73,7 @@ func TestListMessages_InvalidThreadUUID(t *testing.T) {
 		Role:   "patient",
 	})
 
-	h := NewMessagingHandler()
+	h := NewMessagingHandler(nil)
 	h.ListMessages(c)
 
 	if w.Code != http.StatusBadRequest {
@@ -94,7 +94,7 @@ func TestSendMessage_InvalidJSON(t *testing.T) {
 		Role:   "patient",
 	})
 
-	h := NewMessagingHandler()
+	h := NewMessagingHandler(nil)
 	h.SendMessage(c)
 
 	if w.Code != http.StatusBadRequest {
@@ -115,7 +115,7 @@ func TestCreateThread_InvalidPeerUUID(t *testing.T) {
 		Role:   "patient",
 	})
 
-	h := NewMessagingHandler()
+	h := NewMessagingHandler(nil)
 	h.CreateThread(c)
 
 	if w.Code != http.StatusBadRequest {

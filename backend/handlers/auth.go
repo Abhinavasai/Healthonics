@@ -166,6 +166,24 @@ func (h *AuthHandler) createToken(id uuid.UUID, email, role string) (string, err
 	return token.SignedString(h.JWTSecret)
 }
 
+// ParseJWTClaims validates a raw JWT string (used by WebSocket token auth).
+func (h *AuthHandler) ParseJWTClaims(rawToken string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(rawToken, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return h.JWTSecret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid claims")
+	}
+	return claims, nil
+}
+
 func (h *AuthHandler) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")

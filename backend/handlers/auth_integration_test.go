@@ -78,6 +78,30 @@ func TestRequireAuthRole_AllowedRole_Returns200(t *testing.T) {
 	}
 }
 
+func TestParseJWTClaims_RoundTrip(t *testing.T) {
+	auth := NewAuthHandler("test-secret-key-for-jwt-parse-tests-xx")
+	id := uuid.New()
+	tok, err := auth.createToken(id, "patient@test.local", "patient")
+	if err != nil {
+		t.Fatalf("token: %v", err)
+	}
+	claims, err := auth.ParseJWTClaims(tok)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if claims.UserID != id || claims.Role != "patient" || claims.Email != "patient@test.local" {
+		t.Fatalf("unexpected claims")
+	}
+}
+
+func TestParseJWTClaims_Invalid(t *testing.T) {
+	auth := NewAuthHandler("test-secret-key-for-jwt-parse-tests-xx")
+	_, err := auth.ParseJWTClaims("not-a-valid-jwt")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestRequireAuthRole_MultiRole_AllowsEither(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	auth := NewAuthHandler("test-secret")
