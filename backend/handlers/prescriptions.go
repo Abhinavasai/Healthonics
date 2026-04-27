@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
+	"github.com/jackc/pgx/v5"
 )
 
 type PrescriptionsHandler struct{}
@@ -93,6 +95,14 @@ type createPrescriptionBody struct {
 	Instructions   string `json:"instructions"`
 }
 
+type updatePrescriptionBody struct {
+	MedicationName *string `json:"medication_name"`
+	Dosage         *string `json:"dosage"`
+	Frequency      *string `json:"frequency"`
+	DurationDays   *int    `json:"duration_days"`
+	Instructions   *string `json:"instructions"`
+}
+
 func (h *PrescriptionsHandler) Create(c *gin.Context) {
 	claims, ok := getClaims(c)
 	if !ok {
@@ -129,6 +139,133 @@ func (h *PrescriptionsHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func (h *PrescriptionsHandler) Update(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "doctor" && claims.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
+	}
+
+	var body updatePrescriptionBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if body.MedicationName == nil && body.Dosage == nil && body.Frequency == nil &&
+		body.DurationDays == nil && body.Instructions == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field must be provided"})
+		return
+	}
+
+	tx, err := db.Pool.Begin(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
+
+	var doctorID, patientID uuid.UUID
+	var medication, dosage, frequency, instructions, status string
+	var duration int
+	err = tx.QueryRow(c.Request.Context(), `
+		SELECT doctor_id, patient_id, medication_name, dosage, frequency, duration_days, instructions, status
+		FROM prescriptions
+		WHERE id = $1
+	`, id).Scan(&doctorID, &patientID, &medication, &dosage, &frequency, &duration, &instructions, &status)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	if claims.Role == "doctor" && doctorID != claims.UserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+	if status != "active" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only active prescriptions can be updated"})
+		return
+	}
+
+	newMedication := strings.TrimSpace(medication)
+	newDosage := strings.TrimSpace(dosage)
+	newFrequency := strings.TrimSpace(frequency)
+	newInstructions := strings.TrimSpace(instructions)
+	newDuration := duration
+
+	if body.MedicationName != nil {
+		newMedication = strings.TrimSpace(*body.MedicationName)
+	}
+	if body.Dosage != nil {
+		newDosage = strings.TrimSpace(*body.Dosage)
+	}
+	if body.Frequency != nil {
+		newFrequency = strings.TrimSpace(*body.Frequency)
+	}
+	if body.DurationDays != nil {
+		newDuration = *body.DurationDays
+	}
+	if body.Instructions != nil {
+		newInstructions = strings.TrimSpace(*body.Instructions)
+	}
+
+	if newMedication == "" || newDosage == "" || newFrequency == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "medication_name, dosage, and frequency must be non-empty"})
+		return
+	}
+	if newDuration < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "duration_days must be >= 0"})
+		return
+	}
+
+	_, err = tx.Exec(c.Request.Context(), `
+		UPDATE prescriptions
+		SET medication_name = $2,
+			dosage = $3,
+			frequency = $4,
+			duration_days = $5,
+			instructions = $6
+		WHERE id = $1
+	`, id, newMedication, newDosage, newFrequency, newDuration, newInstructions)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	detail := fmt.Sprintf("Prescription updated: med=%s dosage=%s frequency=%s duration_days=%d",
+		newMedication, newDosage, newFrequency, newDuration)
+	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "prescription_updated", "prescription", id.String(), detail); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":              id,
+		"patient_id":      patientID,
+		"medication_name": newMedication,
+		"dosage":          newDosage,
+		"frequency":       newFrequency,
+		"duration_days":   newDuration,
+		"instructions":    newInstructions,
+		"status":          "active",
+	})
 }
 
 func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
