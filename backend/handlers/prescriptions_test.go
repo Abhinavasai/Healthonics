@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -79,6 +80,37 @@ func TestPrescriptions_Update_RequiresAtLeastOneField(t *testing.T) {
 	}
 }
 
+func TestPrescriptions_DownloadPDF_Unauthorized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/api/prescriptions/"+uuid.New().String()+"/pdf", nil)
+	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+
+	h := NewPrescriptionsHandler()
+	h.DownloadPDF(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPrescriptions_DownloadPDF_InvalidID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("claims", &Claims{Role: "doctor", UserID: uuid.New()})
+	c.Request = httptest.NewRequest("GET", "/api/prescriptions/not-a-uuid/pdf", nil)
+	c.Params = gin.Params{{Key: "id", Value: "not-a-uuid"}}
+
+	h := NewPrescriptionsHandler()
+	h.DownloadPDF(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
 func TestReminderTimesForFrequency(t *testing.T) {
 	if got := reminderTimesForFrequency("twice daily"); !slices.Equal(got, []string{"08:00", "20:00"}) {
 		t.Fatalf("unexpected twice-daily times: %v", got)
@@ -102,5 +134,23 @@ func TestBuildReminderSchedule(t *testing.T) {
 	}
 	if got[2].Day() != 28 {
 		t.Fatalf("expected day rollover to 28, got %v", got[2])
+	}
+}
+
+func TestBuildPrescriptionPDF_ContainsHeaderAndFields(t *testing.T) {
+	pdf := buildPrescriptionPDF(
+		"Atenolol",
+		"25mg",
+		"daily",
+		"after food",
+		"active",
+		30,
+		time.Date(2026, 4, 27, 10, 0, 0, 0, time.UTC),
+	)
+	if !bytes.HasPrefix(pdf, []byte("%PDF-1.4")) {
+		t.Fatalf("expected pdf header, got: %q", string(pdf[:8]))
+	}
+	if !strings.Contains(string(pdf), "Medication: Atenolol") {
+		t.Fatalf("expected medication text in generated pdf")
 	}
 }

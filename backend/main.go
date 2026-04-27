@@ -131,6 +131,7 @@ func main() {
 
 		api.GET("/patients/:patientId/prescriptions", auth.RequireAuth(), prescriptions.ListByPatient)
 		api.POST("/patients/:patientId/prescriptions", auth.RequireAuth(), auth.RequireRole("doctor"), prescriptions.Create)
+		api.GET("/prescriptions/:id/pdf", auth.RequireAuth(), auth.RequireRole("patient", "doctor", "admin"), prescriptions.DownloadPDF)
 		api.PUT("/prescriptions/:id", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), prescriptions.Update)
 		api.PATCH("/prescriptions/:id/revoke", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), prescriptions.Revoke)
 
