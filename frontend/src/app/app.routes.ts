@@ -6,6 +6,7 @@ import { AppShellComponent } from './components/app-shell/app-shell.component';
 import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
 import { AdminShellComponent } from './components/admin-shell/admin-shell.component';
 import { AdminAuditComponent } from './components/admin-audit/admin-audit.component';
+import { AdminNotificationsLogComponent } from './components/admin-notifications-log/admin-notifications-log.component';
 import { AdminKnowledgeComponent } from './components/admin-knowledge/admin-knowledge.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
@@ -180,6 +181,12 @@ export const routes: Routes = [
             path: 'audit',
             component: AdminAuditComponent,
             data: { title: 'Audit log', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'notifications',
+            component: AdminNotificationsLogComponent,
+            data: { title: 'Notifications', roles: ['admin'] },
             canActivate: [roleGuard]
           },
           {
