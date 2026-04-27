@@ -55,9 +55,9 @@ export class DoctorDocumentsService {
   }
 
   /** Triggers async summarization; poll getDetail until ready/failed. */
-  requestSummary(documentId: string): Observable<{ status?: string } | null> {
+  requestSummary(documentId: string): Observable<{ status?: string; message?: string; job_id?: string } | null> {
     return this.http
-      .post<{ status?: string }>(
+      .post<{ status?: string; message?: string; job_id?: string }>(
         ApiContract.doctorDocuments.summarize(encodeURIComponent(documentId)),
         {}
       )

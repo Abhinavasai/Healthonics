@@ -18,6 +18,7 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
   loading = true;
   summarizeLoading = false;
   error = '';
+  summarizeInfo = '';
   private documentId = '';
   private pollSub?: Subscription;
 
@@ -47,6 +48,7 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
   private loadInitial(): void {
     this.loading = true;
     this.error = '';
+    this.summarizeInfo = '';
     this.doc = null;
     this.api.getDetail(this.documentId).subscribe({
       next: (d) => {
@@ -99,6 +101,7 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
     }
     this.summarizeLoading = true;
     this.error = '';
+    this.summarizeInfo = '';
     this.api
       .requestSummary(this.documentId)
       .pipe(finalize(() => (this.summarizeLoading = false)))
@@ -107,6 +110,11 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
           if (res === null) {
             this.error = 'Could not start summarization.';
             return;
+          }
+          if (res.message) {
+            this.summarizeInfo = res.message;
+          } else if (res.job_id) {
+            this.summarizeInfo = 'Summary job queued. Refreshing status...';
           }
           this.api.getDetail(this.documentId).subscribe({
             next: (d) => {
@@ -135,5 +143,43 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
 
   showSummaryBlock(): boolean {
     return !!this.doc && (this.doc.summary_status === 'ready' || !!this.doc.summary);
+  }
+
+  statusLabel(s?: string): string {
+    switch (s) {
+      case 'pending':
+        return 'Summary pending';
+      case 'ready':
+        return 'Summary ready';
+      case 'failed':
+        return 'Summary failed';
+      default:
+        return 'No summary yet';
+    }
+  }
+
+  statusClass(s?: string): string {
+    switch (s) {
+      case 'pending':
+        return 'pill pill-pending';
+      case 'ready':
+        return 'pill pill-ready';
+      case 'failed':
+        return 'pill pill-failed';
+      default:
+        return 'pill';
+    }
+  }
+
+  canInlinePreview(d: DoctorDocumentDetail): boolean {
+    const ct = (d.content_type || '').toLowerCase();
+    return ct === 'application/pdf' || ct.startsWith('image/');
+  }
+
+  previewCaption(d: DoctorDocumentDetail): string {
+    if (this.canInlinePreview(d)) {
+      return 'Inline preview is enabled for this file type. Secure viewer endpoint will stream content in the next PR.';
+    }
+    return 'Inline preview is unavailable for this file type. Open/download support will use secure access flow.';
   }
 }
