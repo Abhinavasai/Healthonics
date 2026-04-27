@@ -11,7 +11,9 @@ export const ApiContract = {
     get: `${API}/bootstrap`
   },
   notifications: {
-    listMine: `${API}/notifications`
+    listMine: `${API}/notifications`,
+    listPreferences: `${API}/notifications/preferences`,
+    upsertPreferences: `${API}/notifications/preferences`
   },
   dashboard: {
     patientSummary: `${API}/patient/dashboard/summary`,

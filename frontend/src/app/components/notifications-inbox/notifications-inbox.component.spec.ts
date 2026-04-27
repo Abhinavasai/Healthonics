@@ -16,6 +16,17 @@ describe('NotificationsInboxComponent', () => {
     fixture = TestBed.createComponent(NotificationsInboxComponent);
     httpMock = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
+    httpMock.expectOne('/api/notifications/preferences').flush({
+      preferences: [
+        {
+          category: 'appointment_reminders',
+          enabled: true,
+          email_enabled: true,
+          sms_enabled: false,
+          in_app_enabled: true
+        }
+      ]
+    });
     httpMock.expectOne('/api/notifications').flush({ notifications: [] });
     fixture.detectChanges();
   });
@@ -26,5 +37,15 @@ describe('NotificationsInboxComponent', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-cy="notifications-empty"]')
     ).toBeTruthy();
+  });
+
+  it('shows notification preferences section', () => {
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-cy="notification-preferences"]')
+    ).toBeTruthy();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-cy="notification-pref-row"]')
+        .length
+    ).toBe(1);
   });
 });
