@@ -3,8 +3,10 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -74,5 +76,31 @@ func TestPrescriptions_Update_RequiresAtLeastOneField(t *testing.T) {
 	// enforce that it does not return success for empty payload.
 	if w.Code == http.StatusOK {
 		t.Fatalf("expected non-200 for empty update payload, got %d", w.Code)
+	}
+}
+
+func TestReminderTimesForFrequency(t *testing.T) {
+	if got := reminderTimesForFrequency("twice daily"); !slices.Equal(got, []string{"08:00", "20:00"}) {
+		t.Fatalf("unexpected twice-daily times: %v", got)
+	}
+	if got := reminderTimesForFrequency("3x"); !slices.Equal(got, []string{"08:00", "14:00", "20:00"}) {
+		t.Fatalf("unexpected thrice-daily times: %v", got)
+	}
+	if got := reminderTimesForFrequency("once daily"); !slices.Equal(got, []string{"08:00"}) {
+		t.Fatalf("unexpected default times: %v", got)
+	}
+}
+
+func TestBuildReminderSchedule(t *testing.T) {
+	start := time.Date(2026, 4, 27, 17, 30, 0, 0, time.UTC)
+	got := buildReminderSchedule(start, 2, []string{"08:00", "20:00"})
+	if len(got) != 4 {
+		t.Fatalf("expected 4 reminder times, got %d", len(got))
+	}
+	if got[0].Hour() != 8 || got[0].Minute() != 0 {
+		t.Fatalf("unexpected first reminder time: %v", got[0])
+	}
+	if got[2].Day() != 28 {
+		t.Fatalf("expected day rollover to 28, got %v", got[2])
 	}
 }
