@@ -64,18 +64,10 @@
           type="button"
           class="btn-primary"
           (click)="requestSummary()"
-          [disabled]="summarizeLoading || d.summary_status === 'pending'"
+          [disabled]="primarySummaryDisabled(d)"
           data-cy="doctor-document-summarize"
         >
-          {{
-            summarizeLoading
-              ? 'Starting…'
-              : d.summary_status === 'pending'
-                ? 'Generating…'
-                : d.summary_status === 'ready'
-                  ? 'Regenerate summary'
-                  : 'Generate summary'
-          }}
+          {{ primarySummaryLabel(d) }}
         </button>
       </div>
 
@@ -86,10 +78,41 @@
 
       <p *ngIf="summarizeInfo" class="muted hint" data-cy="doctor-document-summary-info">{{ summarizeInfo }}</p>
 
+      <div
+        *ngIf="summaryRequestError"
+        class="request-error-box"
+        data-cy="doctor-document-summary-request-error"
+        role="alert"
+      >
+        <span>{{ summaryRequestError }}</span>
+        <button
+          type="button"
+          class="btn-ghost"
+          (click)="retrySummary()"
+          [disabled]="summarizeLoading || d.summary_status === 'pending'"
+          data-cy="doctor-document-summary-retry-from-error"
+        >
+          Retry
+        </button>
+      </div>
+
       <div *ngIf="d.summary_status === 'failed'" class="failed-box" data-cy="doctor-document-summary-failed">
-        <strong>Summary could not be generated.</strong>
-        <span *ngIf="d.summary_error">{{ d.summary_error }}</span>
-        <span *ngIf="!d.summary_error">Please try again later.</span>
+        <div class="failed-content">
+          <strong>Summary could not be generated.</strong>
+          <p *ngIf="d.summary_error" class="failed-detail" data-cy="doctor-document-summary-error-text">
+            {{ d.summary_error }}
+          </p>
+          <p *ngIf="!d.summary_error" class="failed-detail muted">No error details from the server. You can try again.</p>
+        </div>
+        <button
+          type="button"
+          class="btn-retry"
+          (click)="retrySummary()"
+          [disabled]="primarySummaryDisabled(d)"
+          data-cy="doctor-document-summary-retry"
+        >
+          {{ summarizeLoading ? 'Retrying…' : 'Try again' }}
+        </button>
       </div>
 
       <div *ngIf="showSummaryBlock()" class="summary-body" data-cy="doctor-document-summary-text">
