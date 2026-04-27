@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -163,9 +163,13 @@ func (h *DoctorDocumentsHandler) Summarize(c *gin.Context) {
 	var patientID uuid.UUID
 	var filename string
 	var sizeBytes int64
+	var contentType string
+	var body []byte
 	err = db.Pool.QueryRow(ctx, `
-		SELECT patient_id, filename, size_bytes FROM patient_documents WHERE id = $1
-	`, docID).Scan(&patientID, &filename, &sizeBytes)
+		SELECT patient_id, filename, size_bytes, content_type, body
+		FROM patient_documents
+		WHERE id = $1
+	`, docID).Scan(&patientID, &filename, &sizeBytes, &contentType, &body)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
@@ -185,23 +189,34 @@ func (h *DoctorDocumentsHandler) Summarize(c *gin.Context) {
 		WHERE id = $1
 	`, docID)
 
-	go h.completeStubSummary(docID, filename, sizeBytes)
+	go h.completeStubSummary(docID, filename, sizeBytes, contentType, body)
 
 	c.JSON(http.StatusAccepted, gin.H{"status": "pending"})
 }
 
-func (h *DoctorDocumentsHandler) completeStubSummary(docID uuid.UUID, filename string, sizeBytes int64) {
+func (h *DoctorDocumentsHandler) completeStubSummary(docID uuid.UUID, filename string, sizeBytes int64, contentType string, body []byte) {
 	time.Sleep(800 * time.Millisecond)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	kb := sizeBytes / 1024
-	if kb < 1 {
-		kb = 1
+
+	extracted, extractErr := extractDocumentText(contentType, filename, body)
+	if extractErr != nil {
+		msg := extractErr.Error()
+		switch {
+		case errors.Is(extractErr, errUnsupportedDocument):
+			msg = "summary extraction is only supported for PDF and image documents"
+		case errors.Is(extractErr, errNoExtractableText):
+			msg = "could not extract readable text from document"
+		}
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE patient_documents
+			SET summary_status = 'failed', summary_error = $2
+			WHERE id = $1
+		`, docID, msg)
+		return
 	}
-	text := fmt.Sprintf(
-		"AI summary (stub, non-diagnostic): Document %q (~%d KB). Review source file for clinical decisions. This text is generated locally without a cloud LLM.",
-		filename, kb,
-	)
+
+	text := buildSummaryFromExtractedText(filename, sizeBytes, extracted)
 	_, err := db.Pool.Exec(ctx, `
 		UPDATE patient_documents
 		SET summary = $2, summary_status = 'ready', summary_error = NULL
