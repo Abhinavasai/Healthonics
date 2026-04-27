@@ -25,4 +25,10 @@ export class PrescriptionsService {
       ApiContract.prescriptions.listByPatient(patientId)
     );
   }
+
+  downloadPdf(id: string): Observable<Blob> {
+    return this.http.get(ApiContract.prescriptions.pdf(id), {
+      responseType: 'blob'
+    });
+  }
 }
