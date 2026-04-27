@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -103,6 +104,54 @@ type updatePrescriptionBody struct {
 	Instructions   *string `json:"instructions"`
 }
 
+func reminderTimesForFrequency(frequency string) []string {
+	f := strings.ToLower(strings.TrimSpace(frequency))
+	switch {
+	case strings.Contains(f, "3"), strings.Contains(f, "thrice"), strings.Contains(f, "three"):
+		return []string{"08:00", "14:00", "20:00"}
+	case strings.Contains(f, "2"), strings.Contains(f, "twice"), strings.Contains(f, "two"):
+		return []string{"08:00", "20:00"}
+	default:
+		return []string{"08:00"}
+	}
+}
+
+func buildReminderSchedule(start time.Time, durationDays int, times []string) []time.Time {
+	if durationDays <= 0 {
+		durationDays = 1
+	}
+	if len(times) == 0 {
+		times = []string{"08:00"}
+	}
+	base := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
+	out := make([]time.Time, 0, durationDays*len(times))
+	for day := 0; day < durationDays; day++ {
+		for _, hhmm := range times {
+			h, m := 8, 0
+			_, _ = fmt.Sscanf(hhmm, "%d:%d", &h, &m)
+			out = append(out, base.AddDate(0, 0, day).Add(time.Duration(h)*time.Hour).Add(time.Duration(m)*time.Minute))
+		}
+	}
+	return out
+}
+
+func schedulePrescriptionReminders(ctx *gin.Context, patientID uuid.UUID, medication, dosage, frequency string, durationDays int) error {
+	times := reminderTimesForFrequency(frequency)
+	schedule := buildReminderSchedule(time.Now().UTC(), durationDays, times)
+	title := fmt.Sprintf("Medication reminder: %s", medication)
+	body := fmt.Sprintf("Take %s %s as prescribed (%s).", dosage, medication, frequency)
+	for _, at := range schedule {
+		_, err := db.Pool.Exec(ctx.Request.Context(), `
+			INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
+			VALUES ($1, $2, $3, 'in_app', 'pending', $4)
+		`, patientID, title, body, at)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (h *PrescriptionsHandler) Create(c *gin.Context) {
 	claims, ok := getClaims(c)
 	if !ok {
@@ -138,6 +187,7 @@ func (h *PrescriptionsHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
+	_ = schedulePrescriptionReminders(c, pid, strings.TrimSpace(body.MedicationName), strings.TrimSpace(body.Dosage), strings.TrimSpace(body.Frequency), body.DurationDays)
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
@@ -255,6 +305,11 @@ func (h *PrescriptionsHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
+	_, _ = db.Pool.Exec(c.Request.Context(), `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
+		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
+	`, patientID, "Prescription updated", fmt.Sprintf("Your prescription for %s has been updated.", newMedication))
+	_ = schedulePrescriptionReminders(c, patientID, newMedication, newDosage, newFrequency, newDuration)
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":              id,
@@ -299,5 +354,9 @@ func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
+	_, _ = db.Pool.Exec(c.Request.Context(), `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
+		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
+	`, patientID, "Prescription revoked", "One of your prescriptions has been revoked by your care team.")
 	c.JSON(http.StatusOK, gin.H{"id": id, "patient_id": patientID, "status": "revoked"})
 }
