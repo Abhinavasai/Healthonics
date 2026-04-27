@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -105,6 +106,14 @@ func (h *DocumentsHandler) Upload(c *gin.Context) {
 	}
 	if int64(len(data)) > maxDocumentBytes {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("file too large (max %d bytes)", maxDocumentBytes)})
+		return
+	}
+	if err := scanForMalware(data); err != nil {
+		if errors.Is(err, errMalwareDetected) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File rejected by malware scanner"})
+			return
+		}
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Malware scanning unavailable. Please try again"})
 		return
 	}
 
