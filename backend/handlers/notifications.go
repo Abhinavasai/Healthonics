@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
+	"github.com/jackc/pgx/v5"
 )
 
 type NotificationsHandler struct{}
@@ -146,6 +148,109 @@ func (h *NotificationsHandler) ListMine(c *gin.Context) {
 		out = []row{}
 	}
 	c.JSON(http.StatusOK, gin.H{"notifications": out})
+}
+
+// AdminList GET /api/admin/notifications
+func (h *NotificationsHandler) AdminList(c *gin.Context) {
+	if _, ok := getClaims(c); !ok {
+		return
+	}
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT id::text, user_id::text, title, body, channel, status, scheduled_for::text, created_at::text
+		FROM notifications
+		ORDER BY created_at DESC
+		LIMIT 300
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+
+	type row struct {
+		ID           string  `json:"id"`
+		UserID       string  `json:"user_id"`
+		Title        string  `json:"title"`
+		Body         string  `json:"body"`
+		Channel      string  `json:"channel"`
+		Status       string  `json:"status"`
+		ScheduledFor *string `json:"scheduled_for"`
+		CreatedAt    string  `json:"created_at"`
+	}
+	var out []row
+	for rows.Next() {
+		var r row
+		var sched sql.NullString
+		if err := rows.Scan(&r.ID, &r.UserID, &r.Title, &r.Body, &r.Channel, &r.Status, &sched, &r.CreatedAt); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		if sched.Valid {
+			s := sched.String
+			r.ScheduledFor = &s
+		}
+		out = append(out, r)
+	}
+	if out == nil {
+		out = []row{}
+	}
+	c.JSON(http.StatusOK, gin.H{"notifications": out})
+}
+
+// AdminSummary GET /api/admin/notifications/summary
+func (h *NotificationsHandler) AdminSummary(c *gin.Context) {
+	if _, ok := getClaims(c); !ok {
+		return
+	}
+	var pending, sent, failed int64
+	err := db.Pool.QueryRow(c.Request.Context(), `
+		SELECT
+			COUNT(*) FILTER (WHERE status = 'pending'),
+			COUNT(*) FILTER (WHERE status = 'sent'),
+			COUNT(*) FILTER (WHERE status = 'failed')
+		FROM notifications
+	`).Scan(&pending, &sent, &failed)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"pending_count": pending,
+		"sent_count":    sent,
+		"failed_count":  failed,
+	})
+}
+
+// RetryFailed POST /api/admin/notifications/:id/retry
+func (h *NotificationsHandler) RetryFailed(c *gin.Context) {
+	if _, ok := getClaims(c); !ok {
+		return
+	}
+	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification id"})
+		return
+	}
+	var prevStatus string
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		UPDATE notifications
+		SET status = 'pending', scheduled_for = NOW()
+		WHERE id = $1
+		  AND status = 'failed'
+		RETURNING status
+	`, id).Scan(&prevStatus)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Failed notification not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"id":     id.String(),
+		"status": "pending",
+	})
 }
 
 // ListPreferences GET /api/notifications/preferences

@@ -73,6 +73,8 @@ func main() {
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
 		api.GET("/notifications", auth.RequireAuth(), notifications.ListMine)
+		api.GET("/notifications/preferences", auth.RequireAuth(), notifications.ListPreferences)
+		api.PUT("/notifications/preferences", auth.RequireAuth(), notifications.UpsertPreferences)
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
 		api.GET("/patient/dashboard/summary", auth.RequireAuth(), auth.RequireRole("patient"), dashboard.PatientSummary)
 		api.GET("/doctor/dashboard/summary", auth.RequireAuth(), auth.RequireRole("doctor"), dashboard.DoctorSummary)
@@ -87,6 +89,9 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"message": "Admin only"})
 		})
 		api.GET("/admin/audit-log", auth.RequireAuth(), auth.RequireRole("admin"), adminAudit.List)
+		api.GET("/admin/notifications", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminList)
+		api.GET("/admin/notifications/summary", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminSummary)
+		api.POST("/admin/notifications/:id/retry", auth.RequireAuth(), auth.RequireRole("admin"), notifications.RetryFailed)
 		api.GET("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.List)
 		api.POST("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Create)
 		api.GET("/admin/knowledge-docs/:id", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Get)
