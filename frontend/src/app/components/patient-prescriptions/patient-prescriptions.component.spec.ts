@@ -109,4 +109,79 @@ describe('PatientPrescriptionsComponent', () => {
     const statusAfter = (fixture.nativeElement as HTMLElement).querySelector('.rem-status')?.textContent ?? '';
     expect(statusAfter).toContain('Off');
   });
+
+  it('downloads prescription pdf from active row action', () => {
+    fixture = TestBed.createComponent(PatientPrescriptionsComponent);
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/patients/p1/prescriptions').flush({
+      prescriptions: [
+        {
+          id: 'rx1',
+          patient_id: 'p1',
+          doctor_id: 'd1',
+          medication_name: 'Atenolol',
+          dosage: '25mg',
+          frequency: 'daily',
+          duration_days: 30,
+          instructions: 'after food',
+          status: 'active',
+          created_at: '2026-04-20T10:00:00Z'
+        }
+      ]
+    });
+    fixture.detectChanges();
+
+    spyOn(window.URL, 'createObjectURL').and.returnValue('blob:test');
+    const revokeSpy = spyOn(window.URL, 'revokeObjectURL');
+
+    const el = fixture.nativeElement as HTMLElement;
+    const btn = el.querySelector('[data-cy="patient-prescriptions-download-pdf"]') as HTMLButtonElement;
+    btn.click();
+
+    const req = httpMock.expectOne('/api/prescriptions/rx1/pdf');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob(['pdf-bytes'], { type: 'application/pdf' }));
+    fixture.detectChanges();
+
+    expect(window.URL.createObjectURL).toHaveBeenCalled();
+    expect(revokeSpy).toHaveBeenCalledWith('blob:test');
+  });
+
+  it('shows an error when pdf download fails', () => {
+    fixture = TestBed.createComponent(PatientPrescriptionsComponent);
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/patients/p1/prescriptions').flush({
+      prescriptions: [
+        {
+          id: 'rx1',
+          patient_id: 'p1',
+          doctor_id: 'd1',
+          medication_name: 'Atenolol',
+          dosage: '25mg',
+          frequency: 'daily',
+          duration_days: 30,
+          instructions: 'after food',
+          status: 'active',
+          created_at: '2026-04-20T10:00:00Z'
+        }
+      ]
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const btn = el.querySelector('[data-cy="patient-prescriptions-download-pdf"]') as HTMLButtonElement;
+    btn.click();
+
+    const req = httpMock.expectOne('/api/prescriptions/rx1/pdf');
+    req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server error' });
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-cy="patient-prescriptions-pdf-error"]')
+        ?.textContent
+    ).toContain('Could not download prescription PDF');
+  });
 });

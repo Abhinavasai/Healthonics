@@ -49,6 +49,18 @@ import { AuthService } from '../../services/auth.service';
               {{ remindersEnabled(r.id) ? 'Turn off reminders' : 'Turn on reminders' }}
             </button>
           </div>
+          <div class="toggle-row">
+            <small class="rem-status">Prescription PDF</small>
+            <button
+              type="button"
+              class="toggle-btn"
+              (click)="downloadPrescriptionPdf(r)"
+              [disabled]="isDownloading(r.id)"
+              data-cy="patient-prescriptions-download-pdf"
+            >
+              {{ isDownloading(r.id) ? 'Preparing PDF...' : 'Download PDF' }}
+            </button>
+          </div>
           <small>Prescribed {{ r.created_at }}</small>
         </li>
       </ul>
@@ -62,10 +74,23 @@ import { AuthService } from '../../services/auth.service';
           </div>
           <div class="meta">{{ r.dosage }} · {{ r.frequency }} · {{ r.duration_days }} days</div>
           <div class="ins" *ngIf="r.instructions">{{ r.instructions }}</div>
+          <div class="toggle-row">
+            <small class="rem-status">Prescription PDF</small>
+            <button
+              type="button"
+              class="toggle-btn"
+              (click)="downloadPrescriptionPdf(r)"
+              [disabled]="isDownloading(r.id)"
+              data-cy="patient-prescriptions-history-download-pdf"
+            >
+              {{ isDownloading(r.id) ? 'Preparing PDF...' : 'Download PDF' }}
+            </button>
+          </div>
           <small>Prescribed {{ r.created_at }}</small>
         </li>
       </ul>
 
+      <p class="err" *ngIf="pdfError" data-cy="patient-prescriptions-pdf-error">{{ pdfError }}</p>
       <p *ngIf="!error && !rows.length" data-cy="patient-prescriptions-empty">No prescriptions yet.</p>
     </section>
   `,
@@ -137,6 +162,10 @@ import { AuthService } from '../../services/auth.service';
       .toggle-btn:hover {
         background: rgba(148, 163, 184, 0.1);
       }
+      .toggle-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
       .st {
         text-transform: uppercase;
         letter-spacing: 0.02em;
@@ -164,6 +193,8 @@ export class PatientPrescriptionsComponent implements OnInit {
   activeRows: PrescriptionRow[] = [];
   pastRows: PrescriptionRow[] = [];
   error: string | null = null;
+  pdfError: string | null = null;
+  downloading: Record<string, boolean> = {};
   reminderToggles: Record<string, boolean> = {};
 
   constructor(
@@ -204,6 +235,36 @@ export class PatientPrescriptionsComponent implements OnInit {
       [id]: !this.remindersEnabled(id)
     };
     this.saveReminderToggles();
+  }
+
+  isDownloading(id: string): boolean {
+    return this.downloading[id] ?? false;
+  }
+
+  downloadPrescriptionPdf(row: PrescriptionRow): void {
+    this.pdfError = null;
+    this.downloading = { ...this.downloading, [row.id]: true };
+    this.rx.downloadPdf(row.id).subscribe({
+      next: (blob) => {
+        const safeMedication = (row.medication_name || 'prescription')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeMedication || 'prescription'}-${row.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        this.downloading = { ...this.downloading, [row.id]: false };
+      },
+      error: () => {
+        this.downloading = { ...this.downloading, [row.id]: false };
+        this.pdfError = 'Could not download prescription PDF';
+      }
+    });
   }
 
   private loadReminderToggles(): Record<string, boolean> {

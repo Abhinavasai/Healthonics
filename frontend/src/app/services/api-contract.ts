@@ -56,6 +56,7 @@ export const ApiContract = {
   prescriptions: {
     listByPatient: (patientId: string): string => `${API}/patients/${patientId}/prescriptions`,
     createForPatient: (patientId: string): string => `${API}/patients/${patientId}/prescriptions`,
+    pdf: (id: string): string => `${API}/prescriptions/${id}/pdf`,
     revoke: (id: string): string => `${API}/prescriptions/${id}/revoke`
   },
   messaging: {
