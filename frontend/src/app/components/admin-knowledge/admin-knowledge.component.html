@@ -202,6 +202,17 @@
           </li>
         </ul>
       </div>
+      <div class="detail-actions">
+        <button type="button" class="btn-secondary" (click)="toggleDetailComments()" data-cy="kb-comments-toggle">
+          {{ showDetailComments ? 'Hide comments' : 'Show comments' }}
+        </button>
+      </div>
+      <app-contextual-comments-panel
+        *ngIf="showDetailComments && selectedId"
+        [contextType]="'knowledge_doc'"
+        [contextId]="selectedId"
+        panelTitle="KB document comments"
+      />
     </ng-container>
   </section>
 </section>

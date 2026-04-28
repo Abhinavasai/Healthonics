@@ -66,6 +66,9 @@ export const ApiContract = {
     sendMessage: (threadId: string): string => `${API}/messages/threads/${threadId}/messages`,
     markRead: (threadId: string): string => `${API}/messages/threads/${threadId}/read`
   },
+  contextualComments: {
+    byContext: (contextType: string, contextId: string): string => `${API}/comments/${contextType}/${contextId}`
+  },
   admin: {
     auditLog: `${API}/admin/audit-log`,
     userLifecycleUsers: `${API}/admin/user-lifecycle/users`,
