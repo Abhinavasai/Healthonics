@@ -2,35 +2,21 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiContract } from './api-contract';
-
-export interface NotificationRow {
-  id: string;
-  title: string;
-  body: string;
-  channel: string;
-  status: string;
-  scheduled_for?: string | null;
-  created_at: string;
-}
-
-export interface NotificationPreferenceRow {
-  category: string;
-  enabled: boolean;
-  email_enabled: boolean;
-  sms_enabled: boolean;
-  in_app_enabled: boolean;
-}
+import type { ApiListResponse, NotificationPreferenceRow, NotificationRow } from './api-types';
+export type { NotificationRow, NotificationPreferenceRow } from './api-types';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationsInboxService {
   constructor(private http: HttpClient) {}
 
-  listMine(): Observable<{ notifications: NotificationRow[] }> {
-    return this.http.get<{ notifications: NotificationRow[] }>(ApiContract.notifications.listMine);
+  listMine(): Observable<ApiListResponse<NotificationRow, 'notifications'>> {
+    return this.http.get<ApiListResponse<NotificationRow, 'notifications'>>(
+      ApiContract.notifications.listMine
+    );
   }
 
-  listPreferences(): Observable<{ preferences: NotificationPreferenceRow[] }> {
-    return this.http.get<{ preferences: NotificationPreferenceRow[] }>(
+  listPreferences(): Observable<ApiListResponse<NotificationPreferenceRow, 'preferences'>> {
+    return this.http.get<ApiListResponse<NotificationPreferenceRow, 'preferences'>>(
       ApiContract.notifications.listPreferences
     );
   }

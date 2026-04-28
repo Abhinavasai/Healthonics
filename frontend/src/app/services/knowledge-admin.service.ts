@@ -2,69 +2,21 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiContract } from './api-contract';
-
-export interface KnowledgeListDocument {
-  id: string;
-  title: string;
-  excerpt: string;
-  created_at: string;
-  updated_at: string;
-  current_version?: number;
-  review_interval_days?: number;
-  last_reviewed_at?: string;
-  days_since_review?: number;
-  health_score?: number;
-  is_stale?: boolean;
-}
-
-export interface KnowledgeDocumentsListResponse {
-  documents: KnowledgeListDocument[];
-}
-
-/** GET /admin/knowledge-docs/:id (PR-28) */
-export interface KnowledgeDetail {
-  id: string;
-  title: string;
-  body: string;
-  updated_at: string;
-  current_version: number;
-  review_interval_days: number;
-  last_reviewed_at?: string;
-  days_since_review: number;
-  health_score: number;
-  is_stale: boolean;
-}
-
-export interface KnowledgeVersionRow {
-  version: number;
-  title: string;
-  excerpt: string;
-  created_at: string;
-  created_by: string;
-}
-
-export interface KnowledgeVersionsResponse {
-  versions: KnowledgeVersionRow[];
-}
-
-export interface SimilarityPair {
-  similarity: number;
-  document_a_id: string;
-  document_b_id: string;
-  title_a: string;
-  title_b: string;
-  chunk_a_index: number;
-  chunk_b_index: number;
-  excerpt_a: string;
-  excerpt_b: string;
-  conflict_hint: string;
-}
-
-export interface SimilarityScanResponse {
-  threshold: number;
-  chunks_scanned: number;
-  pairs: SimilarityPair[];
-}
+import type {
+  KnowledgeDetail,
+  KnowledgeDocumentsListResponse,
+  KnowledgeVersionsResponse,
+  SimilarityScanResponse
+} from './api-types';
+export type {
+  KnowledgeListDocument,
+  KnowledgeDocumentsListResponse,
+  KnowledgeDetail,
+  KnowledgeVersionRow,
+  KnowledgeVersionsResponse,
+  SimilarityPair,
+  SimilarityScanResponse
+} from './api-types';
 
 @Injectable({ providedIn: 'root' })
 export class KnowledgeAdminService {
