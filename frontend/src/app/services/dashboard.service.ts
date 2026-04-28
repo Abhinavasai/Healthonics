@@ -27,10 +27,17 @@ export interface PatientDashboardSummary {
   alerts?: DashboardAlert[];
 }
 
+export interface DoctorDashboardAggregations {
+  unread_messages: number;
+  appointments_this_week: number;
+}
+
 export interface DoctorDashboardSummary {
   role: string;
   appointments_today: number;
   pending_queue: number;
+  aggregations?: DoctorDashboardAggregations;
+  alerts?: DashboardAlert[];
 }
 
 @Injectable({ providedIn: 'root' })
