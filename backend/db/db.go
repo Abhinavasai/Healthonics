@@ -298,6 +298,11 @@ func Migrate(ctx context.Context) error {
 			thread_id  UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
 			sender_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			body       TEXT NOT NULL,
+			body_is_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+			body_key_version  INTEGER NOT NULL DEFAULT 0,
+			body_wrapped_key  TEXT NOT NULL DEFAULT '',
+			body_wrapped_nonce TEXT NOT NULL DEFAULT '',
+			body_data_nonce   TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 
@@ -349,10 +354,26 @@ func Migrate(ctx context.Context) error {
 			stored_name    TEXT NOT NULL UNIQUE,
 			mime_type      TEXT NOT NULL,
 			byte_size      BIGINT NOT NULL CHECK (byte_size >= 0 AND byte_size <= 5242880),
+			enc_key_version   INTEGER NOT NULL DEFAULT 0,
+			enc_wrapped_key   TEXT NOT NULL DEFAULT '',
+			enc_wrapped_nonce TEXT NOT NULL DEFAULT '',
+			enc_data_nonce    TEXT NOT NULL DEFAULT '',
 			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_patient_files_patient ON patient_files(patient_id);
+
+		-- Backward compatible migrations for encryption metadata (safe on existing DBs).
+		ALTER TABLE messages ADD COLUMN IF NOT EXISTS body_is_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
+		ALTER TABLE messages ADD COLUMN IF NOT EXISTS body_key_version INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE messages ADD COLUMN IF NOT EXISTS body_wrapped_key TEXT NOT NULL DEFAULT '';
+		ALTER TABLE messages ADD COLUMN IF NOT EXISTS body_wrapped_nonce TEXT NOT NULL DEFAULT '';
+		ALTER TABLE messages ADD COLUMN IF NOT EXISTS body_data_nonce TEXT NOT NULL DEFAULT '';
+
+		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_key_version INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_wrapped_key TEXT NOT NULL DEFAULT '';
+		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_wrapped_nonce TEXT NOT NULL DEFAULT '';
+		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_data_nonce TEXT NOT NULL DEFAULT '';
 	`)
 	return err
 }
