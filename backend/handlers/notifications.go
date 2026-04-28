@@ -109,7 +109,7 @@ func (h *NotificationsHandler) ListMine(c *gin.Context) {
 	}
 
 	rows, err := db.Pool.Query(c.Request.Context(), `
-		SELECT id::text, title, body, channel, status, scheduled_for::text, created_at::text
+		SELECT id::text, title, body, channel, status, provider, attempts, last_error, scheduled_for::text, next_retry_at::text, sent_at::text, created_at::text
 		FROM notifications
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -127,20 +127,35 @@ func (h *NotificationsHandler) ListMine(c *gin.Context) {
 		Body         string  `json:"body"`
 		Channel      string  `json:"channel"`
 		Status       string  `json:"status"`
+		Provider     string  `json:"provider"`
+		Attempts     int     `json:"attempts"`
+		LastError    string  `json:"last_error"`
 		ScheduledFor *string `json:"scheduled_for"`
+		NextRetryAt  *string `json:"next_retry_at"`
+		SentAt       *string `json:"sent_at"`
 		CreatedAt    string  `json:"created_at"`
 	}
 	var out []row
 	for rows.Next() {
 		var r row
 		var sched sql.NullString
-		if err := rows.Scan(&r.ID, &r.Title, &r.Body, &r.Channel, &r.Status, &sched, &r.CreatedAt); err != nil {
+		var nextRetry sql.NullString
+		var sentAt sql.NullString
+		if err := rows.Scan(&r.ID, &r.Title, &r.Body, &r.Channel, &r.Status, &r.Provider, &r.Attempts, &r.LastError, &sched, &nextRetry, &sentAt, &r.CreatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
 		}
 		if sched.Valid {
 			s := sched.String
 			r.ScheduledFor = &s
+		}
+		if nextRetry.Valid {
+			s := nextRetry.String
+			r.NextRetryAt = &s
+		}
+		if sentAt.Valid {
+			s := sentAt.String
+			r.SentAt = &s
 		}
 		out = append(out, r)
 	}
@@ -156,7 +171,7 @@ func (h *NotificationsHandler) AdminList(c *gin.Context) {
 		return
 	}
 	rows, err := db.Pool.Query(c.Request.Context(), `
-		SELECT id::text, user_id::text, title, body, channel, status, scheduled_for::text, created_at::text
+		SELECT id::text, user_id::text, title, body, channel, status, provider, attempts, last_error, scheduled_for::text, next_retry_at::text, sent_at::text, created_at::text
 		FROM notifications
 		ORDER BY created_at DESC
 		LIMIT 300
@@ -174,20 +189,35 @@ func (h *NotificationsHandler) AdminList(c *gin.Context) {
 		Body         string  `json:"body"`
 		Channel      string  `json:"channel"`
 		Status       string  `json:"status"`
+		Provider     string  `json:"provider"`
+		Attempts     int     `json:"attempts"`
+		LastError    string  `json:"last_error"`
 		ScheduledFor *string `json:"scheduled_for"`
+		NextRetryAt  *string `json:"next_retry_at"`
+		SentAt       *string `json:"sent_at"`
 		CreatedAt    string  `json:"created_at"`
 	}
 	var out []row
 	for rows.Next() {
 		var r row
 		var sched sql.NullString
-		if err := rows.Scan(&r.ID, &r.UserID, &r.Title, &r.Body, &r.Channel, &r.Status, &sched, &r.CreatedAt); err != nil {
+		var nextRetry sql.NullString
+		var sentAt sql.NullString
+		if err := rows.Scan(&r.ID, &r.UserID, &r.Title, &r.Body, &r.Channel, &r.Status, &r.Provider, &r.Attempts, &r.LastError, &sched, &nextRetry, &sentAt, &r.CreatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
 		}
 		if sched.Valid {
 			s := sched.String
 			r.ScheduledFor = &s
+		}
+		if nextRetry.Valid {
+			s := nextRetry.String
+			r.NextRetryAt = &s
+		}
+		if sentAt.Valid {
+			s := sentAt.String
+			r.SentAt = &s
 		}
 		out = append(out, r)
 	}
@@ -234,7 +264,12 @@ func (h *NotificationsHandler) RetryFailed(c *gin.Context) {
 	var prevStatus string
 	err = db.Pool.QueryRow(c.Request.Context(), `
 		UPDATE notifications
-		SET status = 'pending', scheduled_for = NOW()
+		SET status = 'pending',
+		    scheduled_for = NOW(),
+		    attempts = 0,
+		    next_retry_at = NULL,
+		    last_error = '',
+		    provider = ''
 		WHERE id = $1
 		  AND status = 'failed'
 		RETURNING status

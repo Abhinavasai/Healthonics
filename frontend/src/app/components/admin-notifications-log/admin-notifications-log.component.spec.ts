@@ -47,6 +47,9 @@ describe('AdminNotificationsLogComponent', () => {
           title: 'Test',
           body: 'Hello',
           channel: 'in_app',
+          provider: 'in_app',
+          attempts: 1,
+          last_error: '',
           status: 'sent',
           created_at: 'now'
         }
@@ -73,6 +76,10 @@ describe('AdminNotificationsLogComponent', () => {
           title: 'Test',
           body: 'Hello',
           channel: 'sms',
+          provider: 'twilio',
+          attempts: 2,
+          last_error: 'twilio timeout',
+          next_retry_at: 'later',
           status: 'failed',
           created_at: 'now'
         }
@@ -91,6 +98,46 @@ describe('AdminNotificationsLogComponent', () => {
     });
     httpMock.expectOne('/api/admin/notifications').flush({ notifications: [] });
     expect(fixture.componentInstance.retryingId).toBeNull();
+  });
+
+  it('renders provider health cards', () => {
+    httpMock.expectOne('/api/admin/notifications/summary').flush({
+      pending_count: 1,
+      sent_count: 1,
+      failed_count: 1
+    });
+    httpMock.expectOne('/api/admin/notifications').flush({
+      notifications: [
+        {
+          id: '1',
+          user_id: 'u-1',
+          title: 'Email delivered',
+          body: 'ok',
+          channel: 'email',
+          provider: 'sendgrid',
+          attempts: 1,
+          last_error: '',
+          status: 'sent',
+          created_at: 'now'
+        },
+        {
+          id: '2',
+          user_id: 'u-2',
+          title: 'SMS failed',
+          body: 'retrying',
+          channel: 'sms',
+          provider: 'twilio',
+          attempts: 3,
+          last_error: 'invalid number',
+          status: 'failed',
+          created_at: 'now'
+        }
+      ]
+    });
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-cy="provider-health-cards"]')
+    ).toBeTruthy();
   });
 });
 

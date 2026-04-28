@@ -48,3 +48,14 @@ func TestNotificationWorker_RunStopsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestBackoffDuration(t *testing.T) {
+	if got := backoffDuration(1); got != 15*time.Second {
+		t.Fatalf("attempt 1: want 15s, got %v", got)
+	}
+	if got := backoffDuration(2); got != 60*time.Second {
+		t.Fatalf("attempt 2: want 60s, got %v", got)
+	}
+	if got := backoffDuration(3); got != 5*time.Minute {
+		t.Fatalf("attempt 3: want 5m, got %v", got)
+	}
+}

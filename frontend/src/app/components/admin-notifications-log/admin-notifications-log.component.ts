@@ -26,14 +26,19 @@ export class AdminNotificationsLogComponent implements OnInit {
     this.load();
   }
 
-  get providerCards(): Array<{ name: string; sent: number; failed: number; pending: number; health: string }> {
-    const channels = ['in_app', 'email', 'sms'];
-    return channels.map((ch) => {
-      const sent = this.rows.filter((r) => r.channel === ch && r.status === 'sent').length;
-      const failed = this.rows.filter((r) => r.channel === ch && r.status === 'failed').length;
-      const pending = this.rows.filter((r) => r.channel === ch && r.status === 'pending').length;
+  get providerCards(): Array<{ name: string; sent: number; failed: number; pending: number; retries: number; health: string }> {
+    const providers = ['in_app', 'sendgrid', 'twilio'];
+    return providers.map((providerName) => {
+      const sourceRows =
+        providerName === 'in_app'
+          ? this.rows.filter((r) => r.channel === 'in_app')
+          : this.rows.filter((r) => (r.provider ?? '').toLowerCase() === providerName);
+      const sent = sourceRows.filter((r) => r.status === 'sent').length;
+      const failed = sourceRows.filter((r) => r.status === 'failed').length;
+      const pending = sourceRows.filter((r) => r.status === 'pending').length;
+      const retries = sourceRows.filter((r) => (r.attempts ?? 0) > 1).length;
       const health = failed === 0 ? 'healthy' : failed > sent ? 'degraded' : 'warning';
-      return { name: ch.toUpperCase(), sent, failed, pending, health };
+      return { name: providerName.toUpperCase(), sent, failed, pending, retries, health };
     });
   }
 
