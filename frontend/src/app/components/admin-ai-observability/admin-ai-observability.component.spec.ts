@@ -34,6 +34,14 @@ describe('AdminAiObservabilityComponent', () => {
           cache_ready_count: 4,
           pending_docs_count: 1,
           failed_docs_count: 0
+        },
+        runtime: {
+          ai_enabled: true,
+          ollama_host: 'http://127.0.0.1:11434',
+          configured_model: 'llama3.1:8b',
+          ollama_reachable: true,
+          model_available: true,
+          active_mode: 'ollama'
         }
       })
     );
@@ -51,6 +59,7 @@ describe('AdminAiObservabilityComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(serviceSpy.getObservability).toHaveBeenCalled();
     expect(el.querySelector('[data-cy="admin-ai-observability-page"]')).toBeTruthy();
+    expect(el.querySelector('[data-cy="ai-runtime-health"]')).toBeTruthy();
   });
 
   it('saves settings', () => {
