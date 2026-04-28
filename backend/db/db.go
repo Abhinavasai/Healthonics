@@ -27,6 +27,17 @@ func Migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		);
 
+		CREATE TABLE IF NOT EXISTS admin_user_lifecycle_settings (
+			id                     BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+			new_user_window_days   INTEGER NOT NULL DEFAULT 14 CHECK (new_user_window_days >= 1 AND new_user_window_days <= 3650),
+			inactive_window_days   INTEGER NOT NULL DEFAULT 30 CHECK (inactive_window_days >= 1 AND inactive_window_days <= 3650),
+			updated_by             UUID REFERENCES users(id) ON DELETE SET NULL,
+			updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		INSERT INTO admin_user_lifecycle_settings (id)
+		VALUES (TRUE)
+		ON CONFLICT (id) DO NOTHING;
+
 		CREATE TABLE IF NOT EXISTS appointments (
 			id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			patient_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

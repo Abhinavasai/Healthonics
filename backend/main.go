@@ -89,10 +89,13 @@ func main() {
 		// Role-protected: demonstrates 403 when role doesn't match
 		adminAudit := handlers.NewAdminAuditHandler()
 		knowledge := handlers.NewKnowledgeAdminHandler()
+		userLifecycle := handlers.NewAdminUserLifecycleHandler()
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Admin only"})
 		})
 		api.GET("/admin/audit-log", auth.RequireAuth(), auth.RequireRole("admin"), adminAudit.List)
+		api.GET("/admin/user-lifecycle/settings-kpis", auth.RequireAuth(), auth.RequireRole("admin"), userLifecycle.GetSettingsKpis)
+		api.PUT("/admin/user-lifecycle/settings", auth.RequireAuth(), auth.RequireRole("admin"), userLifecycle.UpdateSettings)
 		api.GET("/admin/notifications", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminList)
 		api.GET("/admin/notifications/summary", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminSummary)
 		api.POST("/admin/notifications/:id/retry", auth.RequireAuth(), auth.RequireRole("admin"), notifications.RetryFailed)
