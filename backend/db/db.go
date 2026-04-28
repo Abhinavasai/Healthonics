@@ -70,6 +70,10 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_appointment_comments_appt ON appointment_comments(appointment_id);
 
+		ALTER TABLE appointment_comments ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'patient_visible';
+		ALTER TABLE appointment_comments DROP CONSTRAINT IF EXISTS appointment_comments_visibility_check;
+		ALTER TABLE appointment_comments ADD CONSTRAINT appointment_comments_visibility_check CHECK (visibility IN ('internal', 'patient_visible'));
+
 		CREATE TABLE IF NOT EXISTS hospitals (
 			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name       TEXT NOT NULL,
