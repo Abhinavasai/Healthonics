@@ -38,6 +38,22 @@ func Migrate(ctx context.Context) error {
 		VALUES (TRUE)
 		ON CONFLICT (id) DO NOTHING;
 
+		CREATE TABLE IF NOT EXISTS admin_ai_runtime_settings (
+			id                      BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+			ollama_enabled          BOOLEAN NOT NULL DEFAULT FALSE,
+			fallback_enabled        BOOLEAN NOT NULL DEFAULT TRUE,
+			rate_limit_enabled      BOOLEAN NOT NULL DEFAULT TRUE,
+			rate_limit_per_minute   INTEGER NOT NULL DEFAULT 30 CHECK (rate_limit_per_minute >= 1 AND rate_limit_per_minute <= 10000),
+			cache_enabled           BOOLEAN NOT NULL DEFAULT TRUE,
+			cache_ttl_seconds       INTEGER NOT NULL DEFAULT 900 CHECK (cache_ttl_seconds >= 30 AND cache_ttl_seconds <= 604800),
+			ollama_model            TEXT NOT NULL DEFAULT 'llama3.1:8b',
+			updated_by              UUID REFERENCES users(id) ON DELETE SET NULL,
+			updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		INSERT INTO admin_ai_runtime_settings (id)
+		VALUES (TRUE)
+		ON CONFLICT (id) DO NOTHING;
+
 		CREATE TABLE IF NOT EXISTS appointments (
 			id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			patient_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

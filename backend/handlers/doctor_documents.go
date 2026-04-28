@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,14 @@ import (
 
 // DoctorDocumentsHandler — list/detail/summarize for patient_documents visible to treating doctors (Sprint 3 F4 MVP).
 type DoctorDocumentsHandler struct{}
+
+type summarizeRateBucket struct {
+	windowStart time.Time
+	count       int
+}
+
+var summarizeRateMu sync.Mutex
+var summarizeRateByDoctor = map[uuid.UUID]summarizeRateBucket{}
 
 func NewDoctorDocumentsHandler() *DoctorDocumentsHandler {
 	return &DoctorDocumentsHandler{}
@@ -26,6 +35,27 @@ func (h *DoctorDocumentsHandler) canAccessDoc(ctx context.Context, doctorID, pat
 		WHERE doctor_id = $1 AND patient_id = $2
 	`, doctorID, patientID).Scan(&n)
 	return err == nil && n > 0
+}
+
+func allowSummarizeForDoctor(doctorID uuid.UUID, limitPerMinute int) bool {
+	now := time.Now()
+	summarizeRateMu.Lock()
+	defer summarizeRateMu.Unlock()
+
+	b := summarizeRateByDoctor[doctorID]
+	if b.windowStart.IsZero() || now.Sub(b.windowStart) >= time.Minute {
+		summarizeRateByDoctor[doctorID] = summarizeRateBucket{
+			windowStart: now,
+			count:       1,
+		}
+		return true
+	}
+	if b.count >= limitPerMinute {
+		return false
+	}
+	b.count++
+	summarizeRateByDoctor[doctorID] = b
+	return true
 }
 
 // List GET /api/doctor/documents
@@ -176,6 +206,37 @@ func (h *DoctorDocumentsHandler) Summarize(c *gin.Context) {
 	if !h.canAccessDoc(ctx, claims.UserID, patientID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to this patient document"})
 		return
+	}
+
+	settings, err := loadAIRuntimeSettings(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load AI runtime settings"})
+		return
+	}
+	if settings.RateLimitEnabled && !allowSummarizeForDoctor(claims.UserID, settings.RateLimitPerMinute) {
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error":                 "AI summarize rate limit exceeded",
+			"rate_limit_per_minute": settings.RateLimitPerMinute,
+		})
+		return
+	}
+
+	if settings.CacheEnabled {
+		var summary string
+		var summaryStatus string
+		err = db.Pool.QueryRow(ctx, `
+			SELECT COALESCE(summary, ''), COALESCE(NULLIF(summary_status, ''), 'none')
+			FROM patient_documents
+			WHERE id = $1
+		`, docID).Scan(&summary, &summaryStatus)
+		if err == nil && summaryStatus == "ready" && strings.TrimSpace(summary) != "" {
+			c.JSON(http.StatusOK, gin.H{
+				"status":            "cached",
+				"cache_ttl_seconds": settings.CacheTTLSeconds,
+				"summary":           summary,
+			})
+			return
+		}
 	}
 
 	_, _ = db.Pool.Exec(ctx, `
