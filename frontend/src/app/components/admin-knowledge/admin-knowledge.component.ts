@@ -8,11 +8,12 @@ import {
   KnowledgeListDocument,
   SimilarityPair
 } from '../../services/knowledge-admin.service';
+import { ContextualCommentsPanelComponent } from '../contextual-comments-panel/contextual-comments-panel.component';
 
 @Component({
   selector: 'app-admin-knowledge',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ContextualCommentsPanelComponent],
   templateUrl: './admin-knowledge.component.html',
   styleUrl: './admin-knowledge.component.scss'
 })
@@ -42,6 +43,7 @@ export class AdminKnowledgeComponent implements OnInit {
   scanLoading = false;
   scanPairs: SimilarityPair[] = [];
   scanMeta: { chunks_scanned: number; threshold: number } | null = null;
+  showDetailComments = false;
 
   constructor(private kb: KnowledgeAdminService) {}
 
@@ -137,6 +139,7 @@ export class AdminKnowledgeComponent implements OnInit {
     this.detail = null;
     this.versions = [];
     this.versionsOpen = false;
+    this.showDetailComments = false;
   }
 
   savePatch(): void {
@@ -263,5 +266,9 @@ export class AdminKnowledgeComponent implements OnInit {
       return 'badge--purple';
     }
     return 'badge--info';
+  }
+
+  toggleDetailComments(): void {
+    this.showDetailComments = !this.showDetailComments;
   }
 }

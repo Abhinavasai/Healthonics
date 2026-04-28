@@ -5,11 +5,12 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { DoctorDocumentDetail, DoctorDocumentsService } from '../../services/doctor-documents.service';
+import { ContextualCommentsPanelComponent } from '../contextual-comments-panel/contextual-comments-panel.component';
 
 @Component({
   selector: 'app-doctor-document-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, DatePipe],
+  imports: [CommonModule, RouterModule, DatePipe, ContextualCommentsPanelComponent],
   templateUrl: './doctor-document-detail.component.html',
   styleUrl: './doctor-document-detail.component.scss'
 })
@@ -21,6 +22,7 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
   /** Last error from POST /summarize (shown inline; distinct from page load error). */
   summaryRequestError = '';
   summarizeInfo = '';
+  showComments = false;
   private documentId = '';
   private pollSub?: Subscription;
 
@@ -213,5 +215,9 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
 
   primarySummaryDisabled(d: DoctorDocumentDetail): boolean {
     return this.summarizeLoading || d.summary_status === 'pending';
+  }
+
+  toggleComments(): void {
+    this.showComments = !this.showComments;
   }
 }

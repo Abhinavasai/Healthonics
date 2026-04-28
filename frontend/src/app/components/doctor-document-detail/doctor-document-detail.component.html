@@ -125,5 +125,20 @@
         configured).
       </p>
     </div>
+
+    <div class="summary-section glass" data-cy="doctor-document-comments-pack">
+      <div class="summary-head">
+        <h2>Comments</h2>
+        <button type="button" class="btn-ghost" (click)="toggleComments()" data-cy="doctor-document-comments-toggle">
+          {{ showComments ? 'Hide comments' : 'Show comments' }}
+        </button>
+      </div>
+      <app-contextual-comments-panel
+        *ngIf="showComments"
+        [contextType]="'document'"
+        [contextId]="d.id"
+        panelTitle="Document discussion"
+      />
+    </div>
   </ng-container>
 </section>

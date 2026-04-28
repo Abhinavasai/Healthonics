@@ -2,11 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PrescriptionsService, PrescriptionRow } from '../../services/prescriptions.service';
 import { AuthService } from '../../services/auth.service';
+import { ContextualCommentsPanelComponent } from '../contextual-comments-panel/contextual-comments-panel.component';
 
 @Component({
   selector: 'app-patient-prescriptions',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ContextualCommentsPanelComponent],
   template: `
     <section data-cy="patient-prescriptions-page">
       <h1>My prescriptions</h1>
@@ -62,6 +63,15 @@ import { AuthService } from '../../services/auth.service';
             </button>
           </div>
           <small>Prescribed {{ r.created_at }}</small>
+          <button type="button" class="toggle-btn mt-2" (click)="toggleComments(r.id)" data-cy="rx-comments-toggle">
+            {{ commentsOpen(r.id) ? 'Hide comments' : 'Show comments' }}
+          </button>
+          <app-contextual-comments-panel
+            *ngIf="commentsOpen(r.id)"
+            [contextType]="'record'"
+            [contextId]="r.id"
+            panelTitle="Prescription comments"
+          />
         </li>
       </ul>
 
@@ -87,6 +97,20 @@ import { AuthService } from '../../services/auth.service';
             </button>
           </div>
           <small>Prescribed {{ r.created_at }}</small>
+          <button
+            type="button"
+            class="toggle-btn mt-2"
+            (click)="toggleComments(r.id)"
+            data-cy="rx-history-comments-toggle"
+          >
+            {{ commentsOpen(r.id) ? 'Hide comments' : 'Show comments' }}
+          </button>
+          <app-contextual-comments-panel
+            *ngIf="commentsOpen(r.id)"
+            [contextType]="'record'"
+            [contextId]="r.id"
+            panelTitle="Prescription comments"
+          />
         </li>
       </ul>
 
@@ -184,6 +208,9 @@ import { AuthService } from '../../services/auth.service';
       .mt {
         margin-top: 1rem;
       }
+      .mt-2 {
+        margin-top: 0.45rem;
+      }
     `
   ]
 })
@@ -196,6 +223,7 @@ export class PatientPrescriptionsComponent implements OnInit {
   pdfError: string | null = null;
   downloading: Record<string, boolean> = {};
   reminderToggles: Record<string, boolean> = {};
+  openCommentsById: Record<string, boolean> = {};
 
   constructor(
     private rx: PrescriptionsService,
@@ -235,6 +263,17 @@ export class PatientPrescriptionsComponent implements OnInit {
       [id]: !this.remindersEnabled(id)
     };
     this.saveReminderToggles();
+  }
+
+  commentsOpen(id: string): boolean {
+    return this.openCommentsById[id] ?? false;
+  }
+
+  toggleComments(id: string): void {
+    this.openCommentsById = {
+      ...this.openCommentsById,
+      [id]: !this.commentsOpen(id)
+    };
   }
 
   isDownloading(id: string): boolean {
