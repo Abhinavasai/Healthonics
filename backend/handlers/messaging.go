@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
+	"github.com/healthonyx/backend/security"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -74,6 +75,43 @@ type chatMessageRow struct {
 	SenderID  uuid.UUID `json:"sender_id"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func decryptMessageBodyIfNeeded(enc bool, keyVersion int, wrappedKeyB64, wrappedNonceB64, dataNonceB64, storedBody string) (string, error) {
+	if !enc {
+		return storedBody, nil
+	}
+	kr, err := security.LoadKeyringFromEnv()
+	if err != nil {
+		return "", err
+	}
+	wrappedKey, err := security.B64Decode(wrappedKeyB64)
+	if err != nil {
+		return "", err
+	}
+	wrappedNonce, err := security.B64Decode(wrappedNonceB64)
+	if err != nil {
+		return "", err
+	}
+	dataNonce, err := security.B64Decode(dataNonceB64)
+	if err != nil {
+		return "", err
+	}
+	cipherBytes, err := security.B64Decode(storedBody)
+	if err != nil {
+		return "", err
+	}
+	plain, err := kr.Decrypt(security.Envelope{
+		KeyVersion:   keyVersion,
+		WrappedKey:   wrappedKey,
+		WrappedNonce: wrappedNonce,
+		DataNonce:    dataNonce,
+		Ciphertext:   cipherBytes,
+	})
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
 }
 
 // UnreadTotal implements GET /api/messages/unread
@@ -178,7 +216,9 @@ func (h *MessagingHandler) ListMessages(c *gin.Context) {
 	}
 
 	rows, err := db.Pool.Query(ctx, `
-		SELECT id, thread_id, sender_id, body, created_at
+		SELECT id, thread_id, sender_id, body,
+		       body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce,
+		       created_at
 		FROM messages
 		WHERE thread_id = $1
 		ORDER BY created_at ASC
@@ -192,10 +232,20 @@ func (h *MessagingHandler) ListMessages(c *gin.Context) {
 	var list []chatMessageRow
 	for rows.Next() {
 		var m chatMessageRow
-		if err := rows.Scan(&m.ID, &m.ThreadID, &m.SenderID, &m.Body, &m.CreatedAt); err != nil {
+		var enc bool
+		var keyVersion int
+		var wrappedKeyB64, wrappedNonceB64, dataNonceB64 string
+		var storedBody string
+		if err := rows.Scan(&m.ID, &m.ThreadID, &m.SenderID, &storedBody, &enc, &keyVersion, &wrappedKeyB64, &wrappedNonceB64, &dataNonceB64, &m.CreatedAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load messages"})
 			return
 		}
+		body, decErr := decryptMessageBodyIfNeeded(enc, keyVersion, wrappedKeyB64, wrappedNonceB64, dataNonceB64, storedBody)
+		if decErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to decrypt messages"})
+			return
+		}
+		m.Body = body
 		list = append(list, m)
 	}
 	if list == nil {
@@ -235,21 +285,38 @@ func (h *MessagingHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
+	kr, krErr := security.LoadKeyringFromEnv()
+	if krErr != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
+		return
+	}
+	env, encErr := kr.Encrypt([]byte(body))
+	if encErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to encrypt message"})
+		return
+	}
+
 	var msg chatMessageRow
 	err = db.Pool.QueryRow(ctx, `
-		INSERT INTO messages (thread_id, sender_id, body)
-		VALUES ($1, $2, $3)
-		RETURNING id, thread_id, sender_id, body, created_at
-	`, threadID, claims.UserID, body).Scan(&msg.ID, &msg.ThreadID, &msg.SenderID, &msg.Body, &msg.CreatedAt)
+		INSERT INTO messages (
+			thread_id, sender_id, body,
+			body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce
+		)
+		VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7)
+		RETURNING id, thread_id, sender_id, created_at
+	`, threadID, claims.UserID, security.B64Encode(env.Ciphertext),
+		env.KeyVersion, security.B64Encode(env.WrappedKey), security.B64Encode(env.WrappedNonce), security.B64Encode(env.DataNonce),
+	).Scan(&msg.ID, &msg.ThreadID, &msg.SenderID, &msg.CreatedAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to send message"})
 		return
 	}
+	msg.Body = body
 	_, _ = db.Pool.Exec(ctx, `
 		UPDATE message_threads
 		SET last_message_at = $2, last_preview = $3
 		WHERE id = $1
-	`, threadID, msg.CreatedAt, previewText(body))
+	`, threadID, msg.CreatedAt, "New message")
 
 	if h.hub != nil {
 		h.hub.NotifyNewMessage(ctx, threadID, msg)
@@ -322,27 +389,46 @@ func (h *MessagingHandler) CreateThread(c *gin.Context) {
 			INSERT INTO message_threads (patient_id, doctor_id, last_message_at, last_preview)
 			VALUES ($1, $2, NOW(), $3)
 			RETURNING id
-		`, patientID, doctorID, previewText(body)).Scan(&threadID)
+		`, patientID, doctorID, "New message").Scan(&threadID)
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create thread"})
 		return
 	}
 
-	var msgTime time.Time
+	kr, krErr := security.LoadKeyringFromEnv()
+	if krErr != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
+		return
+	}
+	env, encErr := kr.Encrypt([]byte(body))
+	if encErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to encrypt message"})
+		return
+	}
+
+	var msg chatMessageRow
 	err = tx.QueryRow(ctx, `
-		INSERT INTO messages (thread_id, sender_id, body)
-		VALUES ($1, $2, $3)
-		RETURNING created_at
-	`, threadID, claims.UserID, body).Scan(&msgTime)
+		INSERT INTO messages (
+			thread_id, sender_id, body,
+			body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce
+		)
+		VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7)
+		RETURNING id, created_at
+	`, threadID, claims.UserID, security.B64Encode(env.Ciphertext),
+		env.KeyVersion, security.B64Encode(env.WrappedKey), security.B64Encode(env.WrappedNonce), security.B64Encode(env.DataNonce),
+	).Scan(&msg.ID, &msg.CreatedAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to send first message"})
 		return
 	}
+	msg.ThreadID = threadID
+	msg.SenderID = claims.UserID
+	msg.Body = body
 
 	_, err = tx.Exec(ctx, `
 		UPDATE message_threads SET last_message_at = $2, last_preview = $3 WHERE id = $1
-	`, threadID, msgTime, previewText(body))
+	`, threadID, msg.CreatedAt, "New message")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to update thread"})
 		return
@@ -382,16 +468,7 @@ func (h *MessagingHandler) CreateThread(c *gin.Context) {
 	}
 
 	if h.hub != nil {
-		var msg chatMessageRow
-		if qerr := db.Pool.QueryRow(ctx, `
-			SELECT id, thread_id, sender_id, body, created_at
-			FROM messages
-			WHERE thread_id = $1
-			ORDER BY created_at DESC
-			LIMIT 1
-		`, threadID).Scan(&msg.ID, &msg.ThreadID, &msg.SenderID, &msg.Body, &msg.CreatedAt); qerr == nil {
-			h.hub.NotifyNewMessage(ctx, threadID, msg)
-		}
+		h.hub.NotifyNewMessage(ctx, threadID, msg)
 	}
 
 	c.JSON(http.StatusCreated, row)
