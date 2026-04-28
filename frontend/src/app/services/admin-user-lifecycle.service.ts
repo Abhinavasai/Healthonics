@@ -2,27 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiContract } from './api-contract';
-
-export type AdminLifecycleSettings = {
-  new_user_window_days: number;
-  inactive_window_days: number;
-  updated_at: string;
-  updated_by: string;
-};
-
-export type AdminLifecycleKpis = {
-  total_users: number;
-  total_patients: number;
-  total_doctors: number;
-  total_admins: number;
-  new_users_in_window: number;
-  inactive_users_count: number;
-};
-
-export type AdminLifecycleSettingsKpisResponse = {
-  settings: AdminLifecycleSettings;
-  kpis: AdminLifecycleKpis;
-};
+import type { AdminLifecycleSettingsKpisResponse } from './api-types';
+export type { AdminLifecycleSettings, AdminLifecycleKpis, AdminLifecycleSettingsKpisResponse } from './api-types';
 
 @Injectable({ providedIn: 'root' })
 export class AdminUserLifecycleService {
