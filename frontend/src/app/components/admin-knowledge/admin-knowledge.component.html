@@ -1,0 +1,207 @@
+<section class="kb-page" data-cy="admin-knowledge-page">
+  <header class="kb-head">
+    <h1>Knowledge base</h1>
+    <p class="kb-lead">
+      Monitor document health, staleness, version history, and embedding similarity — phase 6 admin console.
+    </p>
+  </header>
+
+  <p *ngIf="error" class="err" data-cy="knowledge-error">{{ error }}</p>
+
+  <!-- Analytics strip -->
+  <div class="analytics" data-cy="kb-analytics-strip" *ngIf="!loading">
+    <div class="metric">
+      <span class="metric-val">{{ analytics.total }}</span>
+      <span class="metric-lbl">Documents</span>
+    </div>
+    <div class="metric metric--warn" *ngIf="analytics.avgHealth != null">
+      <span class="metric-val">{{ analytics.avgHealth }}%</span>
+      <span class="metric-lbl">Avg health score</span>
+    </div>
+    <div class="metric metric--bad" *ngIf="analytics.stale">
+      <span class="metric-val">{{ analytics.stale }}</span>
+      <span class="metric-lbl">Stale (past interval)</span>
+    </div>
+    <div class="metric metric--accent" *ngIf="analytics.needsAttention">
+      <span class="metric-val">{{ analytics.needsAttention }}</span>
+      <span class="metric-lbl">Need attention (health under 70 or stale)</span>
+    </div>
+  </div>
+
+  <div class="grid-two">
+    <div class="col-form">
+      <form class="form" (ngSubmit)="create()">
+        <h2>New document</h2>
+        <label
+          >Title
+          <input [(ngModel)]="title" name="kt" required data-cy="knowledge-title" />
+        </label>
+        <label
+          >Body
+          <textarea [(ngModel)]="body" name="kb" rows="4" required data-cy="knowledge-body"></textarea>
+        </label>
+        <label class="optional"
+          >Review interval (days, optional)
+          <input
+            type="number"
+            [(ngModel)]="reviewIntervalDays"
+            name="kbrid"
+            min="1"
+            max="3650"
+            placeholder="180"
+          />
+        </label>
+        <button
+          type="submit"
+          [disabled]="saving || !title.trim() || !body.trim()"
+          data-cy="knowledge-save"
+        >
+          {{ saving ? 'Saving…' : 'Save' }}
+        </button>
+      </form>
+
+      <section class="scanner card">
+        <h2>Similarity &amp; conflict scan</h2>
+        <p class="hint">
+          Compares stored chunk embeddings across documents (PR-29). Run after uploading embeddings via API.
+        </p>
+        <label class="inline"
+          >Threshold (0–1)
+          <input type="number" [(ngModel)]="scanThreshold" name="th" min="0.5" max="1" step="0.01" />
+        </label>
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="runSimilarityScan()"
+          [disabled]="scanLoading"
+          data-cy="kb-similarity-run"
+        >
+          {{ scanLoading ? 'Scanning…' : 'Run scan' }}
+        </button>
+        <p *ngIf="scanMeta" class="scan-meta" data-cy="kb-scan-meta">
+          Chunks scanned: {{ scanMeta.chunks_scanned }} · threshold {{ scanMeta.threshold }}
+        </p>
+        <div *ngIf="scanPairs.length" class="scan-table-wrap">
+          <table class="data-table" data-cy="kb-similarity-table">
+            <thead>
+              <tr>
+                <th>Sim</th>
+                <th>Hint</th>
+                <th>Doc A</th>
+                <th>Doc B</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of scanPairs">
+                <td>{{ (p.similarity * 100) | number: '1.0-1' }}%</td>
+                <td>
+                  <span class="badge" [ngClass]="similarityBadgeClass(p.conflict_hint)">{{
+                    p.conflict_hint
+                  }}</span>
+                </td>
+                <td class="ellip" [title]="p.title_a">{{ p.title_a }}</td>
+                <td class="ellip" [title]="p.title_b">{{ p.title_b }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p *ngIf="!scanLoading && scanMeta && !scanPairs.length" class="muted">No pairs above threshold.</p>
+      </section>
+    </div>
+
+    <div class="col-list">
+      <div class="list-head">
+        <h2>Documents</h2>
+        <button type="button" class="btn-ghost" (click)="reload()" [disabled]="loading">Refresh</button>
+      </div>
+      <p *ngIf="loading" class="muted">Loading…</p>
+      <ul *ngIf="!loading && docs.length" class="doc-list" data-cy="knowledge-doc-list">
+        <li
+          *ngFor="let d of docs"
+          class="doc-row"
+          [class.doc-row--active]="selectedId === d.id"
+          (click)="selectDoc(d)"
+          data-cy="knowledge-doc-row"
+        >
+          <div class="doc-row__top">
+            <strong>{{ d.title }}</strong>
+            <span *ngIf="d.is_stale" class="pill pill--stale" data-cy="kb-stale-badge">Stale</span>
+          </div>
+          <div class="doc-row__meta" *ngIf="d.health_score != null">
+            <span class="health" [ngClass]="'health--' + healthTone(d.health_score)">
+              Health {{ d.health_score }}%
+            </span>
+            <span *ngIf="d.days_since_review != null" class="days"
+              >{{ d.days_since_review }}d since review</span
+            >
+            <span *ngIf="d.current_version != null" class="ver">v{{ d.current_version }}</span>
+          </div>
+          <p class="excerpt">{{ d.excerpt }}</p>
+        </li>
+      </ul>
+      <p *ngIf="!loading && !docs.length" class="muted" data-cy="knowledge-empty">No documents yet.</p>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  <section *ngIf="selectedId" class="detail card" data-cy="kb-detail-panel">
+    <div class="detail-head">
+      <h2>Document detail</h2>
+      <button type="button" class="btn-ghost" (click)="clearSelection()">Close</button>
+    </div>
+    <p *ngIf="detailLoading" class="muted">Loading…</p>
+    <ng-container *ngIf="detail && !detailLoading">
+      <div class="detail-metrics">
+        <span [ngClass]="'health-dot health-dot--' + healthTone(detail.health_score)"
+          >Health {{ detail.health_score }}%</span
+        >
+        <span>{{ detail.days_since_review }} days since review</span>
+        <span>{{ detail.review_interval_days }} day interval</span>
+        <span class="pill" [class.pill--stale]="detail.is_stale">{{ detail.is_stale ? 'Stale' : 'Within interval' }}</span>
+        <span>Version {{ detail.current_version }}</span>
+      </div>
+      <label
+        >Title
+        <input [(ngModel)]="patchTitle" name="ptitle" />
+      </label>
+      <label
+        >Body
+        <textarea [(ngModel)]="patchBody" name="pbody" rows="8"></textarea>
+      </label>
+      <label
+        >Review interval (days)
+        <input type="number" [(ngModel)]="patchReviewDays" name="pint" min="1" max="3650" />
+      </label>
+      <div class="detail-actions">
+        <button
+          type="button"
+          (click)="savePatch()"
+          [disabled]="patching"
+          data-cy="kb-patch-save"
+        >
+          Save changes
+        </button>
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="review()"
+          [disabled]="reviewing"
+          data-cy="kb-mark-reviewed"
+        >
+          {{ reviewing ? '…' : 'Mark reviewed' }}
+        </button>
+      </div>
+      <div class="versions-block">
+        <button type="button" class="btn-link" (click)="toggleVersions()">
+          {{ versionsOpen ? 'Hide' : 'Show' }} version history
+        </button>
+        <p *ngIf="versionsLoading" class="muted">Loading versions…</p>
+        <ul *ngIf="versionsOpen && versions.length && !versionsLoading" class="versions-ul" data-cy="kb-versions-list">
+          <li *ngFor="let v of versions">
+            <strong>v{{ v.version }}</strong> · {{ v.created_at }} — {{ v.excerpt }}
+          </li>
+        </ul>
+      </div>
+    </ng-container>
+  </section>
+</section>
