@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -68,10 +69,12 @@ func (h *AdminAIRuntimeHandler) GetObservability(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
+	runtime := getOllamaRuntimeStatus(c.Request.Context(), settings)
 
 	c.JSON(http.StatusOK, gin.H{
 		"settings":      settings,
 		"observability": obs,
+		"runtime":       runtime,
 	})
 }
 
@@ -159,12 +162,44 @@ func (h *AdminAIRuntimeHandler) RunEval(c *gin.Context) {
 		result.SuccessRate = float64(doneCount) / float64(samples)
 		result.QualityScore = result.SuccessRate * 100
 	}
-	c.JSON(http.StatusOK, gin.H{"eval": result})
+	c.JSON(http.StatusOK, gin.H{
+		"eval":    result,
+		"runtime": getOllamaRuntimeStatus(c.Request.Context(), settings),
+	})
 }
 
 func loadAIRuntimeSettings(c *gin.Context) (adminAIRuntimeSettings, error) {
 	var out adminAIRuntimeSettings
 	err := db.Pool.QueryRow(c.Request.Context(), `
+		SELECT
+			ollama_enabled,
+			fallback_enabled,
+			rate_limit_enabled,
+			rate_limit_per_minute,
+			cache_enabled,
+			cache_ttl_seconds,
+			ollama_model,
+			updated_at::text,
+			COALESCE(updated_by::text, '')
+		FROM admin_ai_runtime_settings
+		WHERE id = TRUE
+	`).Scan(
+		&out.OllamaEnabled,
+		&out.FallbackEnabled,
+		&out.RateLimitEnabled,
+		&out.RateLimitPerMinute,
+		&out.CacheEnabled,
+		&out.CacheTTLSeconds,
+		&out.OllamaModel,
+		&out.UpdatedAt,
+		&out.UpdatedBy,
+	)
+	return out, err
+}
+
+func LoadAIRuntimeSettingsForWorker(ctx context.Context) (adminAIRuntimeSettings, error) {
+	var out adminAIRuntimeSettings
+	err := db.Pool.QueryRow(ctx, `
 		SELECT
 			ollama_enabled,
 			fallback_enabled,
