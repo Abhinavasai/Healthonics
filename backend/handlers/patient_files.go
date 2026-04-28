@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
+	"github.com/healthonyx/backend/security"
 )
 
 const patientFileMaxBytes = 5 << 20 // 5 MiB (matches DB check)
@@ -145,6 +147,21 @@ func (h *PatientFilesHandler) Upload(c *gin.Context) {
 		return
 	}
 
+	kr, krErr := security.LoadKeyringFromEnv()
+	if krErr != nil {
+		if errors.Is(krErr, security.ErrKeyringNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	env, encErr := kr.Encrypt(body)
+	if encErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not encrypt file"})
+		return
+	}
+
 	stored := uuid.New().String()
 	ext := strings.ToLower(filepath.Ext(fh.Filename))
 	if ext != ".pdf" && ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
@@ -161,7 +178,7 @@ func (h *PatientFilesHandler) Upload(c *gin.Context) {
 	}
 	storedName := stored + ext
 	destPath := filepath.Join(h.Root, storedName)
-	if err := os.WriteFile(destPath, body, 0o640); err != nil {
+	if err := os.WriteFile(destPath, env.Ciphertext, 0o640); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not store file"})
 		return
 	}
@@ -174,10 +191,15 @@ func (h *PatientFilesHandler) Upload(c *gin.Context) {
 	size := int64(len(body))
 	var id uuid.UUID
 	err = db.Pool.QueryRow(c.Request.Context(), `
-		INSERT INTO patient_files (patient_id, uploaded_by, description, original_name, stored_name, mime_type, byte_size)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO patient_files (
+			patient_id, uploaded_by, description, original_name, stored_name, mime_type, byte_size,
+			enc_key_version, enc_wrapped_key, enc_wrapped_nonce, enc_data_nonce
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id
-	`, patientID, claims.UserID, desc, fh.Filename, storedName, mime, size).Scan(&id)
+	`, patientID, claims.UserID, desc, fh.Filename, storedName, mime, size,
+		env.KeyVersion, security.B64Encode(env.WrappedKey), security.B64Encode(env.WrappedNonce), security.B64Encode(env.DataNonce),
+	).Scan(&id)
 	if err != nil {
 		_ = os.Remove(destPath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
@@ -208,10 +230,13 @@ func (h *PatientFilesHandler) Download(c *gin.Context) {
 
 	var patientID uuid.UUID
 	var storedName, orig, mime string
+	var keyVersion int
+	var wrappedKeyB64, wrappedNonceB64, dataNonceB64 string
 	err = db.Pool.QueryRow(c.Request.Context(), `
-		SELECT patient_id, stored_name, original_name, mime_type
+		SELECT patient_id, stored_name, original_name, mime_type,
+		       enc_key_version, enc_wrapped_key, enc_wrapped_nonce, enc_data_nonce
 		FROM patient_files WHERE id = $1
-	`, id).Scan(&patientID, &storedName, &orig, &mime)
+	`, id).Scan(&patientID, &storedName, &orig, &mime, &keyVersion, &wrappedKeyB64, &wrappedNonceB64, &dataNonceB64)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
 		return
@@ -232,7 +257,49 @@ func (h *PatientFilesHandler) Download(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid path"})
 		return
 	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to read file"})
+		return
+	}
+	out := raw
+	if keyVersion > 0 {
+		kr, krErr := security.LoadKeyringFromEnv()
+		if krErr != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
+			return
+		}
+		wrappedKey, err := security.B64Decode(wrappedKeyB64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to decode file metadata"})
+			return
+		}
+		wrappedNonce, err := security.B64Decode(wrappedNonceB64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to decode file metadata"})
+			return
+		}
+		dataNonce, err := security.B64Decode(dataNonceB64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to decode file metadata"})
+			return
+		}
+		plain, decErr := kr.Decrypt(security.Envelope{
+			KeyVersion:   keyVersion,
+			WrappedKey:   wrappedKey,
+			WrappedNonce: wrappedNonce,
+			DataNonce:    dataNonce,
+			Ciphertext:   raw,
+		})
+		if decErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to decrypt file"})
+			return
+		}
+		out = plain
+	}
+
 	c.Header("Content-Type", mime)
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(orig, `"`, ``)))
-	c.File(path)
+	c.Data(http.StatusOK, mime, out)
 }
