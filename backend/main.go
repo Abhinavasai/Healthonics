@@ -98,6 +98,9 @@ func main() {
 		api.POST("/admin/notifications/:id/retry", auth.RequireAuth(), auth.RequireRole("admin"), notifications.RetryFailed)
 		api.GET("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.List)
 		api.POST("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Create)
+		api.GET("/admin/knowledge-docs/:id/versions", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.ListVersions)
+		api.POST("/admin/knowledge-docs/:id/review", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Review)
+		api.PATCH("/admin/knowledge-docs/:id", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Patch)
 		api.GET("/admin/knowledge-docs/:id", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Get)
 		api.GET("/doctor", auth.RequireAuth(), auth.RequireRole("doctor"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "Doctor only"})
