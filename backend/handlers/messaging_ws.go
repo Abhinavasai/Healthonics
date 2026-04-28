@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -21,8 +24,48 @@ var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // browsers send Origin; tighten alongside API CORS in production
+		return isAllowedWSOrigin(r.Header.Get("Origin"))
 	},
+}
+
+func normalizeOrigin(raw string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", false
+	}
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", false
+	}
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if port == "" {
+		if strings.EqualFold(u.Scheme, "https") {
+			port = "443"
+		} else if strings.EqualFold(u.Scheme, "http") {
+			port = "80"
+		}
+	}
+	return strings.ToLower(u.Scheme) + "://" + net.JoinHostPort(host, port), true
+}
+
+func isAllowedWSOrigin(origin string) bool {
+	allowedRaw := strings.TrimSpace(os.Getenv("WS_ALLOWED_ORIGINS"))
+	if allowedRaw == "" {
+		// Keep localhost/dev defaults when no explicit policy is configured.
+		allowedRaw = "http://127.0.0.1:4300,http://localhost:4300"
+	}
+	normalizedOrigin, ok := normalizeOrigin(origin)
+	if !ok {
+		return false
+	}
+	for _, item := range strings.Split(allowedRaw, ",") {
+		candidate, ok := normalizeOrigin(item)
+		if ok && candidate == normalizedOrigin {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *wsClient) readPump() {
@@ -71,6 +114,10 @@ func (mh *MessagingHandler) ServeWebSocket(auth *AuthHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if mh.hub == nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Realtime messaging unavailable"})
+			return
+		}
+		if !isAllowedWSOrigin(c.GetHeader("Origin")) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Origin not allowed"})
 			return
 		}
 		token := strings.TrimSpace(c.Query("token"))
