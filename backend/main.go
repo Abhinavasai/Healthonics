@@ -24,6 +24,7 @@ func main() {
 	if cfg.JWTSecret == "" {
 		log.Fatal("JWT_SECRET is required")
 	}
+	handlers.ConfigureAIRuntime(cfg.AIEnabled, cfg.OllamaHost, cfg.OllamaModel, cfg.OllamaTimeoutMS)
 
 	if err := db.Connect(cfg.DatabaseURL); err != nil {
 		log.Fatalf("database connection: %v", err)

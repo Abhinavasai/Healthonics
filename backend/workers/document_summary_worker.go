@@ -129,7 +129,39 @@ func processSingleSummaryJob(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	summary := handlers.BuildSummaryFromExtractedTextForWorker(filename, sizeBytes, extracted)
+	settings, settingsErr := handlers.LoadAIRuntimeSettingsForWorker(ctx)
+	if settingsErr != nil {
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE patient_documents
+			SET summary_status = 'failed', summary_error = $2
+			WHERE id = $1
+		`, docID, settingsErr.Error())
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE document_summary_jobs
+			SET status = 'failed', finished_at = NOW(), last_error = $2
+			WHERE id = $1
+		`, jobID, settingsErr.Error())
+		return true, nil
+	}
+
+	summary, mode, summarizeErr := handlers.GenerateSummaryWithAIRuntime(ctx, settings, filename, sizeBytes, extracted)
+	if summarizeErr != nil {
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE patient_documents
+			SET summary_status = 'failed', summary_error = $2
+			WHERE id = $1
+		`, docID, summarizeErr.Error())
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE document_summary_jobs
+			SET status = 'failed', finished_at = NOW(), last_error = $2
+			WHERE id = $1
+		`, jobID, summarizeErr.Error())
+		return true, nil
+	}
+	if mode != "" && mode != "ollama" {
+		summary = summary + "\n\n[summary_mode=" + mode + "]"
+	}
+
 	_, err = db.Pool.Exec(ctx, `
 		UPDATE patient_documents
 		SET summary = $2, summary_status = 'ready', summary_error = NULL
