@@ -1,0 +1,53 @@
+<section class="admin-ai" data-cy="admin-ai-observability-page">
+  <header>
+    <h1>AI observability and controls</h1>
+    <p>Manage fallback, rate-limit, cache, and model controls for document summarization.</p>
+  </header>
+
+  <p *ngIf="loading">Loading AI controls...</p>
+  <p *ngIf="!loading && error" class="err">{{ error }}</p>
+  <p *ngIf="!loading && success" class="ok">{{ success }}</p>
+
+  <div class="metrics" *ngIf="!loading && obs">
+    <article><span>Queued jobs (24h)</span><strong>{{ obs.queued_jobs_24h }}</strong></article>
+    <article><span>Completed (24h)</span><strong>{{ obs.completed_jobs_24h }}</strong></article>
+    <article><span>Failed (24h)</span><strong>{{ obs.failed_jobs_24h }}</strong></article>
+    <article><span>Avg latency (s)</span><strong>{{ obs.avg_latency_seconds | number: '1.2-2' }}</strong></article>
+    <article><span>Cached summaries</span><strong>{{ obs.cache_ready_count }}</strong></article>
+    <article><span>Pending docs</span><strong>{{ obs.pending_docs_count }}</strong></article>
+  </div>
+
+  <form class="controls" *ngIf="!loading" (ngSubmit)="save()">
+    <h2>Runtime settings</h2>
+    <label><input type="checkbox" name="ollamaEnabled" [(ngModel)]="form.ollama_enabled" /> Ollama enabled</label>
+    <label><input type="checkbox" name="fallbackEnabled" [(ngModel)]="form.fallback_enabled" /> Fallback enabled</label>
+    <label><input type="checkbox" name="rateLimitEnabled" [(ngModel)]="form.rate_limit_enabled" /> Rate-limit enabled</label>
+    <label><input type="checkbox" name="cacheEnabled" [(ngModel)]="form.cache_enabled" /> Cache enabled</label>
+
+    <label>
+      Rate limit per minute
+      <input type="number" name="rateLimitPerMinute" min="1" max="10000" [(ngModel)]="form.rate_limit_per_minute" />
+    </label>
+    <label>
+      Cache TTL (seconds)
+      <input type="number" name="cacheTtlSeconds" min="30" max="604800" [(ngModel)]="form.cache_ttl_seconds" />
+    </label>
+    <label>
+      Ollama model
+      <input type="text" name="ollamaModel" [(ngModel)]="form.ollama_model" />
+    </label>
+
+    <div class="buttons">
+      <button type="submit" [disabled]="saving">{{ saving ? 'Saving...' : 'Save controls' }}</button>
+      <button type="button" (click)="runEval()" [disabled]="runningEval">{{ runningEval ? 'Running eval...' : 'Run eval' }}</button>
+    </div>
+  </form>
+
+  <section class="eval" *ngIf="evalResult">
+    <h3>Eval result</h3>
+    <p>Model: <strong>{{ evalResult.model_name }}</strong></p>
+    <p>Samples: <strong>{{ evalResult.samples_evaluated }}</strong></p>
+    <p>Success rate: <strong>{{ evalResult.success_rate | percent: '1.0-2' }}</strong></p>
+    <p>Quality score: <strong>{{ evalResult.quality_score | number: '1.0-2' }}</strong></p>
+  </section>
+</section>
