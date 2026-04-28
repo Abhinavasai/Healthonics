@@ -98,6 +98,8 @@ func main() {
 		api.POST("/admin/notifications/:id/retry", auth.RequireAuth(), auth.RequireRole("admin"), notifications.RetryFailed)
 		api.GET("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.List)
 		api.POST("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Create)
+		api.GET("/admin/knowledge-docs/similarity-scan", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.SimilarityScan)
+		api.POST("/admin/knowledge-docs/:id/embeddings", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.UpsertEmbeddings)
 		api.GET("/admin/knowledge-docs/:id/versions", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.ListVersions)
 		api.POST("/admin/knowledge-docs/:id/review", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Review)
 		api.PATCH("/admin/knowledge-docs/:id", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Patch)
