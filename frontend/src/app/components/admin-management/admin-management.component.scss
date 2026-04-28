@@ -94,3 +94,71 @@
   color: #94a3b8;
   font-size: 0.85rem;
 }
+
+.users {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.user-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  gap: 1rem;
+}
+
+.panel {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.panel h3 {
+  margin: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  text-align: left;
+  padding: 0.4rem;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr.selected {
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.mini-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.mini-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mini-form input,
+.mini-form select {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.35rem;
+  color: #e2e8f0;
+  padding: 0.45rem 0.55rem;
+}
+
+.danger {
+  border-color: #f87171 !important;
+  color: #f87171 !important;
+}

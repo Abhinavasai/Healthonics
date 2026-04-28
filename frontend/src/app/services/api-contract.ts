@@ -68,6 +68,11 @@ export const ApiContract = {
   },
   admin: {
     auditLog: `${API}/admin/audit-log`,
+    userLifecycleUsers: `${API}/admin/user-lifecycle/users`,
+    userLifecycleUserById: (id: string): string => `${API}/admin/user-lifecycle/users/${id}`,
+    userLifecycleDeactivate: (id: string): string => `${API}/admin/user-lifecycle/users/${id}/deactivate`,
+    userLifecycleResetPassword: (id: string): string =>
+      `${API}/admin/user-lifecycle/users/${id}/reset-password`,
     userLifecycleSettingsKpis: `${API}/admin/user-lifecycle/settings-kpis`,
     userLifecycleSettings: `${API}/admin/user-lifecycle/settings`,
     aiObservability: `${API}/admin/ai/observability`,

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   AdminLifecycleKpis,
   AdminLifecycleSettings,
+  AdminLifecycleUser,
   AdminUserLifecycleService
 } from '../../services/admin-user-lifecycle.service';
 
@@ -17,14 +18,29 @@ import {
 export class AdminManagementComponent implements OnInit {
   loading = true;
   saving = false;
+  userBusy = false;
   error: string | null = null;
   success: string | null = null;
   settings: AdminLifecycleSettings | null = null;
   kpis: AdminLifecycleKpis | null = null;
+  users: AdminLifecycleUser[] = [];
+  selectedUserId = '';
 
   form = {
     new_user_window_days: 14,
     inactive_window_days: 30
+  };
+  createForm = {
+    email: '',
+    password: '',
+    role: 'patient' as 'patient' | 'doctor' | 'admin'
+  };
+  editForm = {
+    email: '',
+    role: 'patient' as 'patient' | 'doctor' | 'admin'
+  };
+  resetForm = {
+    newPassword: ''
   };
 
   constructor(private readonly api: AdminUserLifecycleService) {}
@@ -42,7 +58,19 @@ export class AdminManagementComponent implements OnInit {
         this.kpis = res.kpis;
         this.form.new_user_window_days = res.settings.new_user_window_days;
         this.form.inactive_window_days = res.settings.inactive_window_days;
-        this.loading = false;
+        this.api.listUsers().subscribe({
+          next: (usersRes) => {
+            this.users = usersRes.users ?? [];
+            if (this.users.length > 0 && !this.selectedUserId) {
+              this.selectUser(this.users[0].id);
+            }
+            this.loading = false;
+          },
+          error: () => {
+            this.error = 'Could not load users.';
+            this.loading = false;
+          }
+        });
       },
       error: () => {
         this.error = 'Could not load lifecycle settings.';
@@ -72,5 +100,122 @@ export class AdminManagementComponent implements OnInit {
           this.saving = false;
         }
       });
+  }
+
+  selectUser(id: string): void {
+    this.selectedUserId = id;
+    const u = this.users.find((x) => x.id === id);
+    if (!u) {
+      return;
+    }
+    this.editForm.email = u.email;
+    this.editForm.role = u.role;
+    this.resetForm.newPassword = '';
+  }
+
+  createUser(): void {
+    this.userBusy = true;
+    this.error = null;
+    this.success = null;
+    this.api
+      .createUser({
+        email: this.createForm.email.trim().toLowerCase(),
+        password: this.createForm.password,
+        role: this.createForm.role
+      })
+      .subscribe({
+        next: () => {
+          this.success = 'User created.';
+          this.createForm.email = '';
+          this.createForm.password = '';
+          this.refreshUsers();
+        },
+        error: () => {
+          this.userBusy = false;
+          this.error = 'Could not create user.';
+        }
+      });
+  }
+
+  updateSelectedUser(): void {
+    if (!this.selectedUserId) {
+      return;
+    }
+    this.userBusy = true;
+    this.error = null;
+    this.success = null;
+    this.api
+      .updateUser(this.selectedUserId, {
+        email: this.editForm.email.trim().toLowerCase(),
+        role: this.editForm.role
+      })
+      .subscribe({
+        next: () => {
+          this.success = 'User updated.';
+          this.refreshUsers();
+        },
+        error: () => {
+          this.userBusy = false;
+          this.error = 'Could not update user.';
+        }
+      });
+  }
+
+  deactivateSelectedUser(): void {
+    if (!this.selectedUserId) {
+      return;
+    }
+    this.userBusy = true;
+    this.error = null;
+    this.success = null;
+    this.api.deactivateUser(this.selectedUserId).subscribe({
+      next: () => {
+        this.success = 'User deactivated.';
+        this.refreshUsers();
+      },
+      error: () => {
+        this.userBusy = false;
+        this.error = 'Could not deactivate user.';
+      }
+    });
+  }
+
+  resetSelectedPassword(): void {
+    if (!this.selectedUserId || !this.resetForm.newPassword.trim()) {
+      return;
+    }
+    this.userBusy = true;
+    this.error = null;
+    this.success = null;
+    this.api.resetPassword(this.selectedUserId, this.resetForm.newPassword).subscribe({
+      next: () => {
+        this.success = 'Password reset complete.';
+        this.resetForm.newPassword = '';
+        this.userBusy = false;
+      },
+      error: () => {
+        this.userBusy = false;
+        this.error = 'Could not reset password.';
+      }
+    });
+  }
+
+  private refreshUsers(): void {
+    this.api.listUsers().subscribe({
+      next: (res) => {
+        this.users = res.users ?? [];
+        const stillExists = this.users.some((u) => u.id === this.selectedUserId);
+        if (!stillExists && this.users.length > 0) {
+          this.selectUser(this.users[0].id);
+        } else if (stillExists) {
+          this.selectUser(this.selectedUserId);
+        }
+        this.userBusy = false;
+      },
+      error: () => {
+        this.userBusy = false;
+        this.error = 'Could not refresh users.';
+      }
+    });
   }
 }
