@@ -115,6 +115,32 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_knowledge_docs_title ON knowledge_docs(title);
 
+		ALTER TABLE knowledge_docs ADD COLUMN IF NOT EXISTS current_version INTEGER NOT NULL DEFAULT 1;
+		ALTER TABLE knowledge_docs ADD COLUMN IF NOT EXISTS review_interval_days INTEGER NOT NULL DEFAULT 180;
+		ALTER TABLE knowledge_docs DROP CONSTRAINT IF EXISTS knowledge_docs_review_interval_days_check;
+		ALTER TABLE knowledge_docs ADD CONSTRAINT knowledge_docs_review_interval_days_check CHECK (review_interval_days > 0 AND review_interval_days <= 3650);
+		ALTER TABLE knowledge_docs ADD COLUMN IF NOT EXISTS last_reviewed_at TIMESTAMPTZ;
+
+		CREATE TABLE IF NOT EXISTS knowledge_doc_versions (
+			id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			document_id  UUID NOT NULL REFERENCES knowledge_docs(id) ON DELETE CASCADE,
+			version      INTEGER NOT NULL CHECK (version >= 1),
+			title        TEXT NOT NULL,
+			body         TEXT NOT NULL,
+			created_by   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(document_id, version)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_knowledge_doc_versions_doc ON knowledge_doc_versions(document_id, version DESC);
+
+		INSERT INTO knowledge_doc_versions (document_id, version, title, body, created_by, created_at)
+		SELECT d.id, 1, d.title, d.body, d.created_by, d.created_at
+		FROM knowledge_docs d
+		WHERE NOT EXISTS (
+			SELECT 1 FROM knowledge_doc_versions v WHERE v.document_id = d.id AND v.version = 1
+		);
+
 		CREATE TABLE IF NOT EXISTS doctor_slots (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			doctor_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
