@@ -20,6 +20,7 @@
       <p>Sent: {{ p.sent }}</p>
       <p>Pending: {{ p.pending }}</p>
       <p>Failed: {{ p.failed }}</p>
+      <p>Retries: {{ p.retries }}</p>
     </article>
   </section>
 
@@ -30,8 +31,13 @@
         <th>User</th>
         <th>Title</th>
         <th>Channel</th>
+        <th>Provider</th>
         <th>Status</th>
+        <th>Attempts</th>
         <th>Scheduled</th>
+        <th>Next retry</th>
+        <th>Sent at</th>
+        <th>Last error</th>
         <th>Body</th>
         <th>Action</th>
       </tr>
@@ -42,8 +48,13 @@
         <td>{{ r.user_id }}</td>
         <td>{{ r.title }}</td>
         <td>{{ r.channel }}</td>
+        <td>{{ r.provider || (r.channel === 'in_app' ? 'in_app' : 'n/a') }}</td>
         <td>{{ r.status }}</td>
+        <td>{{ r.attempts ?? 0 }}</td>
         <td>{{ r.scheduled_for || '—' }}</td>
+        <td>{{ r.next_retry_at || '—' }}</td>
+        <td>{{ r.sent_at || '—' }}</td>
+        <td class="error-col">{{ r.last_error || '—' }}</td>
         <td>{{ r.body }}</td>
         <td>
           <button

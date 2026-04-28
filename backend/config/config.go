@@ -24,6 +24,13 @@ type Config struct {
 	OllamaHost       string // Ollama base URL, e.g. http://127.0.0.1:11434
 	OllamaModel      string // Default Ollama model name.
 	OllamaTimeoutMS  int    // Timeout for Ollama HTTP calls in milliseconds.
+	NotifyIntervalMS int    // Worker polling interval for notification queue.
+	NotifyMaxRetries int    // Maximum automatic retries before dead-letter.
+	SendGridAPIKey   string // Optional SendGrid API key.
+	SendGridFrom     string // Optional sender email for SendGrid.
+	TwilioAccountSID string // Optional Twilio account SID.
+	TwilioAuthToken  string // Optional Twilio auth token.
+	TwilioFromNumber string // Optional Twilio sender number.
 }
 
 func Load() *Config {
@@ -55,12 +62,27 @@ func Load() *Config {
 		OllamaHost:       ollamaHost,
 		OllamaModel:      ollamaModel,
 		OllamaTimeoutMS:  parsePositiveIntWithDefault(os.Getenv("OLLAMA_TIMEOUT_MS"), 7000),
+		NotifyIntervalMS: parsePositiveIntWithDefault(os.Getenv("NOTIFY_WORKER_INTERVAL_MS"), 5000),
+		NotifyMaxRetries: parseIntInRangeWithDefault(os.Getenv("NOTIFY_MAX_RETRIES"), 1, 20, 3),
+		SendGridAPIKey:   strings.TrimSpace(os.Getenv("SENDGRID_API_KEY")),
+		SendGridFrom:     strings.TrimSpace(os.Getenv("SENDGRID_FROM_EMAIL")),
+		TwilioAccountSID: strings.TrimSpace(os.Getenv("TWILIO_ACCOUNT_SID")),
+		TwilioAuthToken:  strings.TrimSpace(os.Getenv("TWILIO_AUTH_TOKEN")),
+		TwilioFromNumber: strings.TrimSpace(os.Getenv("TWILIO_FROM_NUMBER")),
 	}
 }
 
 func parsePositiveIntWithDefault(raw string, fallback int) int {
 	v, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || v <= 0 {
+		return fallback
+	}
+	return v
+}
+
+func parseIntInRangeWithDefault(raw string, min int, max int, fallback int) int {
+	v, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || v < min || v > max {
 		return fallback
 	}
 	return v

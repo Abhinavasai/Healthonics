@@ -18,7 +18,12 @@ export interface NotificationRow {
   body: string;
   channel: string;
   status: string;
+  provider?: string;
+  attempts?: number;
+  last_error?: string;
   scheduled_for?: string | null;
+  next_retry_at?: string | null;
+  sent_at?: string | null;
   created_at: string;
 }
 
