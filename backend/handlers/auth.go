@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -162,23 +163,32 @@ func (h *AuthHandler) Me(c *gin.Context) {
 }
 
 func (h *AuthHandler) createToken(id uuid.UUID, email, role string) (string, error) {
+	now := time.Now().UTC()
 	claims := Claims{
 		UserID: id,
 		Email:  email,
 		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now.Add(-1 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(12 * time.Hour)),
+		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(h.JWTSecret)
 }
 
-// ParseJWTClaims validates a raw JWT string (used by WebSocket token auth).
-func (h *AuthHandler) ParseJWTClaims(rawToken string) (*Claims, error) {
+func (h *AuthHandler) parseClaims(rawToken string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(rawToken, &Claims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
 		return h.JWTSecret, nil
-	})
+	},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +197,15 @@ func (h *AuthHandler) ParseJWTClaims(rawToken string) (*Claims, error) {
 		return nil, errors.New("invalid claims")
 	}
 	return claims, nil
+}
+
+// ParseJWTClaims validates a raw JWT string (used by WebSocket token auth).
+func (h *AuthHandler) ParseJWTClaims(rawToken string) (*Claims, error) {
+	rawToken = strings.TrimSpace(rawToken)
+	if rawToken == "" {
+		return nil, errors.New("token required")
+	}
+	return h.parseClaims(rawToken)
 }
 
 func (h *AuthHandler) RequireAuth() gin.HandlerFunc {
@@ -203,19 +222,8 @@ func (h *AuthHandler) RequireAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		token, err := jwt.ParseWithClaims(parts[1], &Claims{}, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, errors.New("unexpected signing method")
-			}
-			return h.JWTSecret, nil
-		})
+		claims, err := h.parseClaims(parts[1])
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-		claims, ok := token.Claims.(*Claims)
-		if !ok || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
