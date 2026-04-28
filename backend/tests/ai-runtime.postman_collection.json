@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "Healthonyx AI Runtime API",
+    "_postman_id": "6f9ef6c9-0f0f-4f9d-9d61-2c6d6b17d111",
+    "description": "Backend API checks for admin AI runtime settings, observability and eval endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get AI observability",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/admin/ai/observability",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "ai",
+            "observability"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update AI settings",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ollama_enabled\": true,\n  \"fallback_enabled\": true,\n  \"rate_limit_enabled\": true,\n  \"rate_limit_per_minute\": 20,\n  \"cache_enabled\": true,\n  \"cache_ttl_seconds\": 900,\n  \"ollama_model\": \"llama3.1:8b\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/admin/ai/settings",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "ai",
+            "settings"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Run AI eval",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/admin/ai/eval",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "ai",
+            "eval"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    }
+  ]
+}
