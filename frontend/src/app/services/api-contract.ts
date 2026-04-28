@@ -68,6 +68,8 @@ export const ApiContract = {
   },
   admin: {
     auditLog: `${API}/admin/audit-log`,
+    userLifecycleSettingsKpis: `${API}/admin/user-lifecycle/settings-kpis`,
+    userLifecycleSettings: `${API}/admin/user-lifecycle/settings`,
     knowledgeDocs: `${API}/admin/knowledge-docs`,
     knowledgeSimilarityScan: `${API}/admin/knowledge-docs/similarity-scan`,
     knowledgeDocById: (id: string): string => `${API}/admin/knowledge-docs/${id}`,

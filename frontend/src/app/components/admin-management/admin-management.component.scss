@@ -1,0 +1,96 @@
+.admin-management {
+  display: grid;
+  gap: 1rem;
+}
+
+.head h1 {
+  margin: 0;
+}
+
+.head p {
+  margin: 0.25rem 0 0;
+  color: #94a3b8;
+}
+
+.state {
+  margin: 0;
+}
+
+.state.err {
+  color: #f87171;
+}
+
+.state.ok {
+  color: #34d399;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.kpi {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.35);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.kpi span {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.kpi strong {
+  font-size: 1.3rem;
+}
+
+.settings {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  max-width: 480px;
+}
+
+.settings h2 {
+  margin: 0;
+}
+
+.settings label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.settings input {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.35rem;
+  color: #e2e8f0;
+  padding: 0.45rem 0.55rem;
+}
+
+.settings button {
+  width: fit-content;
+  border: 1px solid #22d3ee;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #22d3ee;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+
+.settings button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.muted {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}

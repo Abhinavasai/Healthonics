@@ -1,0 +1,45 @@
+<section class="admin-management" data-cy="admin-management-page">
+  <header class="head">
+    <h1>Admin management</h1>
+    <p>User lifecycle KPIs and threshold settings.</p>
+  </header>
+
+  <p class="state" *ngIf="loading">Loading dashboard...</p>
+  <p class="state err" *ngIf="!loading && error">{{ error }}</p>
+  <p class="state ok" *ngIf="!loading && success">{{ success }}</p>
+
+  <div class="kpi-grid" *ngIf="!loading && kpis">
+    <article class="kpi"><span>Total users</span><strong>{{ kpis.total_users }}</strong></article>
+    <article class="kpi"><span>Patients</span><strong>{{ kpis.total_patients }}</strong></article>
+    <article class="kpi"><span>Doctors</span><strong>{{ kpis.total_doctors }}</strong></article>
+    <article class="kpi"><span>Admins</span><strong>{{ kpis.total_admins }}</strong></article>
+    <article class="kpi"><span>New users (window)</span><strong>{{ kpis.new_users_in_window }}</strong></article>
+    <article class="kpi"><span>Inactive users</span><strong>{{ kpis.inactive_users_count }}</strong></article>
+  </div>
+
+  <form class="settings" *ngIf="!loading && settings" (ngSubmit)="save()">
+    <h2>Lifecycle settings</h2>
+    <label>
+      <span>New user window (days)</span>
+      <input
+        type="number"
+        name="newUserWindowDays"
+        min="1"
+        max="3650"
+        [(ngModel)]="form.new_user_window_days"
+      />
+    </label>
+    <label>
+      <span>Inactive user window (days)</span>
+      <input
+        type="number"
+        name="inactiveWindowDays"
+        min="1"
+        max="3650"
+        [(ngModel)]="form.inactive_window_days"
+      />
+    </label>
+    <p class="muted">Last updated: {{ settings.updated_at || 'n/a' }}</p>
+    <button type="submit" [disabled]="saving">{{ saving ? 'Saving...' : 'Save settings' }}</button>
+  </form>
+</section>
