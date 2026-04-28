@@ -42,4 +42,112 @@
     <p class="muted">Last updated: {{ settings.updated_at || 'n/a' }}</p>
     <button type="submit" [disabled]="saving">{{ saving ? 'Saving...' : 'Save settings' }}</button>
   </form>
+
+  <section class="users" *ngIf="!loading">
+    <h2>User lifecycle console</h2>
+    <p class="muted">Create, edit, deactivate, and reset passwords for users.</p>
+
+    <div class="user-grid">
+      <div class="panel">
+        <h3>Users</h3>
+        <table data-cy="admin-users-table" *ngIf="users.length; else emptyUsers">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let u of users"
+              [class.selected]="selectedUserId === u.id"
+              (click)="selectUser(u.id)"
+              data-cy="admin-user-row"
+            >
+              <td>{{ u.email }}</td>
+              <td>{{ u.role }}</td>
+              <td>{{ u.is_active ? 'active' : 'inactive' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #emptyUsers>
+          <p class="muted">No users found.</p>
+        </ng-template>
+      </div>
+
+      <div class="panel">
+        <h3>Create user</h3>
+        <form class="mini-form" (ngSubmit)="createUser()">
+          <label>
+            <span>Email</span>
+            <input type="email" name="createEmail" [(ngModel)]="createForm.email" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="createPassword" [(ngModel)]="createForm.password" required />
+          </label>
+          <label>
+            <span>Role</span>
+            <select name="createRole" [(ngModel)]="createForm.role">
+              <option value="patient">patient</option>
+              <option value="doctor">doctor</option>
+              <option value="admin">admin</option>
+            </select>
+          </label>
+          <button type="submit" [disabled]="userBusy" data-cy="admin-user-create-btn">Create user</button>
+        </form>
+
+        <h3>Edit selected user</h3>
+        <form class="mini-form" (ngSubmit)="updateSelectedUser()">
+          <label>
+            <span>Email</span>
+            <input type="email" name="editEmail" [(ngModel)]="editForm.email" [disabled]="!selectedUserId" required />
+          </label>
+          <label>
+            <span>Role</span>
+            <select name="editRole" [(ngModel)]="editForm.role" [disabled]="!selectedUserId">
+              <option value="patient">patient</option>
+              <option value="doctor">doctor</option>
+              <option value="admin">admin</option>
+            </select>
+          </label>
+          <button type="submit" [disabled]="userBusy || !selectedUserId" data-cy="admin-user-update-btn">
+            Save user
+          </button>
+        </form>
+
+        <h3>Reset password</h3>
+        <form class="mini-form" (ngSubmit)="resetSelectedPassword()">
+          <label>
+            <span>New password</span>
+            <input
+              type="password"
+              name="resetPassword"
+              [(ngModel)]="resetForm.newPassword"
+              [disabled]="!selectedUserId"
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            [disabled]="userBusy || !selectedUserId || !resetForm.newPassword.trim()"
+            data-cy="admin-user-reset-btn"
+          >
+            Reset password
+          </button>
+        </form>
+
+        <button
+          type="button"
+          class="danger"
+          (click)="deactivateSelectedUser()"
+          [disabled]="userBusy || !selectedUserId"
+          data-cy="admin-user-deactivate-btn"
+        >
+          Deactivate selected user
+        </button>
+      </div>
+    </div>
+  </section>
 </section>
