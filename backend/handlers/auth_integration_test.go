@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -124,5 +127,39 @@ func TestRequireAuthRole_MultiRole_AllowsEither(t *testing.T) {
 	r.ServeHTTP(patientW, patientReq)
 	if patientW.Code != http.StatusForbidden {
 		t.Fatalf("expected patient forbidden (403), got %d", patientW.Code)
+	}
+}
+
+func TestParseJWTClaims_ExpiredTokenRejected(t *testing.T) {
+	auth := NewAuthHandler("test-secret-key-for-jwt-parse-tests-xx")
+	past := time.Now().UTC().Add(-1 * time.Hour)
+	expiredClaims := Claims{
+		UserID: uuid.New(),
+		Email:  "expired@test.local",
+		Role:   "doctor",
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(past.Add(-1 * time.Hour)),
+			NotBefore: jwt.NewNumericDate(past.Add(-1 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(past),
+		},
+	}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, expiredClaims).SignedString(auth.JWTSecret)
+	if err != nil {
+		t.Fatalf("sign expired token: %v", err)
+	}
+	_, err = auth.ParseJWTClaims(token)
+	if err == nil {
+		t.Fatal("expected expired token error")
+	}
+	if !errors.Is(err, jwt.ErrTokenExpired) {
+		t.Fatalf("expected ErrTokenExpired, got %v", err)
+	}
+}
+
+func TestParseJWTClaims_EmptyTokenRejected(t *testing.T) {
+	auth := NewAuthHandler("test-secret-key-for-jwt-parse-tests-xx")
+	_, err := auth.ParseJWTClaims("   ")
+	if err == nil {
+		t.Fatal("expected empty token error")
 	}
 }
