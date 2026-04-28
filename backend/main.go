@@ -90,6 +90,7 @@ func main() {
 		// Role-protected: demonstrates 403 when role doesn't match
 		adminAudit := handlers.NewAdminAuditHandler()
 		knowledge := handlers.NewKnowledgeAdminHandler()
+		contextComments := handlers.NewContextualCommentsHandler()
 		userLifecycle := handlers.NewAdminUserLifecycleHandler()
 		aiRuntime := handlers.NewAdminAIRuntimeHandler()
 		api.GET("/admin", auth.RequireAuth(), auth.RequireRole("admin"), func(c *gin.Context) {
@@ -139,6 +140,8 @@ func main() {
 		api.GET("/appointments/:id/activity", auth.RequireAuth(), appointments.ListActivity)
 		api.GET("/appointments/:id/comments", auth.RequireAuth(), apptComments.List)
 		api.POST("/appointments/:id/comments", auth.RequireAuth(), apptComments.Create)
+		api.GET("/comments/:contextType/:contextId", auth.RequireAuth(), contextComments.List)
+		api.POST("/comments/:contextType/:contextId", auth.RequireAuth(), contextComments.Create)
 		api.GET("/appointments/:id", auth.RequireAuth(), appointments.GetByID)
 		api.GET("/doctors", auth.RequireAuth(), auth.RequireRole("patient"), appointments.ListAvailableDoctors)
 		api.PATCH("/appointments/:id/status", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.UpdateStatus)

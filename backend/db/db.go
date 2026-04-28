@@ -138,6 +138,17 @@ func Migrate(ctx context.Context) error {
 		ALTER TABLE appointment_comments DROP CONSTRAINT IF EXISTS appointment_comments_visibility_check;
 		ALTER TABLE appointment_comments ADD CONSTRAINT appointment_comments_visibility_check CHECK (visibility IN ('internal', 'patient_visible'));
 
+		CREATE TABLE IF NOT EXISTS contextual_comments (
+			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			context_type    TEXT NOT NULL CHECK (context_type IN ('record', 'document', 'knowledge_doc')),
+			context_id      UUID NOT NULL,
+			author_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			body            TEXT NOT NULL,
+			visibility      TEXT NOT NULL DEFAULT 'patient_visible' CHECK (visibility IN ('internal', 'care_team', 'patient_visible')),
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_contextual_comments_target ON contextual_comments(context_type, context_id, created_at);
+
 		CREATE TABLE IF NOT EXISTS hospitals (
 			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name       TEXT NOT NULL,
