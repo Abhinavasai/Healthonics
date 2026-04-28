@@ -9,6 +9,7 @@ import { AdminAuditComponent } from './components/admin-audit/admin-audit.compon
 import { AdminNotificationsLogComponent } from './components/admin-notifications-log/admin-notifications-log.component';
 import { AdminKnowledgeComponent } from './components/admin-knowledge/admin-knowledge.component';
 import { AdminManagementComponent } from './components/admin-management/admin-management.component';
+import { AdminAiObservabilityComponent } from './components/admin-ai-observability/admin-ai-observability.component';
 import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
 import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
 import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
@@ -200,6 +201,12 @@ export const routes: Routes = [
             path: 'management',
             component: AdminManagementComponent,
             data: { title: 'Management', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'ai',
+            component: AdminAiObservabilityComponent,
+            data: { title: 'AI controls', roles: ['admin'] },
             canActivate: [roleGuard]
           }
         ]
