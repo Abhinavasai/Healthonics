@@ -47,12 +47,46 @@ func Migrate(ctx context.Context) error {
 			cache_enabled           BOOLEAN NOT NULL DEFAULT TRUE,
 			cache_ttl_seconds       INTEGER NOT NULL DEFAULT 900 CHECK (cache_ttl_seconds >= 30 AND cache_ttl_seconds <= 604800),
 			ollama_model            TEXT NOT NULL DEFAULT 'llama3.1:8b',
+			prompt_version          TEXT NOT NULL DEFAULT 'v1',
 			updated_by              UUID REFERENCES users(id) ON DELETE SET NULL,
 			updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
+		ALTER TABLE admin_ai_runtime_settings ADD COLUMN IF NOT EXISTS prompt_version TEXT NOT NULL DEFAULT 'v1';
 		INSERT INTO admin_ai_runtime_settings (id)
 		VALUES (TRUE)
 		ON CONFLICT (id) DO NOTHING;
+
+		CREATE TABLE IF NOT EXISTS admin_ai_eval_runs (
+			id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			model_name         TEXT NOT NULL,
+			prompt_version     TEXT NOT NULL,
+			fixture_count      INTEGER NOT NULL DEFAULT 0,
+			passed_count       INTEGER NOT NULL DEFAULT 0,
+			success_rate       DOUBLE PRECISION NOT NULL DEFAULT 0,
+			quality_score      DOUBLE PRECISION NOT NULL DEFAULT 0,
+			runtime_mode       TEXT NOT NULL DEFAULT 'fallback_local',
+			ai_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+			ollama_reachable   BOOLEAN NOT NULL DEFAULT FALSE,
+			model_available    BOOLEAN NOT NULL DEFAULT FALSE,
+			created_by         UUID REFERENCES users(id) ON DELETE SET NULL,
+			started_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			finished_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_admin_ai_eval_runs_started ON admin_ai_eval_runs(started_at DESC);
+
+		CREATE TABLE IF NOT EXISTS admin_ai_eval_cases (
+			id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			run_id             UUID NOT NULL REFERENCES admin_ai_eval_runs(id) ON DELETE CASCADE,
+			fixture_id         TEXT NOT NULL,
+			input_excerpt      TEXT NOT NULL DEFAULT '',
+			expected_keywords  JSONB NOT NULL,
+			summary_excerpt    TEXT NOT NULL DEFAULT '',
+			keyword_coverage   DOUBLE PRECISION NOT NULL DEFAULT 0,
+			passed             BOOLEAN NOT NULL DEFAULT FALSE,
+			created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT admin_ai_eval_cases_expected_keywords_is_array CHECK (jsonb_typeof(expected_keywords) = 'array')
+		);
+		CREATE INDEX IF NOT EXISTS idx_admin_ai_eval_cases_run ON admin_ai_eval_cases(run_id);
 
 		CREATE TABLE IF NOT EXISTS appointments (
 			id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
