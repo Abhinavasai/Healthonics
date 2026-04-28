@@ -14,6 +14,7 @@ import { MessagingService } from '../../services/messaging.service';
 })
 export class AppShellComponent implements OnInit, OnDestroy {
   private unreadPoll?: Subscription;
+  private realtimeUnreadSub?: Subscription;
 
   constructor(
     public auth: AuthService,
@@ -22,6 +23,14 @@ export class AppShellComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    const role = this.user?.role;
+    if (role === 'patient' || role === 'doctor') {
+      this.messaging.connectRealtime();
+      this.realtimeUnreadSub = this.messaging.newChatMessage$.subscribe(() => {
+        this.messaging.refreshUnread().subscribe();
+      });
+    }
+
     this.unreadPoll = timer(0, 30_000)
       .pipe(switchMap(() => this.messaging.refreshUnread()))
       .subscribe();
@@ -29,6 +38,8 @@ export class AppShellComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.unreadPoll?.unsubscribe();
+    this.realtimeUnreadSub?.unsubscribe();
+    this.messaging.disconnectRealtime();
   }
 
   get user() {

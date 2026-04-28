@@ -1,6 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { MessagingService } from './messaging.service';
+import { MessagingService, messagingWebSocketUrl } from './messaging.service';
+import { AuthService } from './auth.service';
+
+describe('messagingWebSocketUrl', () => {
+  it('targets /api/messages/ws with encoded token', () => {
+    const u = messagingWebSocketUrl('abc+def');
+    expect(u).toContain('/api/messages/ws?token=');
+    expect(u).toContain(encodeURIComponent('abc+def'));
+  });
+});
 
 describe('MessagingService', () => {
   let service: MessagingService;
@@ -9,7 +18,10 @@ describe('MessagingService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [MessagingService]
+      providers: [
+        MessagingService,
+        { provide: AuthService, useValue: { getToken: () => null } }
+      ]
     });
     service = TestBed.inject(MessagingService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -17,6 +29,7 @@ describe('MessagingService', () => {
 
   afterEach(() => {
     httpMock.verify();
+    service.disconnectRealtime();
   });
 
   it('lists threads and updates unread from thread rows', (done) => {

@@ -3,7 +3,7 @@ import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
-import { Appointment, AppointmentsService } from '../../services/appointments.service';
+import { Appointment, AppointmentComment, AppointmentsService } from '../../services/appointments.service';
 
 @Component({
   selector: 'app-patient-appointment-detail',
@@ -31,7 +31,9 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
       <div *ngIf="!loading && appointment" class="card" data-cy="appointment-comments-section">
         <h2>Comments</h2>
         <ul *ngIf="comments.length" data-cy="appointment-comments-list">
-          <li *ngFor="let c of comments">{{ c.body }} — <small>{{ c.created_at }}</small></li>
+          <li *ngFor="let c of comments">
+            {{ c.body }} — <small>{{ c.created_at }}</small>
+          </li>
         </ul>
         <p *ngIf="!comments.length" class="muted">No comments yet.</p>
         <label class="cmt">
@@ -65,7 +67,7 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
 })
 export class PatientAppointmentDetailComponent implements OnInit {
   appointment: Appointment | null = null;
-  comments: { id: string; author_user_id: string; body: string; created_at: string }[] = [];
+  comments: AppointmentComment[] = [];
   newComment = '';
   posting = false;
   loading = false;

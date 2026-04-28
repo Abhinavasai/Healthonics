@@ -130,7 +130,8 @@
             <div>
               <h2 data-cy="messages-thread-title">{{ selectedPeerEmail }}</h2>
               <p class="chat-header__status">
-                <span class="pulse-dot"></span>
+                <span class="pulse-dot" [class.pulse-dot--live]="realtimeLive"></span>
+                <ng-container *ngIf="realtimeLive">Live · </ng-container>
                 Active thread
               </p>
             </div>

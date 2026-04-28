@@ -499,6 +499,11 @@
   border-radius: 50%;
   background: var(--color-success);
   animation: pulse-dot 2s ease-in-out infinite;
+
+  &--live {
+    background: #22d3ee;
+    box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.35);
+  }
 }
 
 @keyframes pulse-dot {

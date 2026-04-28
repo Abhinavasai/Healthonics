@@ -1,7 +1,16 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, catchError, map, of, tap } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  Subject,
+  catchError,
+  map,
+  of,
+  tap
+} from 'rxjs';
 import { ApiContract } from './api-contract';
+import { AuthService } from './auth.service';
 
 /** Aligns with Sprint 3 backend: GET/POST /api/messages/... */
 export interface MessageThread {
@@ -33,12 +42,39 @@ export interface UnreadResponse {
   unread_total: number;
 }
 
+/** Payload when backend pushes `new_message` over WebSocket (PR-22+). */
+export interface ChatMessageRealtimeEvent {
+  thread_id: string;
+  message: ChatMessage;
+}
+
+export type MessagingRealtimeState = 'offline' | 'connecting' | 'live';
+
+/** Builds ws(s) URL for GET /api/messages/ws — exposed for unit tests. */
+export function messagingWebSocketUrl(token: string): string {
+  const proto =
+    typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = typeof window !== 'undefined' ? window.location.host : 'localhost';
+  return `${proto}//${host}/api/messages/ws?token=${encodeURIComponent(token)}`;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
   private readonly unreadSubject = new BehaviorSubject<number>(0);
   readonly unread$ = this.unreadSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  private ws: WebSocket | null = null;
+
+  private readonly newMessageSubject = new Subject<ChatMessageRealtimeEvent>();
+  readonly newChatMessage$ = this.newMessageSubject.asObservable();
+
+  private readonly connectionStateSubject = new BehaviorSubject<MessagingRealtimeState>('offline');
+  readonly connectionState$ = this.connectionStateSubject.asObservable();
+
+  constructor(
+    private http: HttpClient,
+    private auth: AuthService
+  ) {}
 
   getUnreadSnapshot(): number {
     return this.unreadSubject.value;
@@ -60,6 +96,90 @@ export class MessagingService {
   applyUnreadFromThreads(threads: MessageThread[]): void {
     const sum = (threads ?? []).reduce((acc, t) => acc + (t.unread_count ?? 0), 0);
     this.unreadSubject.next(sum);
+  }
+
+  /**
+   * Opens a WebSocket to `/api/messages/ws?token=…` when a JWT exists.
+   * Safe no-op without token, duplicate connect, or missing WebSocket API.
+   * Falls back silently if the backend route is unavailable (polling still works).
+   */
+  connectRealtime(): void {
+    if (typeof WebSocket === 'undefined') {
+      return;
+    }
+    const token = this.auth.getToken();
+    if (!token) {
+      return;
+    }
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
+    this.disconnectRealtime();
+    this.connectionStateSubject.next('connecting');
+
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(messagingWebSocketUrl(token));
+    } catch {
+      this.connectionStateSubject.next('offline');
+      return;
+    }
+
+    this.ws = socket;
+
+    socket.onopen = () => {
+      this.connectionStateSubject.next('live');
+    };
+
+    socket.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(String(event.data)) as Record<string, unknown>;
+        if (data['type'] !== 'new_message') {
+          return;
+        }
+        const threadId = data['thread_id'];
+        const rawMsg = data['message'];
+        if (typeof threadId !== 'string' || typeof rawMsg !== 'object' || rawMsg === null) {
+          return;
+        }
+        const m = rawMsg as Record<string, unknown>;
+        const chat: ChatMessage = {
+          id: String(m['id'] ?? ''),
+          thread_id: String(m['thread_id'] ?? threadId),
+          sender_id: String(m['sender_id'] ?? ''),
+          body: String(m['body'] ?? ''),
+          created_at: String(m['created_at'] ?? '')
+        };
+        if (!chat.id) {
+          return;
+        }
+        this.newMessageSubject.next({ thread_id: threadId, message: chat });
+      } catch {
+        /* ignore malformed frames */
+      }
+    };
+
+    socket.onerror = () => {
+      if (this.connectionStateSubject.value === 'connecting') {
+        this.connectionStateSubject.next('offline');
+      }
+    };
+
+    socket.onclose = () => {
+      if (this.ws === socket) {
+        this.ws = null;
+      }
+      this.connectionStateSubject.next('offline');
+    };
+  }
+
+  disconnectRealtime(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.connectionStateSubject.next('offline');
   }
 
   listThreads(): Observable<MessageThread[]> {

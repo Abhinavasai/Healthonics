@@ -3,7 +3,12 @@ import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
-import { Appointment, AppointmentsService } from '../../services/appointments.service';
+import {
+  Appointment,
+  AppointmentComment,
+  AppointmentsService,
+  CommentVisibility
+} from '../../services/appointments.service';
 
 @Component({
   selector: 'app-doctor-appointment-detail',
@@ -30,15 +35,38 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
 
       <div *ngIf="!loading && appointment" class="card" data-cy="doctor-appointment-comments-section">
         <h2>Comments</h2>
-        <ul *ngIf="comments.length">
-          <li *ngFor="let c of comments">{{ c.body }} — <small>{{ c.created_at }}</small></li>
+        <ul *ngIf="comments.length" class="comment-list" data-cy="doctor-appointment-comments-list">
+          <li *ngFor="let c of comments">
+            <span *ngIf="c.visibility === 'internal'" class="badge-internal" data-cy="comment-internal-badge"
+              >Internal</span
+            >
+            {{ c.body }} — <small>{{ c.created_at }}</small>
+          </li>
         </ul>
         <p *ngIf="!comments.length" class="muted">No comments yet.</p>
+        <div class="visibility-pick" data-cy="comment-visibility">
+          <span class="vis-label">Visibility</span>
+          <label class="vis-opt">
+            <input type="radio" name="commentVis" [(ngModel)]="commentVisibility" value="patient_visible" />
+            Visible to patient
+          </label>
+          <label class="vis-opt">
+            <input type="radio" name="commentVis" [(ngModel)]="commentVisibility" value="internal" />
+            Internal (care team only)
+          </label>
+        </div>
         <label class="cmt">
           Add comment
-          <textarea [(ngModel)]="newComment" rows="2"></textarea>
+          <textarea [(ngModel)]="newComment" rows="2" data-cy="doctor-appointment-comment-input"></textarea>
         </label>
-        <button type="button" (click)="submitComment()" [disabled]="!newComment.trim() || posting">Post</button>
+        <button
+          type="button"
+          (click)="submitComment()"
+          [disabled]="!newComment.trim() || posting"
+          data-cy="doctor-appointment-comment-submit"
+        >
+          Post
+        </button>
       </div>
     </section>
   `,
@@ -121,12 +149,43 @@ import { Appointment, AppointmentsService } from '../../services/appointments.se
         margin: 0.5rem 0;
         padding-left: 1.1rem;
       }
+      .visibility-pick {
+        display: grid;
+        gap: 0.35rem;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+      }
+      .vis-label {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .vis-opt {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        cursor: pointer;
+      }
+      .badge-internal {
+        display: inline-block;
+        margin-right: 0.35rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.35);
+      }
     `
   ]
 })
 export class DoctorAppointmentDetailComponent implements OnInit {
   appointment: Appointment | null = null;
-  comments: { id: string; author_user_id: string; body: string; created_at: string }[] = [];
+  comments: AppointmentComment[] = [];
+  /** Doctor-only: internal notes are hidden from the patient list (backend PR-23). */
+  commentVisibility: CommentVisibility = 'patient_visible';
   newComment = '';
   posting = false;
   loading = false;
@@ -182,11 +241,12 @@ export class DoctorAppointmentDetailComponent implements OnInit {
     }
     this.posting = true;
     this.appointmentsService
-      .postComment(id, body)
+      .postComment(id, body, this.commentVisibility)
       .pipe(finalize(() => (this.posting = false)))
       .subscribe({
         next: () => {
           this.newComment = '';
+          this.commentVisibility = 'patient_visible';
           this.reloadComments(id);
         },
         error: (err) => {
