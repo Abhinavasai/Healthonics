@@ -17,17 +17,26 @@ describe('DoctorDashboardComponent', () => {
     fixture.detectChanges();
     httpMock.expectOne('/api/doctor/dashboard/summary').flush({
       role: 'doctor',
-      appointments_today: 1,
-      pending_queue: 0
+      appointments_today: 2,
+      pending_queue: 1,
+      aggregations: {
+        unread_messages: 4,
+        appointments_this_week: 12
+      },
+      alerts: [
+        { severity: 'warning', code: 'pending_queue', message: 'Appointment requests need your review.', count: 1 }
+      ]
     });
     fixture.detectChanges();
   });
 
   afterEach(() => httpMock.verify());
 
-  it('renders stats', () => {
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector('[data-cy="doctor-dashboard-stats"]')
-    ).toBeTruthy();
+  it('renders stats, workload ring, bars, and alerts', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-cy="doctor-dashboard-stats"]')).toBeTruthy();
+    expect(el.querySelector('[data-cy="doctor-dashboard-workload-ring"]')).toBeTruthy();
+    expect(el.querySelector('[data-cy="doctor-dashboard-workload-bars"]')).toBeTruthy();
+    expect(el.querySelector('[data-cy="doctor-dashboard-alerts"]')).toBeTruthy();
   });
 });

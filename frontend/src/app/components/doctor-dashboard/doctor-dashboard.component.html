@@ -1,0 +1,87 @@
+<section class="dash" data-cy="doctor-dashboard">
+  <header class="dash-head">
+    <h1>Dashboard</h1>
+    <p class="dash-sub">Clinic workload snapshot — today’s load, queue, inbox, and weekly volume.</p>
+  </header>
+
+  <p *ngIf="error" class="err">{{ error }}</p>
+
+  <ng-container *ngIf="data">
+    <div class="cards" data-cy="doctor-dashboard-stats">
+      <div class="card card--today">
+        <span class="num">{{ data.appointments_today }}</span>
+        <span class="lbl">Today (scheduled)</span>
+      </div>
+      <div class="card">
+        <span class="num">{{ data.pending_queue }}</span>
+        <span class="lbl">Pending queue</span>
+      </div>
+      <ng-container *ngIf="data.aggregations as agg">
+        <div class="card">
+          <span class="num">{{ agg.unread_messages }}</span>
+          <span class="lbl">Unread messages</span>
+        </div>
+        <div class="card">
+          <span class="num">{{ agg.appointments_this_week }}</span>
+          <span class="lbl">This week</span>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="workload-grid">
+      <div class="panel chart-panel" data-cy="doctor-dashboard-workload-ring">
+        <h2>Workload mix</h2>
+        <p class="panel-hint">Relative weight of today, queue, inbox, and weekly appointments.</p>
+        <div class="donut-wrap" aria-hidden="true">
+          <div class="donut-ring" [style.background]="pieBackground"></div>
+          <div class="donut-hole"></div>
+        </div>
+        <ul class="legend">
+          <li><span class="swatch swatch--today"></span> Today</li>
+          <li><span class="swatch swatch--queue"></span> Pending queue</li>
+          <li><span class="swatch swatch--msg"></span> Unread messages</li>
+          <li><span class="swatch swatch--week"></span> This week</li>
+        </ul>
+      </div>
+
+      <div class="panel bars-panel" data-cy="doctor-dashboard-workload-bars">
+        <h2>Volume comparison</h2>
+        <p class="panel-hint">Bars scale to your highest metric.</p>
+        <div class="bar-row" *ngFor="let row of barRows">
+          <span class="bar-label">{{ row.label }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="row.pct"></div>
+          </div>
+          <span class="bar-val">{{ row.value }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel alerts-panel" *ngIf="data.alerts && data.alerts.length > 0" data-cy="doctor-dashboard-alerts">
+      <h2>Alerts</h2>
+      <ul class="alert-list">
+        <li
+          *ngFor="let a of data.alerts"
+          class="alert-item"
+          [class.alert-item--warning]="a.severity === 'warning'"
+          [attr.data-cy]="'doctor-alert-' + a.code"
+        >
+          <span class="alert-ic" aria-hidden="true">{{ alertIcon(a.severity) }}</span>
+          <div class="alert-body">
+            <p class="alert-msg">{{ a.message }}</p>
+            <span class="alert-meta" *ngIf="a.count != null && a.count > 0">{{ a.count }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div
+      class="panel alerts-panel alerts-panel--empty"
+      *ngIf="data.alerts !== undefined && data.alerts.length === 0"
+      data-cy="doctor-dashboard-alerts-empty"
+    >
+      <h2>Alerts</h2>
+      <p class="muted">No alerts — queue and inbox look clear.</p>
+    </div>
+  </ng-container>
+</section>

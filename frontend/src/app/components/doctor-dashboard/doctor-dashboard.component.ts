@@ -2,69 +2,82 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DashboardService, DoctorDashboardSummary } from '../../services/dashboard.service';
 
+export interface DoctorBarRow {
+  label: string;
+  value: number;
+  pct: number;
+}
+
 @Component({
   selector: 'app-doctor-dashboard',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <section class="dash" data-cy="doctor-dashboard">
-      <h1>Dashboard</h1>
-      <p *ngIf="error" class="err">{{ error }}</p>
-      <div *ngIf="data" class="cards" data-cy="doctor-dashboard-stats">
-        <div class="card">
-          <span class="num">{{ data.appointments_today }}</span>
-          <span class="lbl">Today (scheduled)</span>
-        </div>
-        <div class="card">
-          <span class="num">{{ data.pending_queue }}</span>
-          <span class="lbl">Pending queue</span>
-        </div>
-      </div>
-    </section>
-  `,
-  styles: [
-    `
-      .dash {
-        max-width: 720px;
-      }
-      .cards {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-      }
-      .card {
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        border-radius: 10px;
-        padding: 1rem;
-        min-width: 140px;
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-      .num {
-        font-size: 1.75rem;
-        font-weight: 700;
-      }
-      .lbl {
-        color: #94a3b8;
-        font-size: 0.85rem;
-      }
-      .err {
-        color: #f87171;
-      }
-    `
-  ]
+  templateUrl: './doctor-dashboard.component.html',
+  styleUrl: './doctor-dashboard.component.scss'
 })
 export class DoctorDashboardComponent implements OnInit {
   data: DoctorDashboardSummary | null = null;
   error: string | null = null;
+  pieBackground = 'conic-gradient(#334155 0% 100%)';
 
   constructor(private dash: DashboardService) {}
 
   ngOnInit(): void {
     this.dash.doctorSummary().subscribe({
-      next: (d) => (this.data = d),
+      next: (d) => {
+        this.data = d;
+        this.pieBackground = this.computePieGradient(d);
+      },
       error: () => (this.error = 'Could not load summary')
     });
+  }
+
+  get barRows(): DoctorBarRow[] {
+    const d = this.data;
+    if (!d) {
+      return [];
+    }
+    const agg = d.aggregations;
+    const rows = [
+      { label: 'Appointments today', value: d.appointments_today },
+      { label: 'Pending queue', value: d.pending_queue },
+      { label: 'Unread messages', value: agg?.unread_messages ?? 0 },
+      { label: 'Scheduled this week', value: agg?.appointments_this_week ?? 0 }
+    ];
+    const max = Math.max(...rows.map((r) => r.value), 1);
+    return rows.map((r) => ({
+      ...r,
+      pct: Math.round((r.value / max) * 100)
+    }));
+  }
+
+  private computePieGradient(d: DoctorDashboardSummary): string {
+    const agg = d.aggregations;
+    const parts: { color: string; value: number }[] = [
+      { color: '#f59e0b', value: d.appointments_today },
+      { color: '#f43f5e', value: d.pending_queue },
+      { color: '#38bdf8', value: agg?.unread_messages ?? 0 },
+      { color: '#a78bfa', value: agg?.appointments_this_week ?? 0 }
+    ];
+    const sum = parts.reduce((s, p) => s + p.value, 0);
+    if (sum <= 0) {
+      return 'conic-gradient(#334155 0% 100%)';
+    }
+    let acc = 0;
+    const stops: string[] = [];
+    for (const p of parts) {
+      const pct = (p.value / sum) * 100;
+      if (pct <= 0) {
+        continue;
+      }
+      const start = acc;
+      acc += pct;
+      stops.push(`${p.color} ${start}% ${acc}%`);
+    }
+    return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  alertIcon(sev: string): string {
+    return sev === 'warning' ? '⚠' : 'ⓘ';
   }
 }
