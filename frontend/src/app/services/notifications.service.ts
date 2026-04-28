@@ -2,8 +2,19 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiContract } from './api-contract';
-import type { ApiListResponse, NotificationPreferenceRow, NotificationRow } from './api-types';
-export type { NotificationRow, NotificationPreferenceRow } from './api-types';
+import type {
+  AdminNotificationRow,
+  AdminNotificationsSummary,
+  ApiListResponse,
+  NotificationPreferenceRow,
+  NotificationRow
+} from './api-types';
+export type {
+  NotificationRow,
+  NotificationPreferenceRow,
+  AdminNotificationRow,
+  AdminNotificationsSummary
+} from './api-types';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationsInboxService {
@@ -25,5 +36,19 @@ export class NotificationsInboxService {
     return this.http.put<{ updated: number }>(ApiContract.notifications.upsertPreferences, {
       preferences
     });
+  }
+
+  listAdminNotifications(): Observable<ApiListResponse<AdminNotificationRow, 'notifications'>> {
+    return this.http.get<ApiListResponse<AdminNotificationRow, 'notifications'>>(
+      ApiContract.admin.notifications
+    );
+  }
+
+  adminSummary(): Observable<AdminNotificationsSummary> {
+    return this.http.get<AdminNotificationsSummary>(ApiContract.admin.notificationsSummary);
+  }
+
+  retryFailedNotification(id: string): Observable<{ id: string; status: string }> {
+    return this.http.post<{ id: string; status: string }>(ApiContract.admin.notificationRetry(id), {});
   }
 }

@@ -30,6 +30,16 @@ export interface NotificationPreferenceRow {
   in_app_enabled: boolean;
 }
 
+export interface AdminNotificationRow extends NotificationRow {
+  user_id: string;
+}
+
+export interface AdminNotificationsSummary {
+  pending_count: number;
+  sent_count: number;
+  failed_count: number;
+}
+
 export type AdminLifecycleSettings = {
   new_user_window_days: number;
   inactive_window_days: number;
