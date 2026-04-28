@@ -40,7 +40,12 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
   private routeSub?: Subscription;
   private pollSub?: Subscription;
+  private rtMsgSub?: Subscription;
+  private rtStateSub?: Subscription;
+  /** When true, WebSocket is connected; polling becomes a slow safety net only. */
+  realtimeLive = false;
   private readonly pollMs = 25000;
+  private readonly pollFallbackMs = 120000;
 
   constructor(
     private messaging: MessagingService,
@@ -87,10 +92,38 @@ export class MessagesComponent implements OnInit, OnDestroy {
         this.stopPolling();
       }
     });
+
+    this.messaging.connectRealtime();
+
+    this.rtStateSub = this.messaging.connectionState$.subscribe((s) => {
+      this.realtimeLive = s === 'live';
+      const tid = this.selectedThreadId;
+      if (tid) {
+        this.startPollingThread(tid);
+      }
+    });
+
+    this.rtMsgSub = this.messaging.newChatMessage$.subscribe((evt) => {
+      this.loadThreads();
+      if (evt.thread_id !== this.selectedThreadId || !evt.message) {
+        return;
+      }
+      const m = evt.message;
+      if (this.messages.some((x) => x.id === m.id)) {
+        return;
+      }
+      this.messages = [...this.messages, m].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      this.scrollChatToEnd();
+      this.messaging.markThreadRead(evt.thread_id).subscribe(() => this.loadThreads());
+    });
   }
 
   ngOnDestroy(): void {
     this.routeSub?.unsubscribe();
+    this.rtMsgSub?.unsubscribe();
+    this.rtStateSub?.unsubscribe();
     this.stopPolling();
   }
 
@@ -130,7 +163,8 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
   private startPollingThread(threadId: string): void {
     this.stopPolling();
-    this.pollSub = timer(this.pollMs, this.pollMs)
+    const interval = this.realtimeLive ? this.pollFallbackMs : this.pollMs;
+    this.pollSub = timer(interval, interval)
       .pipe(switchMap(() => this.messaging.listMessages(threadId)))
       .subscribe({
         next: (list) => {

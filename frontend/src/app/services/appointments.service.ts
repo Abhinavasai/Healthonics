@@ -27,6 +27,17 @@ export interface DoctorListResponse {
   doctors: DoctorOption[];
 }
 
+/** Aligns with backend PR-23: internal vs patient_visible appointment comments. */
+export type CommentVisibility = 'internal' | 'patient_visible';
+
+export interface AppointmentComment {
+  id: string;
+  author_user_id: string;
+  body: string;
+  created_at: string;
+  visibility?: CommentVisibility;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsService {
   constructor(private http: HttpClient) {}
@@ -51,14 +62,23 @@ export class AppointmentsService {
     return this.http.get<DoctorListResponse>(ApiContract.geoBooking.doctors);
   }
 
-  listComments(appointmentId: string): Observable<{ comments: { id: string; author_user_id: string; body: string; created_at: string }[] }> {
-    return this.http.get<{ comments: { id: string; author_user_id: string; body: string; created_at: string }[] }>(
-      ApiContract.appointments.comments(appointmentId)
-    );
+  listComments(appointmentId: string): Observable<{ comments: AppointmentComment[] }> {
+    return this.http.get<{ comments: AppointmentComment[] }>(ApiContract.appointments.comments(appointmentId));
   }
 
-  postComment(appointmentId: string, body: string): Observable<{ id: string }> {
-    return this.http.post<{ id: string }>(ApiContract.appointments.comments(appointmentId), { body });
+  postComment(
+    appointmentId: string,
+    body: string,
+    visibility?: CommentVisibility
+  ): Observable<{ id: string; visibility?: CommentVisibility }> {
+    const payload: { body: string; visibility?: CommentVisibility } = { body };
+    if (visibility !== undefined) {
+      payload.visibility = visibility;
+    }
+    return this.http.post<{ id: string; visibility?: CommentVisibility }>(
+      ApiContract.appointments.comments(appointmentId),
+      payload
+    );
   }
 
   updateStatus(id: string, status: string): Observable<Appointment> {
