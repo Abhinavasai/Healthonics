@@ -24,6 +24,13 @@ describe('NotificationsInboxComponent', () => {
           email_enabled: true,
           sms_enabled: false,
           in_app_enabled: true
+        },
+        {
+          category: 'announcements',
+          enabled: true,
+          email_enabled: true,
+          sms_enabled: false,
+          in_app_enabled: true
         }
       ]
     });
@@ -46,6 +53,40 @@ describe('NotificationsInboxComponent', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelectorAll('[data-cy="notification-pref-row"]')
         .length
-    ).toBe(1);
+    ).toBe(2);
+  });
+
+  it('supports bulk disable all controls', () => {
+    (
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-cy="pref-bulk-disable-all"]'
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.preferences.every((p) => !p.enabled)).toBeTrue();
+    expect(fixture.componentInstance.preferences.every((p) => !p.email_enabled)).toBeTrue();
+    expect(fixture.componentInstance.preferences.every((p) => !p.sms_enabled)).toBeTrue();
+    expect(fixture.componentInstance.preferences.every((p) => !p.in_app_enabled)).toBeTrue();
+  });
+
+  it('saves updated preferences payload', () => {
+    (
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-cy="pref-bulk-sms-on"]'
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    (
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-cy="notification-pref-save"]'
+      ) as HTMLButtonElement
+    ).click();
+
+    const req = httpMock.expectOne('/api/notifications/preferences');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body.preferences.length).toBe(2);
+    expect(req.request.body.preferences.every((p: { sms_enabled: boolean }) => p.sms_enabled)).toBeTrue();
+    req.flush({ updated: 2 });
   });
 });

@@ -18,21 +18,70 @@ import {
 
       <section class="prefs" data-cy="notification-preferences">
         <h2>Preferences</h2>
-        <p class="muted">Choose how you receive reminders and alerts.</p>
-        <div class="prefs-table" *ngIf="preferences.length; else prefsFallback">
-          <div class="prefs-head">
-            <span>Category</span>
-            <span>Enabled</span>
-            <span>Email</span>
-            <span>SMS</span>
-            <span>In-app</span>
-          </div>
-          <div class="prefs-row" *ngFor="let p of preferences; let i = index" data-cy="notification-pref-row">
-            <span>{{ labelFor(p.category) }}</span>
-            <input type="checkbox" [checked]="p.enabled" (change)="toggle(i, 'enabled', $event)" />
-            <input type="checkbox" [checked]="p.email_enabled" (change)="toggle(i, 'email_enabled', $event)" />
-            <input type="checkbox" [checked]="p.sms_enabled" (change)="toggle(i, 'sms_enabled', $event)" />
-            <input type="checkbox" [checked]="p.in_app_enabled" (change)="toggle(i, 'in_app_enabled', $event)" />
+        <p class="muted">Choose delivery channels per category and per item.</p>
+
+        <div class="prefs-toolbar" *ngIf="preferences.length">
+          <span class="muted">Bulk channel controls:</span>
+          <button type="button" class="ghost" (click)="setAll('email_enabled', true)" data-cy="pref-bulk-email-on">
+            Email all
+          </button>
+          <button type="button" class="ghost" (click)="setAll('sms_enabled', true)" data-cy="pref-bulk-sms-on">
+            SMS all
+          </button>
+          <button type="button" class="ghost" (click)="setAll('in_app_enabled', true)" data-cy="pref-bulk-inapp-on">
+            In-app all
+          </button>
+          <button type="button" class="ghost" (click)="setAll('enabled', false)" data-cy="pref-bulk-disable-all">
+            Disable all
+          </button>
+        </div>
+
+        <div class="prefs-cards" *ngIf="preferences.length; else prefsFallback">
+          <div class="pref-card" *ngFor="let p of preferences; let i = index" data-cy="notification-pref-row">
+            <div class="pref-head">
+              <strong>{{ labelFor(p.category) }}</strong>
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  [checked]="p.enabled"
+                  (change)="setCategoryEnabled(i, $event)"
+                  data-cy="pref-category-enabled"
+                />
+                <span>{{ p.enabled ? 'Enabled' : 'Disabled' }}</span>
+              </label>
+            </div>
+            <div class="pref-items">
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  [checked]="p.email_enabled"
+                  [disabled]="!p.enabled"
+                  (change)="setChannel(i, 'email_enabled', $event)"
+                  data-cy="pref-item-email"
+                />
+                <span>Email</span>
+              </label>
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  [checked]="p.sms_enabled"
+                  [disabled]="!p.enabled"
+                  (change)="setChannel(i, 'sms_enabled', $event)"
+                  data-cy="pref-item-sms"
+                />
+                <span>SMS</span>
+              </label>
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  [checked]="p.in_app_enabled"
+                  [disabled]="!p.enabled"
+                  (change)="setChannel(i, 'in_app_enabled', $event)"
+                  data-cy="pref-item-inapp"
+                />
+                <span>In-app</span>
+              </label>
+            </div>
           </div>
         </div>
         <ng-template #prefsFallback>
@@ -73,19 +122,47 @@ import {
       .muted {
         color: #6b7280;
       }
-      .prefs-table {
-        display: grid;
-        gap: 0.5rem;
-      }
-      .prefs-head,
-      .prefs-row {
-        display: grid;
-        grid-template-columns: 2fr repeat(4, minmax(64px, 0.5fr));
+      .prefs-toolbar {
+        display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.5rem;
+        margin-bottom: 0.6rem;
       }
-      .prefs-head {
-        font-weight: 600;
+      .prefs-cards {
+        display: grid;
+        gap: 0.5rem;
+      }
+      .pref-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.6rem;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .pref-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .pref-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .ghost {
+        margin-top: 0;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        cursor: pointer;
       }
       button {
         margin-top: 0.75rem;
@@ -94,6 +171,13 @@ import {
   ]
 })
 export class NotificationsInboxComponent implements OnInit {
+  readonly categoryOrder = [
+    'appointment_reminders',
+    'medication_reminders',
+    'lab_result_alerts',
+    'announcements'
+  ];
+
   rows: NotificationRow[] = [];
   preferences: NotificationPreferenceRow[] = [];
   error: string | null = null;
@@ -112,10 +196,24 @@ export class NotificationsInboxComponent implements OnInit {
 
   private loadPreferences(): void {
     this.api.listPreferences().subscribe({
-      next: (res) => (this.preferences = res.preferences ?? []),
+      next: (res) => {
+        this.preferences = this.sortPreferences(res.preferences ?? []);
+      },
       error: () => {
         this.preferences = [];
       }
+    });
+  }
+
+  private sortPreferences(rows: NotificationPreferenceRow[]): NotificationPreferenceRow[] {
+    const rank = new Map(this.categoryOrder.map((v, i) => [v, i]));
+    return [...rows].sort((a, b) => {
+      const aRank = rank.get(a.category) ?? Number.MAX_SAFE_INTEGER;
+      const bRank = rank.get(b.category) ?? Number.MAX_SAFE_INTEGER;
+      if (aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return a.category.localeCompare(b.category);
     });
   }
 
@@ -134,16 +232,63 @@ export class NotificationsInboxComponent implements OnInit {
     }
   }
 
-  toggle(
-    index: number,
-    key: 'enabled' | 'email_enabled' | 'sms_enabled' | 'in_app_enabled',
-    event: Event
-  ): void {
+  setCategoryEnabled(index: number, event: Event): void {
     const input = event.target as HTMLInputElement | null;
     if (!input || !this.preferences[index]) {
       return;
     }
-    this.preferences[index] = { ...this.preferences[index], [key]: input.checked };
+    const nextEnabled = input.checked;
+    const current = this.preferences[index];
+    this.preferences[index] = nextEnabled
+      ? { ...current, enabled: true }
+      : {
+          ...current,
+          enabled: false,
+          email_enabled: false,
+          sms_enabled: false,
+          in_app_enabled: false
+        };
+    this.prefsSaved = null;
+  }
+
+  setChannel(index: number, key: 'email_enabled' | 'sms_enabled' | 'in_app_enabled', event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input || !this.preferences[index]) {
+      return;
+    }
+    const next = { ...this.preferences[index], [key]: input.checked };
+    next.enabled = Boolean(next.email_enabled || next.sms_enabled || next.in_app_enabled);
+    this.preferences[index] = next;
+    this.prefsSaved = null;
+  }
+
+  setAll(
+    key: 'enabled' | 'email_enabled' | 'sms_enabled' | 'in_app_enabled',
+    value: boolean
+  ): void {
+    this.preferences = this.preferences.map((p) => {
+      if (key === 'enabled') {
+        if (value) {
+          return {
+            ...p,
+            enabled: true,
+            email_enabled: true,
+            sms_enabled: true,
+            in_app_enabled: true
+          };
+        }
+        return {
+          ...p,
+          enabled: false,
+          email_enabled: false,
+          sms_enabled: false,
+          in_app_enabled: false
+        };
+      }
+      const next = { ...p, enabled: true, [key]: value };
+      next.enabled = Boolean(next.email_enabled || next.sms_enabled || next.in_app_enabled);
+      return next;
+    });
     this.prefsSaved = null;
   }
 
