@@ -1,0 +1,64 @@
+<section data-cy="admin-notifications-page" class="ops-page">
+  <header>
+    <h1>Notification operations</h1>
+    <p>Delivery status, retries, and provider health overview.</p>
+  </header>
+
+  <p *ngIf="loading">Loading notification operations...</p>
+  <p *ngIf="!loading && error" class="err">{{ error }}</p>
+
+  <div class="summary-grid" *ngIf="!loading && summary">
+    <article><span>Pending</span><strong>{{ summary.pending_count }}</strong></article>
+    <article><span>Sent</span><strong>{{ summary.sent_count }}</strong></article>
+    <article><span>Failed</span><strong class="bad">{{ summary.failed_count }}</strong></article>
+  </div>
+
+  <section class="provider-cards" *ngIf="!loading && rows.length" data-cy="provider-health-cards">
+    <article *ngFor="let p of providerCards">
+      <h3>{{ p.name }}</h3>
+      <p>Status: <strong [class.bad]="p.health !== 'healthy'">{{ p.health }}</strong></p>
+      <p>Sent: {{ p.sent }}</p>
+      <p>Pending: {{ p.pending }}</p>
+      <p>Failed: {{ p.failed }}</p>
+    </article>
+  </section>
+
+  <table *ngIf="!loading && rows.length" data-cy="admin-notifications-table">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>User</th>
+        <th>Title</th>
+        <th>Channel</th>
+        <th>Status</th>
+        <th>Scheduled</th>
+        <th>Body</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of rows" data-cy="admin-notifications-row">
+        <td>{{ r.created_at }}</td>
+        <td>{{ r.user_id }}</td>
+        <td>{{ r.title }}</td>
+        <td>{{ r.channel }}</td>
+        <td>{{ r.status }}</td>
+        <td>{{ r.scheduled_for || '—' }}</td>
+        <td>{{ r.body }}</td>
+        <td>
+          <button
+            *ngIf="r.status === 'failed'"
+            (click)="retry(r)"
+            [disabled]="retryingId === r.id"
+            data-cy="retry-failed-notification"
+          >
+            {{ retryingId === r.id ? 'Retrying...' : 'Retry' }}
+          </button>
+          <span *ngIf="r.status !== 'failed'">—</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="!loading && !error && !rows.length" data-cy="admin-notifications-empty">No notifications yet.</p>
+</section>
