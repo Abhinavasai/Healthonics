@@ -13,10 +13,12 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type MessagingHandler struct{}
+type MessagingHandler struct {
+	hub *MessagingHub
+}
 
-func NewMessagingHandler() *MessagingHandler {
-	return &MessagingHandler{}
+func NewMessagingHandler(hub *MessagingHub) *MessagingHandler {
+	return &MessagingHandler{hub: hub}
 }
 
 const maxMessageRunes = 8000
@@ -249,6 +251,10 @@ func (h *MessagingHandler) SendMessage(c *gin.Context) {
 		WHERE id = $1
 	`, threadID, msg.CreatedAt, previewText(body))
 
+	if h.hub != nil {
+		h.hub.NotifyNewMessage(ctx, threadID, msg)
+	}
+
 	c.JSON(http.StatusCreated, msg)
 }
 
@@ -373,6 +379,19 @@ func (h *MessagingHandler) CreateThread(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load thread"})
 		return
+	}
+
+	if h.hub != nil {
+		var msg chatMessageRow
+		if qerr := db.Pool.QueryRow(ctx, `
+			SELECT id, thread_id, sender_id, body, created_at
+			FROM messages
+			WHERE thread_id = $1
+			ORDER BY created_at DESC
+			LIMIT 1
+		`, threadID).Scan(&msg.ID, &msg.ThreadID, &msg.SenderID, &msg.Body, &msg.CreatedAt); qerr == nil {
+			h.hub.NotifyNewMessage(ctx, threadID, msg)
+		}
 	}
 
 	c.JSON(http.StatusCreated, row)

@@ -41,7 +41,9 @@ func main() {
 	apptComments := handlers.NewAppointmentCommentsHandler()
 	documents := handlers.NewDocumentsHandler()
 	doctorDocuments := handlers.NewDoctorDocumentsHandler()
-	messaging := handlers.NewMessagingHandler()
+	msgHub := handlers.NewMessagingHub()
+	go msgHub.Run()
+	messaging := handlers.NewMessagingHandler(msgHub)
 	prescriptions := handlers.NewPrescriptionsHandler()
 	notifications := handlers.NewNotificationsHandler()
 	geo := handlers.NewGeoBookingHandler()
@@ -146,6 +148,7 @@ func main() {
 			msg.POST("/threads/:threadId/messages", messaging.SendMessage)
 			msg.POST("/threads/:threadId/read", messaging.MarkRead)
 		}
+		api.GET("/messages/ws", messaging.ServeWebSocket(auth))
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
