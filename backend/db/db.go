@@ -26,6 +26,9 @@ func Migrate(ctx context.Context) error {
 			role       TEXT NOT NULL CHECK (role IN ('patient', 'doctor', 'admin')),
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		);
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS deactivated_by UUID REFERENCES users(id) ON DELETE SET NULL;
 
 		CREATE TABLE IF NOT EXISTS admin_user_lifecycle_settings (
 			id                     BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
