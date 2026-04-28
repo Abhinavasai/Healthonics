@@ -117,6 +117,28 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/notifications/preferences:
+    get:
+      tags: [Notifications]
+      summary: Get notification preferences for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notification preferences
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Notifications]
+      summary: Update notification preferences for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Preferences updated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/patient/dashboard/summary:
     get:
       tags: [Dashboard]
@@ -205,6 +227,108 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/user-lifecycle/settings-kpis:
+    get:
+      tags: [Admin]
+      summary: Get admin user lifecycle settings and KPI snapshot
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lifecycle settings and KPIs
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/user-lifecycle/settings:
+    put:
+      tags: [Admin]
+      summary: Update admin user lifecycle settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lifecycle settings updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/ai/observability:
+    get:
+      tags: [Admin]
+      summary: Get AI runtime settings, observability, and runtime health
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI observability snapshot
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/ai/settings:
+    put:
+      tags: [Admin]
+      summary: Update AI runtime settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI runtime settings updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/ai/eval:
+    post:
+      tags: [Admin]
+      summary: Run AI evaluation baseline
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI eval result
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/notifications:
+    get:
+      tags: [Admin]
+      summary: List admin notifications log
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin notification list
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/notifications/summary:
+    get:
+      tags: [Admin]
+      summary: Get admin notifications summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin notification summary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/notifications/{id}/retry:
+    post:
+      tags: [Admin]
+      summary: Retry failed notification by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Retry accepted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/admin/knowledge-docs:
     get:
       tags: [Admin]
@@ -234,6 +358,72 @@ paths:
       responses:
         "200":
           description: Knowledge doc details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Admin]
+      summary: Patch knowledge doc title/body/review interval
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Knowledge doc updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/knowledge-docs/similarity-scan:
+    get:
+      tags: [Admin]
+      summary: Scan knowledge docs for similarity/conflict candidates
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Similarity scan result
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/knowledge-docs/{id}/embeddings:
+    post:
+      tags: [Admin]
+      summary: Upsert embeddings for a knowledge document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Embeddings updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/knowledge-docs/{id}/versions:
+    get:
+      tags: [Admin]
+      summary: List knowledge document versions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Version history
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/knowledge-docs/{id}/review:
+    post:
+      tags: [Admin]
+      summary: Mark knowledge document as reviewed
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Review timestamp updated
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -587,6 +777,39 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/prescriptions/{id}/pdf:
+    get:
+      tags: [Prescriptions]
+      summary: Download prescription PDF
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Prescription PDF stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/prescriptions/{id}:
+    put:
+      tags: [Prescriptions]
+      summary: Update prescription fields
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Prescription updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/messages/unread:
     get:
       tags: [Messaging]
@@ -650,6 +873,22 @@ paths:
       responses:
         "200":
           description: Thread marked read
+
+  /api/messages/ws:
+    get:
+      tags: [Messaging]
+      summary: Open WebSocket messaging stream
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "101":
+          description: WebSocket upgraded
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
 components:
   securitySchemes:
