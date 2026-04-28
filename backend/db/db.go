@@ -141,6 +141,19 @@ func Migrate(ctx context.Context) error {
 			SELECT 1 FROM knowledge_doc_versions v WHERE v.document_id = d.id AND v.version = 1
 		);
 
+		CREATE TABLE IF NOT EXISTS knowledge_doc_chunks (
+			id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			document_id  UUID NOT NULL REFERENCES knowledge_docs(id) ON DELETE CASCADE,
+			chunk_index  INTEGER NOT NULL CHECK (chunk_index >= 0),
+			body         TEXT NOT NULL,
+			embedding    JSONB NOT NULL,
+			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(document_id, chunk_index),
+			CONSTRAINT knowledge_doc_chunks_embedding_is_array CHECK (jsonb_typeof(embedding) = 'array')
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_knowledge_doc_chunks_doc ON knowledge_doc_chunks(document_id);
+
 		CREATE TABLE IF NOT EXISTS doctor_slots (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			doctor_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
