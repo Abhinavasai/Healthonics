@@ -7,6 +7,37 @@
   <p *ngIf="loading">Loading AI controls...</p>
   <p *ngIf="!loading && error" class="err">{{ error }}</p>
   <p *ngIf="!loading && success" class="ok">{{ success }}</p>
+  <p *ngIf="!loading && runtimeIssue" class="warn">{{ runtimeIssue }}</p>
+
+  <section class="runtime-health" *ngIf="!loading && runtime" data-cy="ai-runtime-health">
+    <h2>Runtime health</h2>
+    <div class="runtime-grid">
+      <article>
+        <span>Global AI enabled</span>
+        <strong [class.bad]="!runtime.ai_enabled">{{ runtime.ai_enabled ? 'Yes' : 'No' }}</strong>
+      </article>
+      <article>
+        <span>Ollama reachable</span>
+        <strong [class.bad]="!runtime.ollama_reachable">{{ runtime.ollama_reachable ? 'Yes' : 'No' }}</strong>
+      </article>
+      <article>
+        <span>Model available</span>
+        <strong [class.bad]="!runtime.model_available">{{ runtime.model_available ? 'Yes' : 'No' }}</strong>
+      </article>
+      <article>
+        <span>Active mode</span>
+        <strong>{{ runtime.active_mode }}</strong>
+      </article>
+      <article>
+        <span>Configured model</span>
+        <strong>{{ runtime.configured_model }}</strong>
+      </article>
+      <article>
+        <span>Ollama host</span>
+        <strong>{{ runtime.ollama_host }}</strong>
+      </article>
+    </div>
+  </section>
 
   <div class="metrics" *ngIf="!loading && obs">
     <article><span>Queued jobs (24h)</span><strong>{{ obs.queued_jobs_24h }}</strong></article>

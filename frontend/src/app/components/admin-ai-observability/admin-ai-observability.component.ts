@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   AdminAiObservability,
+  AdminAiObservabilityResponse,
   AdminAiRuntimeService,
   AdminAiRuntimeSettings
 } from '../../services/admin-ai-runtime.service';
@@ -22,6 +23,7 @@ export class AdminAiObservabilityComponent implements OnInit {
   success: string | null = null;
   settings: AdminAiRuntimeSettings | null = null;
   obs: AdminAiObservability | null = null;
+  runtime: AdminAiObservabilityResponse['runtime'] | null = null;
   evalResult: { model_name: string; samples_evaluated: number; success_rate: number; quality_score: number } | null =
     null;
 
@@ -41,6 +43,22 @@ export class AdminAiObservabilityComponent implements OnInit {
     this.load();
   }
 
+  get runtimeIssue(): string | null {
+    if (!this.runtime) {
+      return null;
+    }
+    if (!this.runtime.ai_enabled) {
+      return 'Global AI is disabled by backend config (AI_ENABLED=false).';
+    }
+    if (!this.runtime.ollama_reachable) {
+      return 'Ollama server is not reachable from backend.';
+    }
+    if (!this.runtime.model_available) {
+      return `Configured model "${this.runtime.configured_model}" is not available in Ollama tags.`;
+    }
+    return null;
+  }
+
   load(): void {
     this.loading = true;
     this.error = null;
@@ -48,6 +66,7 @@ export class AdminAiObservabilityComponent implements OnInit {
       next: (res) => {
         this.settings = res.settings;
         this.obs = res.observability;
+        this.runtime = res.runtime ?? null;
         this.form = {
           ollama_enabled: res.settings.ollama_enabled,
           fallback_enabled: res.settings.fallback_enabled,
@@ -80,6 +99,7 @@ export class AdminAiObservabilityComponent implements OnInit {
         next: (res) => {
           this.settings = res.settings;
           this.obs = res.observability;
+          this.runtime = res.runtime ?? null;
           this.success = 'AI runtime settings updated.';
           this.saving = false;
         },
@@ -96,6 +116,7 @@ export class AdminAiObservabilityComponent implements OnInit {
     this.api.runEval().subscribe({
       next: (res) => {
         this.evalResult = res.eval;
+        this.runtime = res.runtime ?? this.runtime;
         this.runningEval = false;
       },
       error: () => {

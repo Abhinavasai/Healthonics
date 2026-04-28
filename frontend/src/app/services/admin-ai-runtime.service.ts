@@ -28,6 +28,14 @@ export type AdminAiObservability = {
 export type AdminAiObservabilityResponse = {
   settings: AdminAiRuntimeSettings;
   observability: AdminAiObservability;
+  runtime?: {
+    ai_enabled: boolean;
+    ollama_host: string;
+    configured_model: string;
+    ollama_reachable: boolean;
+    model_available: boolean;
+    active_mode: string;
+  };
 };
 
 export type AdminAiEvalResponse = {
@@ -36,6 +44,14 @@ export type AdminAiEvalResponse = {
     samples_evaluated: number;
     success_rate: number;
     quality_score: number;
+  };
+  runtime?: {
+    ai_enabled: boolean;
+    ollama_host: string;
+    configured_model: string;
+    ollama_reachable: boolean;
+    model_available: boolean;
+    active_mode: string;
   };
 };
 
