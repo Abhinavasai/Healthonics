@@ -120,9 +120,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	var id uuid.UUID
 	var passwordHash, role string
+	var isActive bool
 	err := db.Pool.QueryRow(c.Request.Context(),
-		`SELECT id, password_hash, role FROM users WHERE email = $1`, req.Email,
-	).Scan(&id, &passwordHash, &role)
+		`SELECT id, password_hash, role, is_active FROM users WHERE email = $1`, req.Email,
+	).Scan(&id, &passwordHash, &role, &isActive)
 
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
@@ -131,6 +132,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+	if !isActive {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account is deactivated"})
 		return
 	}
 
