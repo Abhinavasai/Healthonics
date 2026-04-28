@@ -1,108 +1,267 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-
-interface KnowledgeRow {
-  id: string;
-  title: string;
-  excerpt: string;
-  created_at: string;
-  updated_at: string;
-}
+import { finalize } from 'rxjs';
+import {
+  KnowledgeAdminService,
+  KnowledgeDetail,
+  KnowledgeListDocument,
+  SimilarityPair
+} from '../../services/knowledge-admin.service';
 
 @Component({
   selector: 'app-admin-knowledge',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  template: `
-    <section data-cy="admin-knowledge-page">
-      <h1>Knowledge base</h1>
-      <p *ngIf="error" class="err">{{ error }}</p>
-      <form class="form" (ngSubmit)="create()">
-        <h2>New document</h2>
-        <label>Title <input [(ngModel)]="title" name="kt" required data-cy="knowledge-title" /></label>
-        <label>Body <textarea [(ngModel)]="body" name="kb" rows="4" required data-cy="knowledge-body"></textarea></label>
-        <button type="submit" [disabled]="saving || !title.trim() || !body.trim()" data-cy="knowledge-save">Save</button>
-      </form>
-      <h2>Documents</h2>
-      <ul *ngIf="docs.length" data-cy="knowledge-doc-list">
-        <li *ngFor="let d of docs" data-cy="knowledge-doc-row">{{ d.title }}</li>
-      </ul>
-      <p *ngIf="!error && !docs.length" data-cy="knowledge-empty">No documents yet.</p>
-    </section>
-  `,
-  styles: [
-    `
-      .form {
-        display: grid;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        max-width: 520px;
-      }
-      label {
-        display: grid;
-        gap: 0.25rem;
-      }
-      input,
-      textarea {
-        background: #0b1220;
-        color: #e5e7eb;
-        border: 1px solid #334155;
-        border-radius: 8px;
-        padding: 0.45rem;
-      }
-      button {
-        width: fit-content;
-        padding: 0.45rem 0.75rem;
-        border-radius: 8px;
-        border: 1px solid #22d3ee;
-        background: #0f172a;
-        color: #22d3ee;
-        cursor: pointer;
-      }
-      .err {
-        color: #f87171;
-      }
-    `
-  ]
+  templateUrl: './admin-knowledge.component.html',
+  styleUrl: './admin-knowledge.component.scss'
 })
 export class AdminKnowledgeComponent implements OnInit {
-  docs: KnowledgeRow[] = [];
+  docs: KnowledgeListDocument[] = [];
   title = '';
   body = '';
+  reviewIntervalDays: number | null = null;
   saving = false;
+  loading = false;
   error: string | null = null;
 
-  constructor(private http: HttpClient) {}
+  selectedId: string | null = null;
+  detail: KnowledgeDetail | null = null;
+  detailLoading = false;
+  patchTitle = '';
+  patchBody = '';
+  patchReviewDays: number | null = null;
+  patching = false;
+  reviewing = false;
+
+  versionsOpen = false;
+  versions: { version: number; excerpt: string; created_at: string }[] = [];
+  versionsLoading = false;
+
+  scanThreshold = 0.85;
+  scanLoading = false;
+  scanPairs: SimilarityPair[] = [];
+  scanMeta: { chunks_scanned: number; threshold: number } | null = null;
+
+  constructor(private kb: KnowledgeAdminService) {}
 
   ngOnInit(): void {
     this.reload();
   }
 
+  get analytics(): {
+    total: number;
+    stale: number;
+    avgHealth: number | null;
+    needsAttention: number;
+  } {
+    const d = this.docs;
+    const withHealth = d.filter((x) => x.health_score != null);
+    const stale = d.filter((x) => x.is_stale).length;
+    const avg =
+      withHealth.length > 0
+        ? Math.round(
+            withHealth.reduce((s, x) => s + (x.health_score ?? 0), 0) / withHealth.length
+          )
+        : null;
+    const needsAttention = d.filter(
+      (x) => (x.health_score ?? 100) < 70 || x.is_stale
+    ).length;
+    return { total: d.length, stale, avgHealth: avg, needsAttention };
+  }
+
   reload(): void {
-    this.http.get<{ documents: KnowledgeRow[] }>('/api/admin/knowledge-docs').subscribe({
-      next: (r) => (this.docs = r.documents ?? []),
-      error: () => (this.error = 'Could not load documents')
-    });
+    this.loading = true;
+    this.error = null;
+    this.kb
+      .listDocs()
+      .pipe(finalize(() => (this.loading = false)))
+      .subscribe({
+        next: (r) => (this.docs = r.documents ?? []),
+        error: () => (this.error = 'Could not load documents')
+      });
   }
 
   create(): void {
     this.saving = true;
     this.error = null;
-    this.http
-      .post('/api/admin/knowledge-docs', { title: this.title.trim(), body: this.body.trim() })
-      .subscribe({
-        next: () => {
-          this.title = '';
-          this.body = '';
-          this.saving = false;
-          this.reload();
-        },
-        error: (err) => {
-          this.saving = false;
-          this.error = err?.error?.error ?? 'Save failed';
+    const payload: { title: string; body: string; review_interval_days?: number } = {
+      title: this.title.trim(),
+      body: this.body.trim()
+    };
+    if (this.reviewIntervalDays != null && this.reviewIntervalDays >= 1 && this.reviewIntervalDays <= 3650) {
+      payload.review_interval_days = this.reviewIntervalDays;
+    }
+    this.kb.createDoc(payload).subscribe({
+      next: () => {
+        this.title = '';
+        this.body = '';
+        this.reviewIntervalDays = null;
+        this.saving = false;
+        this.reload();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.error = err?.error?.error ?? 'Save failed';
+      }
+    });
+  }
+
+  selectDoc(doc: KnowledgeListDocument): void {
+    if (this.selectedId === doc.id) {
+      this.clearSelection();
+      return;
+    }
+    this.selectedId = doc.id;
+    this.detail = null;
+    this.versions = [];
+    this.versionsOpen = false;
+    this.detailLoading = true;
+    this.kb.getDoc(doc.id).subscribe({
+      next: (d) => {
+        this.detail = d;
+        this.patchTitle = d.title;
+        this.patchBody = d.body;
+        this.patchReviewDays = d.review_interval_days;
+        this.detailLoading = false;
+      },
+      error: () => {
+        this.detailLoading = false;
+        this.error = 'Could not load document';
+      }
+    });
+  }
+
+  clearSelection(): void {
+    this.selectedId = null;
+    this.detail = null;
+    this.versions = [];
+    this.versionsOpen = false;
+  }
+
+  savePatch(): void {
+    if (!this.selectedId || !this.detail) {
+      return;
+    }
+    this.patching = true;
+    this.error = null;
+    const payload: Partial<{ title: string; body: string; review_interval_days: number }> = {};
+    const t = this.patchTitle.trim();
+    const b = this.patchBody.trim();
+    if (t && t !== this.detail.title) {
+      payload.title = t;
+    }
+    if (b && b !== this.detail.body) {
+      payload.body = b;
+    }
+    const rd = this.patchReviewDays;
+    if (rd != null && rd >= 1 && rd <= 3650 && rd !== this.detail.review_interval_days) {
+      payload.review_interval_days = rd;
+    }
+    if (Object.keys(payload).length === 0) {
+      this.patching = false;
+      return;
+    }
+    this.kb.patchDoc(this.selectedId, payload).subscribe({
+      next: () => {
+        this.patching = false;
+        this.reload();
+        this.kb.getDoc(this.selectedId!).subscribe((d) => {
+          this.detail = d;
+        });
+      },
+      error: (err) => {
+        this.patching = false;
+        this.error = err?.error?.error ?? 'Update failed';
+      }
+    });
+  }
+
+  review(): void {
+    if (!this.selectedId) {
+      return;
+    }
+    this.reviewing = true;
+    this.kb.markReviewed(this.selectedId).subscribe({
+      next: () => {
+        this.reviewing = false;
+        this.reload();
+        if (this.selectedId) {
+          this.kb.getDoc(this.selectedId).subscribe((d) => (this.detail = d));
         }
-      });
+      },
+      error: (err) => {
+        this.reviewing = false;
+        this.error = err?.error?.error ?? 'Review failed';
+      }
+    });
+  }
+
+  toggleVersions(): void {
+    if (!this.selectedId) {
+      return;
+    }
+    this.versionsOpen = !this.versionsOpen;
+    if (!this.versionsOpen || this.versions.length) {
+      return;
+    }
+    this.versionsLoading = true;
+    this.kb.listVersions(this.selectedId).subscribe({
+      next: (r) => {
+        this.versions = (r.versions ?? []).map((v) => ({
+          version: v.version,
+          excerpt: v.excerpt,
+          created_at: v.created_at
+        }));
+        this.versionsLoading = false;
+      },
+      error: () => {
+        this.versionsLoading = false;
+        this.error = 'Could not load versions';
+      }
+    });
+  }
+
+  runSimilarityScan(): void {
+    this.scanLoading = true;
+    this.scanPairs = [];
+    this.scanMeta = null;
+    this.kb.similarityScan(this.scanThreshold, 1200).subscribe({
+      next: (r) => {
+        this.scanPairs = r.pairs ?? [];
+        this.scanMeta = {
+          chunks_scanned: r.chunks_scanned,
+          threshold: r.threshold
+        };
+        this.scanLoading = false;
+      },
+      error: () => {
+        this.scanLoading = false;
+        this.error = 'Similarity scan failed (ensure embeddings are uploaded for KB chunks).';
+      }
+    });
+  }
+
+  healthTone(score?: number): string {
+    if (score == null) {
+      return 'muted';
+    }
+    if (score >= 75) {
+      return 'good';
+    }
+    if (score >= 45) {
+      return 'warn';
+    }
+    return 'bad';
+  }
+
+  similarityBadgeClass(hint: string): string {
+    if (hint.includes('conflict')) {
+      return 'badge--danger';
+    }
+    if (hint.includes('duplicate')) {
+      return 'badge--purple';
+    }
+    return 'badge--info';
   }
 }

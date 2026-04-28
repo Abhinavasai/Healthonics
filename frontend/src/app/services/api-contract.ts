@@ -69,7 +69,11 @@ export const ApiContract = {
   admin: {
     auditLog: `${API}/admin/audit-log`,
     knowledgeDocs: `${API}/admin/knowledge-docs`,
-    knowledgeDocById: (id: string): string => `${API}/admin/knowledge-docs/${id}`
+    knowledgeSimilarityScan: `${API}/admin/knowledge-docs/similarity-scan`,
+    knowledgeDocById: (id: string): string => `${API}/admin/knowledge-docs/${id}`,
+    knowledgeDocVersions: (id: string): string => `${API}/admin/knowledge-docs/${id}/versions`,
+    knowledgeDocReview: (id: string): string => `${API}/admin/knowledge-docs/${id}/review`,
+    knowledgeDocEmbeddings: (id: string): string => `${API}/admin/knowledge-docs/${id}/embeddings`
   }
 } as const;
 
