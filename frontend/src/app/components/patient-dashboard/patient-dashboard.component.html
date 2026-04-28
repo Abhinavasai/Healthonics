@@ -1,0 +1,91 @@
+<section class="dash" data-cy="patient-dashboard">
+  <header class="dash-head">
+    <h1>Dashboard</h1>
+    <p class="dash-sub">Your care snapshot — appointments, messages, and records at a glance.</p>
+  </header>
+
+  <p *ngIf="error" class="err">{{ error }}</p>
+
+  <ng-container *ngIf="data">
+    <div class="cards" data-cy="patient-dashboard-stats">
+      <div class="card card--accent">
+        <span class="num">{{ data.upcoming_or_active_count }}</span>
+        <span class="lbl">Upcoming / active</span>
+      </div>
+      <div class="card">
+        <span class="num">{{ data.pending_requests }}</span>
+        <span class="lbl">Pending requests</span>
+      </div>
+      <ng-container *ngIf="data.aggregations as agg">
+        <div class="card">
+          <span class="num">{{ agg.unread_messages }}</span>
+          <span class="lbl">Unread messages</span>
+        </div>
+        <div class="card">
+          <span class="num">{{ agg.active_prescriptions }}</span>
+          <span class="lbl">Active prescriptions</span>
+        </div>
+        <div class="card">
+          <span class="num">{{ agg.documents_uploaded }}</span>
+          <span class="lbl">Documents</span>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="insights-grid">
+      <div class="panel chart-panel" data-cy="patient-dashboard-chart">
+        <h2>Activity balance</h2>
+        <p class="panel-hint">Relative mix of scheduled care, requests, inbox, and records.</p>
+        <div class="donut-wrap" aria-hidden="true">
+          <div class="donut-ring" [style.background]="pieBackground"></div>
+          <div class="donut-hole"></div>
+        </div>
+        <ul class="legend">
+          <li><span class="swatch swatch--up"></span> Upcoming / active</li>
+          <li><span class="swatch swatch--pend"></span> Pending requests</li>
+          <li><span class="swatch swatch--msg"></span> Unread messages</li>
+          <li><span class="swatch swatch--rxdoc"></span> Prescriptions + documents</li>
+        </ul>
+      </div>
+
+      <div class="panel bars-panel" data-cy="patient-dashboard-bars">
+        <h2>Volume comparison</h2>
+        <p class="panel-hint">Bars scale to your highest metric this period.</p>
+        <div class="bar-row" *ngFor="let row of barRows">
+          <span class="bar-label">{{ row.label }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="row.pct"></div>
+          </div>
+          <span class="bar-val">{{ row.value }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel alerts-panel" *ngIf="data.alerts?.length" data-cy="patient-dashboard-insights">
+      <h2>Insights</h2>
+      <ul class="alert-list">
+        <li
+          *ngFor="let a of data.alerts"
+          class="alert-item"
+          [class.alert-item--warning]="a.severity === 'warning'"
+          [attr.data-cy]="'patient-alert-' + a.code"
+        >
+          <span class="alert-ic" aria-hidden="true">{{ alertIcon(a.severity) }}</span>
+          <div class="alert-body">
+            <p class="alert-msg">{{ a.message }}</p>
+            <span class="alert-meta" *ngIf="a.count != null && a.count > 0">{{ a.count }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div
+      class="panel alerts-panel alerts-panel--empty"
+      *ngIf="data.alerts !== undefined && data.alerts.length === 0"
+      data-cy="patient-dashboard-insights-empty"
+    >
+      <h2>Insights</h2>
+      <p class="muted">No alerts right now — you’re all caught up.</p>
+    </div>
+  </ng-container>
+</section>
