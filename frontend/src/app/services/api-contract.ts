@@ -83,6 +83,7 @@ export const ApiContract = {
     aiEval: `${API}/admin/ai/eval`,
     notifications: `${API}/admin/notifications`,
     notificationsSummary: `${API}/admin/notifications/summary`,
+    notificationsConsentHistory: `${API}/admin/notifications/consent-history`,
     notificationRetry: (id: string): string => `${API}/admin/notifications/${id}/retry`,
     knowledgeDocs: `${API}/admin/knowledge-docs`,
     knowledgeSimilarityScan: `${API}/admin/knowledge-docs/similarity-scan`,

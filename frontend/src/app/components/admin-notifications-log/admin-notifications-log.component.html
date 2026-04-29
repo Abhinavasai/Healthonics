@@ -71,5 +71,38 @@
     </tbody>
   </table>
 
+  <section *ngIf="!loading && consentRows.length" data-cy="admin-consent-history">
+    <h2>Consent provenance ledger</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>User</th>
+          <th>Actor</th>
+          <th>Source</th>
+          <th>Policy version</th>
+          <th>Category</th>
+          <th>Change</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of consentRows">
+          <td>{{ e.created_at }}</td>
+          <td>{{ e.user_id }}</td>
+          <td>{{ e.actor_user_id }} ({{ e.actor_role }})</td>
+          <td>{{ e.actor_source }}</td>
+          <td>{{ e.policy_version }}</td>
+          <td>{{ e.category }}</td>
+          <td>
+            enabled: {{ e.prev_enabled }} → {{ e.new_enabled }},
+            email: {{ e.prev_email_enabled }} → {{ e.new_email_enabled }},
+            sms: {{ e.prev_sms_enabled }} → {{ e.new_sms_enabled }},
+            in-app: {{ e.prev_in_app_enabled }} → {{ e.new_in_app_enabled }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
   <p *ngIf="!loading && !error && !rows.length" data-cy="admin-notifications-empty">No notifications yet.</p>
 </section>
