@@ -48,6 +48,7 @@ export const ApiContract = {
   doctorDocuments: {
     base: `${API}/doctor/documents`,
     byId: (id: string): string => `${API}/doctor/documents/${id}`,
+    download: (id: string): string => `${API}/doctor/documents/${id}/download`,
     summarize: (id: string): string => `${API}/doctor/documents/${id}/summarize`
   },
   patientFiles: {

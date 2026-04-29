@@ -63,4 +63,12 @@ export class DoctorDocumentsService {
       )
       .pipe(catchError(() => of(null)));
   }
+
+  downloadBlob(documentId: string): Observable<Blob | null> {
+    return this.http
+      .get(ApiContract.doctorDocuments.download(encodeURIComponent(documentId)), {
+        responseType: 'blob'
+      })
+      .pipe(catchError(() => of(null)));
+  }
 }

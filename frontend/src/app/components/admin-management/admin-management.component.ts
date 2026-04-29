@@ -93,7 +93,7 @@ export class AdminManagementComponent implements OnInit {
 
   save(): void {
     if (!this.validGuardrail(this.settingsGuard.reason, this.settingsGuard.confirm)) {
-      this.error = 'Settings update requires a reason (min 8 chars) and CONFIRM.';
+      this.error = 'Settings update requires a reason and CONFIRM.';
       return;
     }
     this.saving = true;
@@ -184,7 +184,7 @@ export class AdminManagementComponent implements OnInit {
       return;
     }
     if (!this.validGuardrail(this.deactivateGuard.reason, this.deactivateGuard.confirm)) {
-      this.error = 'Deactivate requires a reason (min 8 chars) and CONFIRM.';
+      this.error = 'Deactivate requires a reason and CONFIRM.';
       return;
     }
     this.userBusy = true;
@@ -213,7 +213,7 @@ export class AdminManagementComponent implements OnInit {
       return;
     }
     if (!this.validGuardrail(this.resetGuard.reason, this.resetGuard.confirm)) {
-      this.error = 'Reset password requires a reason (min 8 chars) and CONFIRM.';
+      this.error = 'Reset password requires a reason and CONFIRM.';
       return;
     }
     this.userBusy = true;
@@ -258,6 +258,6 @@ export class AdminManagementComponent implements OnInit {
   }
 
   private validGuardrail(reason: string, confirm: string): boolean {
-    return reason.trim().length >= 8 && confirm.trim().toUpperCase() === 'CONFIRM';
+    return reason.trim().length >= 1 && confirm.trim().toUpperCase() === 'CONFIRM';
   }
 }

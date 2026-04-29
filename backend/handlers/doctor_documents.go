@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -171,6 +173,70 @@ func (h *DoctorDocumentsHandler) Get(c *gin.Context) {
 		out["summary_error"] = *summaryError
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+// Download GET /api/doctor/documents/:id/download
+func (h *DoctorDocumentsHandler) Download(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "doctor" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Doctor role required"})
+		return
+	}
+	docID, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document id"})
+		return
+	}
+	ctx := c.Request.Context()
+	var patientID uuid.UUID
+	var filename, contentType string
+	var sizeBytes int64
+	var bodyRaw any
+	err = db.Pool.QueryRow(ctx, `
+		SELECT patient_id, filename, content_type, size_bytes,
+		       COALESCE(NULLIF(body,''), NULLIF(file_data,'')) AS body
+		FROM patient_documents
+		WHERE id = $1
+	`, docID).Scan(&patientID, &filename, &contentType, &sizeBytes, &bodyRaw)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load document"})
+		return
+	}
+	if !h.canAccessDoc(ctx, claims.UserID, patientID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to this patient document"})
+		return
+	}
+
+	var payload []byte
+	switch v := bodyRaw.(type) {
+	case []byte:
+		payload = v
+	case string:
+		if dec, decErr := base64.StdEncoding.DecodeString(v); decErr == nil && len(dec) > 0 {
+			payload = dec
+		} else {
+			payload = []byte(v)
+		}
+	default:
+		payload = []byte{}
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if filename == "" {
+		filename = "document"
+	}
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.FormatInt(sizeBytes, 10))
+	c.Data(http.StatusOK, contentType, payload)
 }
 
 // Summarize POST /api/doctor/documents/:id/summarize — stub async: pending then ready (no external LLM).

@@ -202,7 +202,10 @@ export class DoctorAvailabilityComponent implements OnInit {
           this.loadSlots();
         },
         error: (err) => {
-          this.error = err?.error?.error ?? 'Could not create slot';
+          const raw = String(err?.error?.error ?? 'Could not create slot');
+          this.error = raw.includes('already exists')
+            ? 'A slot at this start time already exists. Choose another time.'
+            : raw;
           this.saving = false;
         }
       });

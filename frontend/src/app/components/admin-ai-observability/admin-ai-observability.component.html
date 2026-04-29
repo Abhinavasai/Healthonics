@@ -2,12 +2,16 @@
   <header>
     <h1>AI observability and controls</h1>
     <p>Manage fallback, rate-limit, cache, and model controls for document summarization.</p>
+    <button type="button" (click)="load()" [disabled]="loading">Refresh</button>
   </header>
 
   <p *ngIf="loading">Loading AI controls...</p>
   <p *ngIf="!loading && error" class="err">{{ error }}</p>
   <p *ngIf="!loading && success" class="ok">{{ success }}</p>
-  <p *ngIf="!loading && runtimeIssue" class="warn">{{ runtimeIssue }}</p>
+  <div *ngIf="!loading && runtimeIssue" class="warn-box">
+    <strong>Runtime notice</strong>
+    <p>{{ runtimeIssue }}</p>
+  </div>
 
   <section class="runtime-health" *ngIf="!loading && runtime" data-cy="ai-runtime-health">
     <h2>Runtime health</h2>
