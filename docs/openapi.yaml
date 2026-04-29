@@ -378,7 +378,7 @@ paths:
   /api/admin/ai/observability:
     get:
       tags: [Admin]
-      summary: Get AI runtime settings, observability, and runtime health
+      summary: Get AI runtime settings, observability, runtime health, and SLO telemetry
       security:
         - bearerAuth: []
       responses:

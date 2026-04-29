@@ -69,6 +69,7 @@ func main() {
 		origins = []string{"http://localhost:4200"}
 	}
 	r.Use(middleware.CORS(origins))
+	r.Use(middleware.RequestTelemetry())
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	r.HEAD("/health", func(c *gin.Context) { c.Status(http.StatusOK) })
