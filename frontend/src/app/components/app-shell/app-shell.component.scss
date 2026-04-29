@@ -315,7 +315,7 @@
   z-index: 30;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 14px;
-  background: rgba(2, 6, 23, 0.98);
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(15, 23, 42, 0.98));
   padding: 0.7rem;
 }
 
@@ -331,6 +331,15 @@
   margin: 0;
   padding: 0.4rem 0.55rem;
   border-radius: 10px;
+}
+
+.msg p {
+  margin: 0;
+}
+
+.msg small {
+  color: #94a3b8;
+  font-size: 0.72rem;
 }
 
 .msg-ai {
@@ -355,6 +364,15 @@
   background: #0b1220;
   color: #e2e8f0;
   padding: 0.45rem 0.5rem;
+}
+
+.assistant-input button {
+  border: 1px solid #22d3ee;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #22d3ee, #6366f1);
+  color: #0b1022;
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
 }
 
 /* Responsive */

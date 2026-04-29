@@ -6,6 +6,8 @@ import {
   NotificationRow
 } from '../../services/notifications.service';
 import { Subscription, timer } from 'rxjs';
+import { Router } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-notifications-inbox',
@@ -108,6 +110,9 @@ import { Subscription, timer } from 'rxjs';
           </div>
           <div class="body">{{ r.body }}</div>
           <small>{{ r.channel | titlecase }} · {{ formatTimestamp(r.created_at) }}</small>
+          <div class="notif-actions">
+            <button type="button" class="ghost" (click)="openNotification(r)">Open</button>
+          </div>
         </li>
       </ul>
       <p *ngIf="!error && !filteredRows.length" data-cy="notifications-empty">No notifications.</p>
@@ -199,6 +204,11 @@ import { Subscription, timer } from 'rxjs';
         font-size: 0.72rem;
         padding: 0.1rem 0.5rem;
       }
+      .notif-actions {
+        margin-top: 0.45rem;
+        display: flex;
+        justify-content: flex-end;
+      }
       .ghost {
         margin-top: 0;
         border: 1px solid #d1d5db;
@@ -230,7 +240,11 @@ export class NotificationsInboxComponent implements OnInit, OnDestroy {
   activeFilter: 'all' | 'pending' | 'failed' | 'sent' = 'all';
   private pollSub?: Subscription;
 
-  constructor(private api: NotificationsInboxService) {}
+  constructor(
+    private api: NotificationsInboxService,
+    private router: Router,
+    private auth: AuthService
+  ) {}
 
   ngOnInit(): void {
     this.loadPreferences();
@@ -394,5 +408,27 @@ export class NotificationsInboxComponent implements OnInit, OnDestroy {
       this.activeFilter === 'all'
         ? [...this.rows]
         : this.rows.filter((r) => (r.status || '').toLowerCase() === this.activeFilter);
+  }
+
+  openNotification(r: NotificationRow): void {
+    const role = this.auth.getUser()?.role === 'doctor' ? 'doctor' : 'patient';
+    const text = `${r.title} ${r.body}`.toLowerCase();
+    if (text.includes('appointment')) {
+      void this.router.navigate([`/${role}/appointments`]);
+      return;
+    }
+    if (text.includes('lab') || text.includes('document')) {
+      void this.router.navigate([`/${role}/documents`]);
+      return;
+    }
+    if (text.includes('medication') || text.includes('prescription')) {
+      void this.router.navigate(['/patient/prescriptions']);
+      return;
+    }
+    if (text.includes('message')) {
+      void this.router.navigate([`/${role}/messages`]);
+      return;
+    }
+    void this.router.navigate([`/${role}/dashboard`]);
   }
 }

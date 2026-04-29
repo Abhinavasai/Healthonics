@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { MessagingService } from '../../services/messaging.service';
 import { NotificationsInboxService, NotificationRow } from '../../services/notifications.service';
 import { FormsModule } from '@angular/forms';
+import { AssistantService } from '../../services/assistant.service';
 
 @Component({
   selector: 'app-shell',
@@ -22,7 +23,8 @@ export class AppShellComponent implements OnInit, OnDestroy {
   notificationPopup: NotificationRow | null = null;
   assistantOpen = false;
   assistantInput = '';
-  assistantMessages: { from: 'assistant' | 'me'; text: string }[] = [
+  assistantSending = false;
+  assistantMessages: { from: 'assistant' | 'me'; text: string; meta?: string }[] = [
     { from: 'assistant', text: 'Hi, I can help with summaries, notifications, and find-care workflows.' }
   ];
 
@@ -30,6 +32,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
     public auth: AuthService,
     public messaging: MessagingService,
     private notifications: NotificationsInboxService,
+    private assistant: AssistantService,
     private router: Router
   ) {}
 
@@ -120,21 +123,29 @@ export class AppShellComponent implements OnInit, OnDestroy {
 
   sendAssistant(): void {
     const q = this.assistantInput.trim();
-    if (!q) {
+    if (!q || this.assistantSending) {
       return;
     }
     this.assistantMessages = [...this.assistantMessages, { from: 'me', text: q }];
     this.assistantInput = '';
-    const lower = q.toLowerCase();
-    let answer = 'I can help with: document AI summary, notifications settings, and nearby hospitals.';
-    if (lower.includes('summary') || lower.includes('document')) {
-      answer = 'For AI summaries, open doctor -> Patient documents -> Open a document -> Start summary.';
-    } else if (lower.includes('notification')) {
-      answer = 'Open Notifications to configure channels and view live alerts with popups.';
-    } else if (lower.includes('find care') || lower.includes('hospital') || lower.includes('location')) {
-      answer = 'Use Find care, click "Use my location", then Hospitals nearby. You can also filter by department.';
-    }
-    this.assistantMessages = [...this.assistantMessages, { from: 'assistant', text: answer }];
+    this.assistantSending = true;
+    const context = `Role: ${this.role}. User asks from app shell care assistant.`;
+    this.assistant.chat(q, context).subscribe({
+      next: (res) => {
+        this.assistantSending = false;
+        this.assistantMessages = [
+          ...this.assistantMessages,
+          { from: 'assistant', text: res.reply, meta: `via ${res.provider}` }
+        ];
+      },
+      error: () => {
+        this.assistantSending = false;
+        this.assistantMessages = [
+          ...this.assistantMessages,
+          { from: 'assistant', text: 'Assistant is temporarily unavailable. Please try again.' }
+        ];
+      }
+    });
   }
 
   private handleNotificationPoll(rows: NotificationRow[]): void {

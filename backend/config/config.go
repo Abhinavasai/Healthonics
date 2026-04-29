@@ -33,6 +33,11 @@ type Config struct {
 	TwilioAuthToken       string // Optional Twilio auth token.
 	TwilioFromNumber      string // Optional Twilio sender number.
 	TwilioWebhookSecret   string // Optional webhook HMAC secret for Twilio callbacks.
+	GoogleMapsAPIKey      string // Optional Google Maps/Places API key for geocode + nearby hospitals.
+	AzureOpenAIEndpoint   string // Optional Azure OpenAI endpoint.
+	AzureOpenAIAPIKey     string // Optional Azure OpenAI API key.
+	AzureOpenAIAPIVersion string // Optional Azure OpenAI API version.
+	AzureOpenAIModel      string // Optional Azure OpenAI model/deployment name.
 }
 
 func Load() *Config {
@@ -73,6 +78,11 @@ func Load() *Config {
 		TwilioAuthToken:       strings.TrimSpace(os.Getenv("TWILIO_AUTH_TOKEN")),
 		TwilioFromNumber:      strings.TrimSpace(os.Getenv("TWILIO_FROM_NUMBER")),
 		TwilioWebhookSecret:   strings.TrimSpace(os.Getenv("TWILIO_WEBHOOK_SECRET")),
+		GoogleMapsAPIKey:      strings.TrimSpace(os.Getenv("GOOGLE_MAPS_API_KEY")),
+		AzureOpenAIEndpoint:   strings.TrimSpace(os.Getenv("AZURE_OPENAI_ENDPOINT")),
+		AzureOpenAIAPIKey:     strings.TrimSpace(os.Getenv("AZURE_OPENAI_API_KEY")),
+		AzureOpenAIAPIVersion: strings.TrimSpace(os.Getenv("AZURE_OPENAI_API_VERSION")),
+		AzureOpenAIModel:      strings.TrimSpace(os.Getenv("AZURE_OPENAI_MODEL")),
 	}
 }
 

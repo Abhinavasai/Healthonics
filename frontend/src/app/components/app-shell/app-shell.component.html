@@ -94,12 +94,24 @@
       <h3>Care assistant</h3>
       <div class="assistant-chat">
         @for (m of assistantMessages; track $index) {
-          <p [class]="m.from === 'me' ? 'msg msg-me' : 'msg msg-ai'">{{ m.text }}</p>
+          <div [class]="m.from === 'me' ? 'msg msg-me' : 'msg msg-ai'">
+            <p>{{ m.text }}</p>
+            @if (m.meta) {
+              <small>{{ m.meta }}</small>
+            }
+          </div>
         }
       </div>
       <div class="assistant-input">
-        <input [(ngModel)]="assistantInput" placeholder="Ask about features..." (keydown.enter)="sendAssistant()" />
-        <button type="button" (click)="sendAssistant()">Send</button>
+        <input
+          [(ngModel)]="assistantInput"
+          placeholder="Ask about features..."
+          (keydown.enter)="sendAssistant()"
+          [disabled]="assistantSending"
+        />
+        <button type="button" (click)="sendAssistant()" [disabled]="assistantSending || !assistantInput.trim()">
+          {{ assistantSending ? '...' : 'Send' }}
+        </button>
       </div>
     </aside>
   }

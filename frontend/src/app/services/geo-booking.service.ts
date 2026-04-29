@@ -13,6 +13,13 @@ export interface HospitalNear {
   distance_km: number;
 }
 
+export interface HospitalPlaceRow {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface DoctorSearchRow {
   id: string;
   email: string;
@@ -50,6 +57,20 @@ export class GeoBookingService {
   hospitalsNear(lat: number, lng: number, radiusKm: number): Observable<{ hospitals: HospitalNear[] }> {
     let p = new HttpParams().set('lat', String(lat)).set('lng', String(lng)).set('radius_km', String(radiusKm));
     return this.http.get<{ hospitals: HospitalNear[] }>(ApiContract.geoBooking.hospitalsNear, { params: p });
+  }
+
+  hospitalsNearGoogle(
+    lat: number,
+    lng: number,
+    radiusKm: number,
+    department: string
+  ): Observable<{ hospitals: HospitalPlaceRow[] }> {
+    return this.http.post<{ hospitals: HospitalPlaceRow[] }>(ApiContract.geoBooking.hospitalsNearGoogle, {
+      lat,
+      lng,
+      radius_km: radiusKm,
+      department
+    });
   }
 
   searchDoctors(lat: number, lng: number, radiusKm: number, specialization: string): Observable<{ doctors: DoctorSearchRow[] }> {
