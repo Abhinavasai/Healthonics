@@ -179,6 +179,38 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
 
+		CREATE TABLE IF NOT EXISTS immutable_audit_events (
+			sequence       BIGSERIAL PRIMARY KEY,
+			event_id       UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+			actor_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+			action         TEXT NOT NULL,
+			entity_type    TEXT NOT NULL,
+			entity_id      TEXT NOT NULL DEFAULT '',
+			detail         TEXT NOT NULL DEFAULT '',
+			event_time     TIMESTAMPTZ NOT NULL,
+			prev_hash      TEXT NOT NULL DEFAULT '',
+			event_hash     TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_immutable_audit_events_time ON immutable_audit_events(event_time DESC);
+		CREATE INDEX IF NOT EXISTS idx_immutable_audit_events_actor ON immutable_audit_events(actor_user_id, event_time DESC);
+
+		CREATE OR REPLACE FUNCTION immutable_audit_events_block_mutation()
+		RETURNS trigger AS $$
+		BEGIN
+			RAISE EXCEPTION 'immutable_audit_events is append-only';
+		END;
+		$$ LANGUAGE plpgsql;
+
+		DROP TRIGGER IF EXISTS immutable_audit_events_no_update ON immutable_audit_events;
+		CREATE TRIGGER immutable_audit_events_no_update
+		BEFORE UPDATE ON immutable_audit_events
+		FOR EACH ROW EXECUTE FUNCTION immutable_audit_events_block_mutation();
+
+		DROP TRIGGER IF EXISTS immutable_audit_events_no_delete ON immutable_audit_events;
+		CREATE TRIGGER immutable_audit_events_no_delete
+		BEFORE DELETE ON immutable_audit_events
+		FOR EACH ROW EXECUTE FUNCTION immutable_audit_events_block_mutation();
+
 		CREATE TABLE IF NOT EXISTS knowledge_docs (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			title       TEXT NOT NULL,
