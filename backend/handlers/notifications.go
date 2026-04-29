@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,9 @@ type NotificationPreference struct {
 }
 
 type upsertNotificationPreferencesBody struct {
-	Preferences []NotificationPreference `json:"preferences"`
+	Preferences   []NotificationPreference `json:"preferences"`
+	ConsentSource string                   `json:"consent_source"`
+	PolicyVersion string                   `json:"policy_version"`
 }
 
 var defaultNotificationPreferences = []NotificationPreference{
@@ -60,6 +63,31 @@ func normalizeNotificationPreference(input NotificationPreference) (Notification
 	}, nil
 }
 
+func normalizeConsentSource(raw string) string {
+	s := strings.TrimSpace(strings.ToLower(raw))
+	if s == "" {
+		return "self_service_portal"
+	}
+	switch s {
+	case "self_service_portal", "admin_console", "support_assisted", "api":
+		return s
+	default:
+		return "unknown"
+	}
+}
+
+func normalizePolicyVersion(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s != "" {
+		return s
+	}
+	env := strings.TrimSpace(os.Getenv("NOTIFICATION_POLICY_VERSION"))
+	if env != "" {
+		return env
+	}
+	return "v1"
+}
+
 func (h *NotificationsHandler) ensurePreferencesSchema(c *gin.Context) error {
 	_, err := db.Pool.Exec(c.Request.Context(), `
 		CREATE TABLE IF NOT EXISTS notification_preferences (
@@ -75,6 +103,27 @@ func (h *NotificationsHandler) ensurePreferencesSchema(c *gin.Context) error {
 				category IN ('appointment_reminders', 'medication_reminders', 'lab_result_alerts', 'announcements')
 			)
 		)
+
+		CREATE TABLE IF NOT EXISTS notification_consent_events (
+			id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			actor_user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			actor_role         TEXT NOT NULL,
+			actor_source       TEXT NOT NULL DEFAULT 'self_service_portal',
+			policy_version     TEXT NOT NULL DEFAULT 'v1',
+			category           TEXT NOT NULL,
+			prev_enabled       BOOLEAN NOT NULL,
+			prev_email_enabled BOOLEAN NOT NULL,
+			prev_sms_enabled   BOOLEAN NOT NULL,
+			prev_in_app_enabled BOOLEAN NOT NULL,
+			new_enabled        BOOLEAN NOT NULL,
+			new_email_enabled  BOOLEAN NOT NULL,
+			new_sms_enabled    BOOLEAN NOT NULL,
+			new_in_app_enabled BOOLEAN NOT NULL,
+			created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_notification_consent_events_user ON notification_consent_events(user_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_notification_consent_events_actor ON notification_consent_events(actor_user_id, created_at DESC);
 	`)
 	return err
 }
@@ -350,6 +399,29 @@ func (h *NotificationsHandler) UpsertPreferences(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "preferences are required"})
 		return
 	}
+	consentSource := normalizeConsentSource(body.ConsentSource)
+	policyVersion := normalizePolicyVersion(body.PolicyVersion)
+
+	currentRows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT category, enabled, email_enabled, sms_enabled, in_app_enabled
+		FROM notification_preferences
+		WHERE user_id = $1
+	`, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	current := map[string]NotificationPreference{}
+	for currentRows.Next() {
+		var row NotificationPreference
+		if err := currentRows.Scan(&row.Category, &row.Enabled, &row.EmailEnabled, &row.SmsEnabled, &row.InAppEnabled); err != nil {
+			currentRows.Close()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		current[row.Category] = row
+	}
+	currentRows.Close()
 
 	for _, raw := range body.Preferences {
 		pref, err := normalizeNotificationPreference(raw)
@@ -372,7 +444,100 @@ func (h *NotificationsHandler) UpsertPreferences(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
 		}
+
+		prev, ok := current[pref.Category]
+		if !ok {
+			prev = NotificationPreference{
+				Category:     pref.Category,
+				Enabled:      true,
+				EmailEnabled: true,
+				SmsEnabled:   false,
+				InAppEnabled: true,
+			}
+		}
+		changed := prev.Enabled != pref.Enabled ||
+			prev.EmailEnabled != pref.EmailEnabled ||
+			prev.SmsEnabled != pref.SmsEnabled ||
+			prev.InAppEnabled != pref.InAppEnabled
+		if changed {
+			_, err = db.Pool.Exec(c.Request.Context(), `
+				INSERT INTO notification_consent_events (
+					user_id, actor_user_id, actor_role, actor_source, policy_version, category,
+					prev_enabled, prev_email_enabled, prev_sms_enabled, prev_in_app_enabled,
+					new_enabled, new_email_enabled, new_sms_enabled, new_in_app_enabled
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			`,
+				claims.UserID, claims.UserID, claims.Role, consentSource, policyVersion, pref.Category,
+				prev.Enabled, prev.EmailEnabled, prev.SmsEnabled, prev.InAppEnabled,
+				pref.Enabled, pref.EmailEnabled, pref.SmsEnabled, pref.InAppEnabled,
+			)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+				return
+			}
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"updated": len(body.Preferences)})
+	c.JSON(http.StatusOK, gin.H{"updated": len(body.Preferences), "policy_version": policyVersion})
+}
+
+// AdminConsentHistory GET /api/admin/notifications/consent-history
+func (h *NotificationsHandler) AdminConsentHistory(c *gin.Context) {
+	if _, ok := getClaims(c); !ok {
+		return
+	}
+	if err := h.ensurePreferencesSchema(c); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT id::text, user_id::text, actor_user_id::text, actor_role, actor_source, policy_version,
+		       category, prev_enabled, prev_email_enabled, prev_sms_enabled, prev_in_app_enabled,
+		       new_enabled, new_email_enabled, new_sms_enabled, new_in_app_enabled, created_at::text
+		FROM notification_consent_events
+		ORDER BY created_at DESC
+		LIMIT 300
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+
+	type row struct {
+		ID              string `json:"id"`
+		UserID          string `json:"user_id"`
+		ActorUserID     string `json:"actor_user_id"`
+		ActorRole       string `json:"actor_role"`
+		ActorSource     string `json:"actor_source"`
+		PolicyVersion   string `json:"policy_version"`
+		Category        string `json:"category"`
+		PrevEnabled     bool   `json:"prev_enabled"`
+		PrevEmail       bool   `json:"prev_email_enabled"`
+		PrevSMS         bool   `json:"prev_sms_enabled"`
+		PrevInApp       bool   `json:"prev_in_app_enabled"`
+		NewEnabled      bool   `json:"new_enabled"`
+		NewEmail        bool   `json:"new_email_enabled"`
+		NewSMS          bool   `json:"new_sms_enabled"`
+		NewInApp        bool   `json:"new_in_app_enabled"`
+		CreatedAt       string `json:"created_at"`
+	}
+	var out []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(
+			&r.ID, &r.UserID, &r.ActorUserID, &r.ActorRole, &r.ActorSource, &r.PolicyVersion,
+			&r.Category, &r.PrevEnabled, &r.PrevEmail, &r.PrevSMS, &r.PrevInApp,
+			&r.NewEnabled, &r.NewEmail, &r.NewSMS, &r.NewInApp, &r.CreatedAt,
+		); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		out = append(out, r)
+	}
+	if out == nil {
+		out = []row{}
+	}
+	c.JSON(http.StatusOK, gin.H{"events": out})
 }
