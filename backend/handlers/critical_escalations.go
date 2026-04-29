@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var criticalKeywords = []string{
@@ -52,6 +54,11 @@ func nextEscalation(tier int, now time.Time) (int, time.Time) {
 
 func escalationMessage(tier int, filename, patientEmail string) string {
 	return fmt.Sprintf("Tier %d critical result: %s for patient %s requires review.", tier, filename, patientEmail)
+}
+
+func isPgUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func enqueueEscalationNotification(ctx context.Context, doctorID uuid.UUID, title, body string) {
@@ -121,6 +128,11 @@ func refreshDoctorCriticalEscalations(ctx context.Context, doctorID uuid.UUID) e
 				VALUES ($1, $2::uuid, $3::uuid, 'open', 1, 'critical_summary_keyword', $4, $5, $5, $6)
 			`, doctorID, patientID, docID, msg, now, now.Add(escalationStepDuration(2)))
 			if insertErr != nil {
+				// Soak/perf tests run this refresh concurrently. If another goroutine
+				// inserted the same escalation first, treat it as a benign race.
+				if isPgUniqueViolation(insertErr) {
+					continue
+				}
 				return insertErr
 			}
 			enqueueEscalationNotification(ctx, doctorID, "Critical result escalation (tier 1)", msg)
