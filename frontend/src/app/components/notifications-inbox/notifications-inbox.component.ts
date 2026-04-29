@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   NotificationsInboxService,
   NotificationPreferenceRow,
   NotificationRow
 } from '../../services/notifications.service';
+import { Subscription, timer } from 'rxjs';
 
 @Component({
   selector: 'app-notifications-inbox',
@@ -92,14 +93,24 @@ import {
         </button>
       </section>
 
-      <ul *ngIf="rows.length" data-cy="notifications-list">
-        <li *ngFor="let r of rows" data-cy="notifications-row">
-          <strong>{{ r.title }}</strong>
+      <div class="filters" *ngIf="rows.length">
+        <button type="button" class="ghost" (click)="setFilter('all')">All</button>
+        <button type="button" class="ghost" (click)="setFilter('pending')">Pending</button>
+        <button type="button" class="ghost" (click)="setFilter('sent')">Sent</button>
+        <button type="button" class="ghost" (click)="setFilter('failed')">Failed</button>
+      </div>
+
+      <ul *ngIf="filteredRows.length" class="notif-list" data-cy="notifications-list">
+        <li *ngFor="let r of filteredRows" class="notif-row" data-cy="notifications-row">
+          <div class="notif-row__head">
+            <strong>{{ r.title }}</strong>
+            <span class="pill">{{ r.status | titlecase }}</span>
+          </div>
           <div class="body">{{ r.body }}</div>
-          <small>{{ r.status }} · {{ r.created_at }}</small>
+          <small>{{ r.channel | titlecase }} · {{ formatTimestamp(r.created_at) }}</small>
         </li>
       </ul>
-      <p *ngIf="!error && !rows.length" data-cy="notifications-empty">No notifications.</p>
+      <p *ngIf="!error && !filteredRows.length" data-cy="notifications-empty">No notifications.</p>
     </section>
   `,
   styles: [
@@ -156,6 +167,38 @@ import {
         align-items: center;
         gap: 0.35rem;
       }
+      .filters {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin: 0.45rem 0 0.75rem;
+      }
+      .notif-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.6rem;
+      }
+      .notif-row {
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 0.65rem 0.75rem;
+        background: rgba(15, 23, 42, 0.65);
+      }
+      .notif-row__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .pill {
+        border: 1px solid #0ea5e9;
+        color: #22d3ee;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        padding: 0.1rem 0.5rem;
+      }
       .ghost {
         margin-top: 0;
         border: 1px solid #d1d5db;
@@ -170,7 +213,7 @@ import {
     `
   ]
 })
-export class NotificationsInboxComponent implements OnInit {
+export class NotificationsInboxComponent implements OnInit, OnDestroy {
   readonly categoryOrder = [
     'appointment_reminders',
     'medication_reminders',
@@ -179,19 +222,24 @@ export class NotificationsInboxComponent implements OnInit {
   ];
 
   rows: NotificationRow[] = [];
+  filteredRows: NotificationRow[] = [];
   preferences: NotificationPreferenceRow[] = [];
   error: string | null = null;
   prefsSaved: string | null = null;
   saving = false;
+  activeFilter: 'all' | 'pending' | 'failed' | 'sent' = 'all';
+  private pollSub?: Subscription;
 
   constructor(private api: NotificationsInboxService) {}
 
   ngOnInit(): void {
     this.loadPreferences();
-    this.api.listMine().subscribe({
-      next: (res) => (this.rows = res.notifications ?? []),
-      error: () => (this.error = 'Could not load notifications')
-    });
+    this.loadNotifications();
+    this.pollSub = timer(15000, 15000).subscribe(() => this.loadNotifications());
+  }
+
+  ngOnDestroy(): void {
+    this.pollSub?.unsubscribe();
   }
 
   private loadPreferences(): void {
@@ -200,7 +248,12 @@ export class NotificationsInboxComponent implements OnInit {
         this.preferences = this.sortPreferences(res.preferences ?? []);
       },
       error: () => {
-        this.preferences = [];
+        this.preferences = this.sortPreferences([
+          { category: 'appointment_reminders', enabled: true, email_enabled: true, sms_enabled: false, in_app_enabled: true },
+          { category: 'medication_reminders', enabled: true, email_enabled: true, sms_enabled: false, in_app_enabled: true },
+          { category: 'lab_result_alerts', enabled: true, email_enabled: true, sms_enabled: false, in_app_enabled: true },
+          { category: 'announcements', enabled: true, email_enabled: true, sms_enabled: false, in_app_enabled: true }
+        ]);
       }
     });
   }
@@ -308,5 +361,38 @@ export class NotificationsInboxComponent implements OnInit {
         this.error = 'Could not save notification preferences';
       }
     });
+  }
+
+  setFilter(next: 'all' | 'pending' | 'failed' | 'sent'): void {
+    this.activeFilter = next;
+    this.applyFilter();
+  }
+
+  formatTimestamp(raw: string): string {
+    const t = new Date(raw);
+    if (Number.isNaN(t.getTime())) {
+      return raw;
+    }
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(t);
+  }
+
+  private loadNotifications(): void {
+    this.api.listMine().subscribe({
+      next: (res) => {
+        this.rows = res.notifications ?? [];
+        this.applyFilter();
+      },
+      error: () => (this.error = 'Could not load notifications')
+    });
+  }
+
+  private applyFilter(): void {
+    this.filteredRows =
+      this.activeFilter === 'all'
+        ? [...this.rows]
+        : this.rows.filter((r) => (r.status || '').toLowerCase() === this.activeFilter);
   }
 }

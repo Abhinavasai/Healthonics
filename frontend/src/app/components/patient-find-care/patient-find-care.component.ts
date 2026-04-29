@@ -71,6 +71,13 @@ import {
           Radius (km)
           <input type="number" step="1" min="1" [(ngModel)]="radiusKm" />
         </label>
+        <label>
+          Department
+          <select [(ngModel)]="department" (ngModelChange)="onDepartmentChange($event)">
+            <option value="">All departments</option>
+            <option *ngFor="let dep of departments" [value]="dep">{{ dep }}</option>
+          </select>
+        </label>
         <label class="span-2">
           Specialty / problem keyword
           <input type="text" [(ngModel)]="specialization" placeholder="e.g. Internal Medicine" />
@@ -151,7 +158,8 @@ import {
         gap: 0.35rem;
         font-size: 0.9rem;
       }
-      input {
+      input,
+      select {
         background: #0b1220;
         color: #e5e7eb;
         border: 1px solid #334155;
@@ -247,6 +255,7 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   lat = 29.6516;
   lng = -82.3248;
   radiusKm = 50;
+  department = '';
   specialization = '';
   locationQuery = '';
   selectedLocationLabel = '';
@@ -261,6 +270,22 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   private map?: L.Map;
   private userMarker?: L.Marker;
   private hospitalsLayer?: L.LayerGroup;
+  readonly departments = [
+    'Cardiology',
+    'Dermatology',
+    'Emergency medicine',
+    'Endocrinology',
+    'Family medicine',
+    'Gastroenterology',
+    'Internal medicine',
+    'Neurology',
+    'Oncology',
+    'Orthopedics',
+    'Pediatrics',
+    'Psychiatry',
+    'Pulmonology',
+    'Radiology'
+  ];
 
   constructor(private geo: GeoBookingService) {}
 
@@ -347,6 +372,7 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   pickGeocodeSuggestion(s: GeocodeHit): void {
     this.locationQuery = s.display_name.split(',').slice(0, 2).join(',').trim();
     this.updateSearchPoint(s.lat, s.lng, s.display_name);
+    this.loadHospitals();
   }
 
   useMyLocation(): void {
@@ -363,6 +389,7 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
         const lng = pos.coords.longitude;
         this.locationQuery = 'My location';
         this.updateSearchPoint(lat, lng, 'My current location');
+        this.loadHospitals();
       },
       (err) => {
         this.loadingGeo = false;
@@ -408,6 +435,12 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
         this.loading = false;
       },
     });
+  }
+
+  onDepartmentChange(value: string): void {
+    if (!this.specialization.trim()) {
+      this.specialization = value;
+    }
   }
 
   private plotHospitals(): void {

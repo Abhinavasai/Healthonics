@@ -178,7 +178,7 @@ import { ContextualCommentsPanelComponent } from '../contextual-comments-panel/c
         border: 1px solid rgba(148, 163, 184, 0.35);
         border-radius: 9999px;
         background: transparent;
-        color: #0f172a;
+        color: #e2e8f0;
         padding: 0.2rem 0.6rem;
         font-size: 0.78rem;
         cursor: pointer;
