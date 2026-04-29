@@ -17,7 +17,8 @@ export const ApiContract = {
   },
   dashboard: {
     patientSummary: `${API}/patient/dashboard/summary`,
-    doctorSummary: `${API}/doctor/dashboard/summary`
+    doctorSummary: `${API}/doctor/dashboard/summary`,
+    doctorCriticalEscalations: `${API}/doctor/critical-escalations`
   },
   geoBooking: {
     geocode: `${API}/geocode`,

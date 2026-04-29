@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DashboardService, DoctorDashboardSummary } from '../../services/dashboard.service';
+import { DashboardService, DoctorCriticalEscalation, DoctorDashboardSummary } from '../../services/dashboard.service';
 
 export interface DoctorBarRow {
   label: string;
@@ -18,6 +18,7 @@ export interface DoctorBarRow {
 export class DoctorDashboardComponent implements OnInit {
   data: DoctorDashboardSummary | null = null;
   error: string | null = null;
+  ackingEscalationId: string | null = null;
   pieBackground = 'conic-gradient(#334155 0% 100%)';
 
   constructor(private dash: DashboardService) {}
@@ -79,5 +80,30 @@ export class DoctorDashboardComponent implements OnInit {
 
   alertIcon(sev: string): string {
     return sev === 'warning' ? '⚠' : 'ⓘ';
+  }
+
+  acknowledgeEscalation(row: DoctorCriticalEscalation): void {
+    if (this.ackingEscalationId) {
+      return;
+    }
+    this.ackingEscalationId = row.id;
+    this.dash.acknowledgeCriticalEscalation(row.id).subscribe({
+      next: () => {
+        if (!this.data?.critical_escalations) {
+          this.ackingEscalationId = null;
+          return;
+        }
+        this.data = {
+          ...this.data,
+          critical_escalations: this.data.critical_escalations.map((r) =>
+            r.id === row.id ? { ...r, status: 'acknowledged', acknowledged_at: new Date().toISOString() } : r
+          )
+        };
+        this.ackingEscalationId = null;
+      },
+      error: () => {
+        this.ackingEscalationId = null;
+      }
+    });
   }
 }

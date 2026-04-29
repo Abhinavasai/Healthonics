@@ -261,6 +261,27 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_knowledge_doc_chunks_doc ON knowledge_doc_chunks(document_id);
 
+		CREATE TABLE IF NOT EXISTS critical_result_escalations (
+			id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			doctor_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			patient_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			document_id          UUID NOT NULL REFERENCES patient_documents(id) ON DELETE CASCADE,
+			status               TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'acknowledged', 'resolved')),
+			tier                 INTEGER NOT NULL DEFAULT 1 CHECK (tier >= 1 AND tier <= 3),
+			rule_code            TEXT NOT NULL DEFAULT 'critical_summary_keyword',
+			message              TEXT NOT NULL DEFAULT '',
+			first_detected_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			last_evaluated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			next_escalation_at   TIMESTAMPTZ NOT NULL,
+			acknowledged_at      TIMESTAMPTZ,
+			acknowledged_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+			resolved_at          TIMESTAMPTZ
+		);
+		CREATE INDEX IF NOT EXISTS idx_critical_result_escalations_doctor ON critical_result_escalations(doctor_id, status, next_escalation_at);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_critical_result_escalations_active_doc
+			ON critical_result_escalations(doctor_id, document_id)
+			WHERE status IN ('open', 'acknowledged');
+
 		CREATE TABLE IF NOT EXISTS doctor_slots (
 			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			doctor_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
