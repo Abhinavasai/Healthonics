@@ -76,8 +76,36 @@
     </div>
 
     <div
+      class="panel alerts-panel"
+      *ngIf="data.critical_escalations && data.critical_escalations.length > 0"
+      data-cy="doctor-critical-escalations"
+    >
+      <h2>Critical-result escalations</h2>
+      <ul class="alert-list">
+        <li *ngFor="let e of data.critical_escalations" class="alert-item" [attr.data-cy]="'critical-escalation-' + e.id">
+          <span class="alert-ic" aria-hidden="true">⚠</span>
+          <div class="alert-body">
+            <p class="alert-msg">{{ e.message }}</p>
+            <span class="alert-meta">Tier {{ e.tier }} · {{ e.status }} · next SLA {{ e.next_escalation_at | date:'short' }}</span>
+            <div class="alert-actions">
+              <button
+                type="button"
+                class="btn btn-sm"
+                [disabled]="e.status !== 'open' || ackingEscalationId === e.id"
+                (click)="acknowledgeEscalation(e)"
+                [attr.data-cy]="'ack-critical-' + e.id"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div
       class="panel alerts-panel alerts-panel--empty"
-      *ngIf="data.alerts !== undefined && data.alerts.length === 0"
+      *ngIf="data.alerts !== undefined && data.alerts.length === 0 && (!data.critical_escalations || data.critical_escalations.length === 0)"
       data-cy="doctor-dashboard-alerts-empty"
     >
       <h2>Alerts</h2>
