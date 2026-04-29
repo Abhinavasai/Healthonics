@@ -220,4 +220,27 @@ export class DoctorDocumentDetailComponent implements OnInit, OnDestroy {
   toggleComments(): void {
     this.showComments = !this.showComments;
   }
+
+  downloadDocument(): void {
+    if (!this.doc) return;
+    this.api.downloadBlob(this.doc.id).subscribe({
+      next: (blob) => {
+        if (!blob) {
+          this.error = 'Could not download document.';
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = this.doc?.filename || 'document';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.error = 'Could not download document.';
+      }
+    });
+  }
 }

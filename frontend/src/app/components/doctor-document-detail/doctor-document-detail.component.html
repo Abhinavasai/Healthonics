@@ -44,6 +44,9 @@
         <h2>Document preview</h2>
         <span class="preview-type">{{ d.content_type || 'unknown type' }}</span>
       </div>
+      <button type="button" class="btn-primary" (click)="downloadDocument()" data-cy="doctor-document-download">
+        Download full document
+      </button>
       <div class="preview-frame" [class.preview-disabled]="!canInlinePreview(d)">
         <div class="preview-placeholder" data-cy="doctor-document-preview-placeholder">
           <span class="preview-icon" aria-hidden="true">{{ canInlinePreview(d) ? '👁️' : '🔒' }}</span>

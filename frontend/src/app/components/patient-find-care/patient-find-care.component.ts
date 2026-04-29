@@ -28,10 +28,6 @@ import {
   template: `
     <section class="find-care">
       <h1>Find care near you</h1>
-      <p class="subtitle">
-        Search for a place or address, or use your current location. Then load nearby
-        hospitals and matching doctors. Search uses Google geocoding/places when configured.
-      </p>
 
       <div class="card">
         <div class="search-row">
@@ -90,11 +86,7 @@ import {
       </div>
 
       <div #mapHost class="map-host"></div>
-      <p class="map-note">
-        Tiles ©
-        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
-        contributors. Respect Nominatim usage limits when searching (prefer deliberate searches).
-      </p>
+      <p class="map-note">Use location + department filters for faster and more accurate nearby results.</p>
 
       <p *ngIf="error" class="error">{{ error }}</p>
 
@@ -128,10 +120,6 @@ import {
         margin: 0 auto;
         display: grid;
         gap: 1rem;
-      }
-      .subtitle {
-        color: #94a3b8;
-        margin-top: -0.25rem;
       }
       .card {
         background: rgba(15, 23, 42, 0.7);

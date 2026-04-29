@@ -21,6 +21,7 @@ export class AdminNotificationsLogComponent implements OnInit {
   loading = true;
   retryingId: string | null = null;
   error: string | null = null;
+  consentWarning: string | null = null;
 
   constructor(private api: NotificationsInboxService) {}
 
@@ -61,6 +62,7 @@ export class AdminNotificationsLogComponent implements OnInit {
   private load(): void {
     this.loading = true;
     this.error = null;
+    this.consentWarning = null;
     this.api.adminSummary().subscribe({
       next: (summary) => {
         this.summary = summary;
@@ -73,7 +75,7 @@ export class AdminNotificationsLogComponent implements OnInit {
                 this.loading = false;
               },
               error: () => {
-                this.error = 'Could not load consent history.';
+                this.consentWarning = 'Consent history is currently unavailable.';
                 this.loading = false;
               }
             });

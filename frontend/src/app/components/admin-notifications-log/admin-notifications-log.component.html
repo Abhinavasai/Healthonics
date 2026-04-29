@@ -6,6 +6,7 @@
 
   <p *ngIf="loading">Loading notification operations...</p>
   <p *ngIf="!loading && error" class="err">{{ error }}</p>
+  <p *ngIf="!loading && consentWarning" class="warn">{{ consentWarning }}</p>
 
   <div class="summary-grid" *ngIf="!loading && summary">
     <article><span>Pending</span><strong>{{ summary.pending_count }}</strong></article>

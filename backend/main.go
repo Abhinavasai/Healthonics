@@ -101,6 +101,7 @@ func main() {
 		api.POST("/doctor/critical-escalations/:id/ack", auth.RequireAuth(), auth.RequireRole("doctor"), criticalEscalations.Ack)
 		api.GET("/doctor/documents", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.List)
 		api.GET("/doctor/documents/:id", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.Get)
+		api.GET("/doctor/documents/:id/download", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.Download)
 		api.POST("/doctor/documents/:id/summarize", auth.RequireAuth(), auth.RequireRole("doctor"), doctorDocuments.Summarize)
 
 		// Role-protected: demonstrates 403 when role doesn't match
