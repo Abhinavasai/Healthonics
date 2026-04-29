@@ -10,6 +10,7 @@ import {
 } from '../../services/messaging.service';
 import { AuthService } from '../../services/auth.service';
 import { AppointmentsService } from '../../services/appointments.service';
+import { AssistantService } from '../../services/assistant.service';
 
 /** Inbox + thread view for patients and doctors (Sprint 3 feature 9). */
 @Component({
@@ -37,6 +38,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
   /** Doctor: patient user id for first message (MVP until "my patients" API exists). */
   peerPatientId = '';
   showNewThread = false;
+  drafting = false;
 
   private routeSub?: Subscription;
   private pollSub?: Subscription;
@@ -49,6 +51,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
   constructor(
     private messaging: MessagingService,
+    private assistant: AssistantService,
     private auth: AuthService,
     private appointments: AppointmentsService,
     private route: ActivatedRoute,
@@ -206,6 +209,27 @@ export class MessagesComponent implements OnInit, OnDestroy {
           this.error = err?.error?.error ?? 'Unable to send message.';
         }
       });
+  }
+
+  generateReplyDraft(): void {
+    if (!this.selectedThreadId || this.drafting) {
+      return;
+    }
+    const recent = this.messages.slice(-6);
+    const context = recent
+      .map((m) => `${this.isMine(m) ? 'me' : 'peer'}: ${m.body}`)
+      .join('\n');
+    this.drafting = true;
+    this.assistant.chat('Draft a short professional reply for this conversation.', context).subscribe({
+      next: (res) => {
+        this.drafting = false;
+        this.replyBody = (res.reply || '').trim();
+      },
+      error: () => {
+        this.drafting = false;
+        this.error = 'Could not generate AI draft right now.';
+      }
+    });
   }
 
   createThread(): void {

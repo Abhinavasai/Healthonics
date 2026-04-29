@@ -20,7 +20,7 @@ func TestGeocodeSearch_MissingQ(t *testing.T) {
 		Role:   "patient",
 	})
 
-	h := NewGeocodeHandler("", "")
+	h := NewGeocodeHandler("", "", "")
 	h.GeocodeSearch(c)
 
 	if w.Code != http.StatusBadRequest {
@@ -51,7 +51,7 @@ func TestGeocodeSearch_ParsesUpstreamResults(t *testing.T) {
 		Role:   "patient",
 	})
 
-	h := NewGeocodeHandler(ts.URL, "Healthonyx-test/1.0")
+	h := NewGeocodeHandler(ts.URL, "Healthonyx-test/1.0", "")
 	h.GeocodeSearch(c)
 
 	if w.Code != http.StatusOK {

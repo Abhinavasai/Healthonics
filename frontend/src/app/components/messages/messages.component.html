@@ -161,6 +161,15 @@
           <button
             type="button"
             class="btn-send-primary"
+            (click)="generateReplyDraft()"
+            [disabled]="drafting || sending || messages.length === 0"
+            data-cy="messages-ai-draft"
+          >
+            {{ drafting ? 'Drafting…' : 'AI Draft' }}
+          </button>
+          <button
+            type="button"
+            class="btn-send-primary"
             (click)="send()"
             [disabled]="sending || !replyBody.trim()"
             data-cy="messages-send-reply"

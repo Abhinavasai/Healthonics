@@ -23,6 +23,7 @@ export const ApiContract = {
   geoBooking: {
     geocode: `${API}/geocode`,
     hospitalsNear: `${API}/hospitals/near`,
+    hospitalsNearGoogle: `${API}/find-care/places/nearby`,
     doctorsSearch: `${API}/doctors/search`,
     doctorSlots: (doctorId: string): string => `${API}/doctors/${doctorId}/slots`,
     createDoctorSlot: `${API}/doctor/slots`,
@@ -66,6 +67,9 @@ export const ApiContract = {
     threadMessages: (threadId: string): string => `${API}/messages/threads/${threadId}`,
     sendMessage: (threadId: string): string => `${API}/messages/threads/${threadId}/messages`,
     markRead: (threadId: string): string => `${API}/messages/threads/${threadId}/read`
+  },
+  assistant: {
+    chat: `${API}/assistant/chat`
   },
   contextualComments: {
     byContext: (contextType: string, contextId: string): string => `${API}/comments/${contextType}/${contextId}`

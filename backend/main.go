@@ -53,7 +53,13 @@ func main() {
 	fhirBoundary := handlers.NewFHIRBoundaryHandler()
 	hl7Ingestion := handlers.NewHL7LabIngestionHandler()
 	geo := handlers.NewGeoBookingHandler()
-	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
+	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent, cfg.GoogleMapsAPIKey)
+	assistant := handlers.NewAssistantChatHandler(
+		cfg.AzureOpenAIEndpoint,
+		cfg.AzureOpenAIAPIKey,
+		cfg.AzureOpenAIAPIVersion,
+		cfg.AzureOpenAIModel,
+	)
 	patientFiles := handlers.NewPatientFilesHandler(cfg.UploadDir)
 	r := gin.Default()
 	r.MaxMultipartMemory = 8 << 20 // 8 MiB multipart buffer (handler still enforces 5 MiB file cap)
@@ -140,6 +146,7 @@ func main() {
 		})
 
 		api.GET("/geocode", auth.RequireAuth(), auth.RequireRole("patient"), geocode.GeocodeSearch)
+		api.POST("/find-care/places/nearby", auth.RequireAuth(), auth.RequireRole("patient"), geocode.NearbyHospitalsGoogle)
 		api.GET("/hospitals/near", auth.RequireAuth(), auth.RequireRole("patient"), geo.ListHospitalsNear)
 		api.GET("/doctors/search", auth.RequireAuth(), auth.RequireRole("patient"), geo.SearchDoctors)
 		api.GET("/doctors/:id/slots", auth.RequireAuth(), auth.RequireRole("patient", "doctor"), geo.ListOpenSlotsForDoctor)
@@ -184,6 +191,7 @@ func main() {
 			msg.POST("/threads/:threadId/read", messaging.MarkRead)
 		}
 		api.GET("/messages/ws", messaging.ServeWebSocket(auth))
+		api.POST("/assistant/chat", auth.RequireAuth(), assistant.Chat)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

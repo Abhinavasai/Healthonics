@@ -12,6 +12,7 @@ import {
   DoctorSearchRow,
   GeocodeHit,
   GeoBookingService,
+  HospitalPlaceRow,
   HospitalNear,
 } from '../../services/geo-booking.service';
 
@@ -29,8 +30,7 @@ import {
       <h1>Find care near you</h1>
       <p class="subtitle">
         Search for a place or address, or use your current location. Then load nearby
-        hospitals and matching doctors. Map uses OpenStreetMap (free tiles); search uses
-        Nominatim through our API so we can switch to Google Maps in a later sprint.
+        hospitals and matching doctors. Search uses Google geocoding/places when configured.
       </p>
 
       <div class="card">
@@ -98,11 +98,14 @@ import {
 
       <p *ngIf="error" class="error">{{ error }}</p>
 
-      <div *ngIf="hospitals.length" class="card">
+      <div *ngIf="hospitals.length || googleHospitals.length" class="card">
         <h2>Hospitals</h2>
         <ul>
           <li *ngFor="let h of hospitals">
             {{ h.name }} — {{ h.city }}, {{ h.region }} ({{ h.distance_km }} km)
+          </li>
+          <li *ngFor="let g of googleHospitals">
+            {{ g.name }} — {{ g.address }}
           </li>
         </ul>
       </div>
@@ -261,6 +264,7 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   selectedLocationLabel = '';
   geocodeSuggestions: GeocodeHit[] = [];
   hospitals: HospitalNear[] = [];
+  googleHospitals: HospitalPlaceRow[] = [];
   doctors: DoctorSearchRow[] = [];
   loading = false;
   loadingGeocode = false;
@@ -406,18 +410,32 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   loadHospitals(): void {
     this.error = '';
     this.loading = true;
-    this.geo.hospitalsNear(this.lat, this.lng, this.radiusKm).subscribe({
+    this.geo.hospitalsNearGoogle(this.lat, this.lng, this.radiusKm, this.department).subscribe({
       next: (res) => {
-        this.hospitals = res.hospitals ?? [];
+        this.googleHospitals = res.hospitals ?? [];
+        this.hospitals = [];
         this.loading = false;
         this.plotHospitals();
-        if (!this.hospitals.length) {
+        if (!this.googleHospitals.length) {
           this.error = 'No hospitals within this radius.';
         }
       },
       error: (err) => {
-        this.error = err?.error?.error ?? 'Could not load hospitals';
-        this.loading = false;
+        this.geo.hospitalsNear(this.lat, this.lng, this.radiusKm).subscribe({
+          next: (fallback) => {
+            this.hospitals = fallback.hospitals ?? [];
+            this.googleHospitals = [];
+            this.loading = false;
+            this.plotHospitals();
+            if (!this.hospitals.length) {
+              this.error = 'No hospitals within this radius.';
+            }
+          },
+          error: () => {
+            this.error = err?.error?.error ?? 'Could not load hospitals';
+            this.loading = false;
+          }
+        });
       },
     });
   }
@@ -457,7 +475,14 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
         .bindPopup(`<strong>${h.name}</strong><br>${h.distance_km} km`)
         .addTo(this.hospitalsLayer);
     }
-    if (this.hospitals.length) {
+    for (const g of this.googleHospitals) {
+      const ll: L.LatLngExpression = [g.latitude, g.longitude];
+      bounds.push(ll);
+      L.marker(ll)
+        .bindPopup(`<strong>${g.name}</strong><br>${g.address}`)
+        .addTo(this.hospitalsLayer);
+    }
+    if (this.hospitals.length || this.googleHospitals.length) {
       this.map.fitBounds(L.latLngBounds(bounds), { padding: [28, 28], maxZoom: 12 });
     }
   }
