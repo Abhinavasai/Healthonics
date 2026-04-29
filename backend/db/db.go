@@ -309,6 +309,12 @@ func Migrate(ctx context.Context) error {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id);
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'application/octet-stream';
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS size_bytes BIGINT NOT NULL DEFAULT 0;
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready';
+		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS body BYTEA NOT NULL DEFAULT ''::bytea;
+		ALTER TABLE patient_documents DROP CONSTRAINT IF EXISTS patient_documents_status_check;
+		ALTER TABLE patient_documents ADD CONSTRAINT patient_documents_status_check CHECK (status IN ('pending', 'ready', 'failed'));
 
 		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary TEXT;
 		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS summary_status TEXT NOT NULL DEFAULT 'none';
@@ -390,6 +396,38 @@ func Migrate(ctx context.Context) error {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+		ALTER TABLE notifications ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT '';
+		ALTER TABLE notifications ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE notifications ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT '';
+		ALTER TABLE notifications ADD COLUMN IF NOT EXISTS next_retry_at TIMESTAMPTZ;
+		ALTER TABLE notifications ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;
+		CREATE INDEX IF NOT EXISTS idx_notifications_pending_schedule
+			ON notifications(status, scheduled_for, next_retry_at);
+
+		CREATE TABLE IF NOT EXISTS notification_delivery_attempts (
+			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+			channel         TEXT NOT NULL,
+			provider        TEXT NOT NULL DEFAULT '',
+			attempt_no      INTEGER NOT NULL CHECK (attempt_no >= 1),
+			success         BOOLEAN NOT NULL DEFAULT FALSE,
+			error_message   TEXT NOT NULL DEFAULT '',
+			latency_ms      INTEGER NOT NULL DEFAULT 0,
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_notification_delivery_attempts_notification
+			ON notification_delivery_attempts(notification_id, created_at DESC);
+
+		CREATE TABLE IF NOT EXISTS notification_dead_letters (
+			notification_id UUID PRIMARY KEY REFERENCES notifications(id) ON DELETE CASCADE,
+			channel         TEXT NOT NULL,
+			provider        TEXT NOT NULL DEFAULT '',
+			final_error     TEXT NOT NULL DEFAULT '',
+			attempt_count   INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_notification_dead_letters_created
+			ON notification_dead_letters(created_at DESC);
 
 		CREATE TABLE IF NOT EXISTS provider_callback_events (
 			id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
