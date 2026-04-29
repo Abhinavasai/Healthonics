@@ -139,6 +139,26 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/provider-callbacks/sendgrid:
+    post:
+      tags: [Notifications]
+      summary: Ingest SendGrid delivery callbacks
+      responses:
+        "200":
+          description: Callback processed
+        "401":
+          description: Invalid webhook signature
+
+  /api/provider-callbacks/twilio:
+    post:
+      tags: [Notifications]
+      summary: Ingest Twilio delivery callbacks
+      responses:
+        "200":
+          description: Callback processed
+        "401":
+          description: Invalid webhook signature
+
   /api/patient/dashboard/summary:
     get:
       tags: [Dashboard]
