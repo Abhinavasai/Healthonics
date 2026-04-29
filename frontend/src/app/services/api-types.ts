@@ -211,3 +211,26 @@ export interface SimilarityScanResponse {
   chunks_scanned: number;
   pairs: SimilarityPair[];
 }
+
+export type FhirBundleEntry = {
+  resource: Record<string, unknown>;
+};
+
+export type FhirBundle = {
+  resourceType: 'Bundle';
+  type: string;
+  entry: FhirBundleEntry[];
+};
+
+export type AdminFhirExportResponse = {
+  bundle: FhirBundle;
+};
+
+export type AdminFhirImportResponse = {
+  validated: boolean;
+  applied: boolean;
+  patients_count: number;
+  encounters_count: number;
+  observations_count: number;
+  medications_count: number;
+};
