@@ -2,6 +2,7 @@ package workers
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/healthonyx/backend/db"
 	"github.com/healthonyx/backend/providers"
+	"github.com/jackc/pgx/v5"
 )
 
 type NotificationProviderSet struct {
@@ -131,6 +133,34 @@ func (w *NotificationWorker) processDue(ctx context.Context) (int64, error) {
 }
 
 func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotification) error {
+	if suppressed, reason, err := w.isSuppressed(ctx, n); err != nil {
+		return err
+	} else if suppressed {
+		nextAttempt := n.Attempts + 1
+		_, _ = db.Pool.Exec(ctx, `
+			INSERT INTO notification_delivery_attempts(notification_id, channel, provider, attempt_no, success, error_message, latency_ms)
+			VALUES($1, $2, $3, $4, FALSE, $5, 0)
+		`, n.ID, n.Channel, n.Provider, nextAttempt, "suppressed:"+reason)
+		_, _ = db.Pool.Exec(ctx, `
+			INSERT INTO notification_dead_letters(notification_id, channel, provider, final_error, attempt_count)
+			VALUES($1, $2, $3, $4, $5)
+			ON CONFLICT(notification_id) DO UPDATE SET
+				provider = EXCLUDED.provider,
+				final_error = EXCLUDED.final_error,
+				attempt_count = EXCLUDED.attempt_count,
+				created_at = NOW()
+		`, n.ID, n.Channel, n.Provider, "suppressed:"+reason, nextAttempt)
+		_, updateErr := db.Pool.Exec(ctx, `
+			UPDATE notifications
+			SET status = 'failed',
+			    attempts = $2,
+			    last_error = $3,
+			    next_retry_at = NULL
+			WHERE id = $1
+		`, n.ID, nextAttempt, "suppressed:"+reason)
+		return updateErr
+	}
+
 	startedAt := time.Now()
 	mode, err := w.deliver(ctx, n)
 	latencyMS := int(time.Since(startedAt).Milliseconds())
@@ -192,6 +222,32 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 		WHERE id = $1
 	`, n.ID, nextAttempt, mode, err.Error(), nextRetry)
 	return updateErr
+}
+
+func (w *NotificationWorker) isSuppressed(ctx context.Context, n queuedNotification) (bool, string, error) {
+	channel := strings.ToLower(strings.TrimSpace(n.Channel))
+	recipient := strings.TrimSpace(strings.ToLower(n.To))
+	if recipient == "" || (channel != "email" && channel != "sms") {
+		return false, "", nil
+	}
+	provider := "sendgrid"
+	if channel == "sms" {
+		provider = "twilio"
+	}
+	var reason sql.NullString
+	err := db.Pool.QueryRow(ctx, `
+		SELECT reason_code
+		FROM notification_suppressions
+		WHERE provider = $1 AND recipient = $2 AND active = TRUE
+		LIMIT 1
+	`, provider, recipient).Scan(&reason)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	return true, reason.String, nil
 }
 
 func (w *NotificationWorker) deliver(ctx context.Context, n queuedNotification) (string, error) {

@@ -13,24 +13,26 @@ func init() {
 }
 
 type Config struct {
-	DatabaseURL      string
-	JWTSecret        string
-	Port             string
-	CORSOrigins      string // Comma-separated, e.g. "http://localhost:4200,http://localhost:3000"
-	NominatimBaseURL string // OpenStreetMap Nominatim (or self-hosted). Empty = public default.
-	GeocodeUserAgent string // Required-style identification for Nominatim; override in production.
-	UploadDir        string // Patient file uploads (filesystem); default data/uploads
-	AIEnabled        bool   // Global AI kill switch. false => always use fallback behavior.
-	OllamaHost       string // Ollama base URL, e.g. http://127.0.0.1:11434
-	OllamaModel      string // Default Ollama model name.
-	OllamaTimeoutMS  int    // Timeout for Ollama HTTP calls in milliseconds.
-	NotifyIntervalMS int    // Worker polling interval for notification queue.
-	NotifyMaxRetries int    // Maximum automatic retries before dead-letter.
-	SendGridAPIKey   string // Optional SendGrid API key.
-	SendGridFrom     string // Optional sender email for SendGrid.
-	TwilioAccountSID string // Optional Twilio account SID.
-	TwilioAuthToken  string // Optional Twilio auth token.
-	TwilioFromNumber string // Optional Twilio sender number.
+	DatabaseURL           string
+	JWTSecret             string
+	Port                  string
+	CORSOrigins           string // Comma-separated, e.g. "http://localhost:4200,http://localhost:3000"
+	NominatimBaseURL      string // OpenStreetMap Nominatim (or self-hosted). Empty = public default.
+	GeocodeUserAgent      string // Required-style identification for Nominatim; override in production.
+	UploadDir             string // Patient file uploads (filesystem); default data/uploads
+	AIEnabled             bool   // Global AI kill switch. false => always use fallback behavior.
+	OllamaHost            string // Ollama base URL, e.g. http://127.0.0.1:11434
+	OllamaModel           string // Default Ollama model name.
+	OllamaTimeoutMS       int    // Timeout for Ollama HTTP calls in milliseconds.
+	NotifyIntervalMS      int    // Worker polling interval for notification queue.
+	NotifyMaxRetries      int    // Maximum automatic retries before dead-letter.
+	SendGridAPIKey        string // Optional SendGrid API key.
+	SendGridFrom          string // Optional sender email for SendGrid.
+	SendGridWebhookSecret string // Optional webhook HMAC secret for SendGrid callbacks.
+	TwilioAccountSID      string // Optional Twilio account SID.
+	TwilioAuthToken       string // Optional Twilio auth token.
+	TwilioFromNumber      string // Optional Twilio sender number.
+	TwilioWebhookSecret   string // Optional webhook HMAC secret for Twilio callbacks.
 }
 
 func Load() *Config {
@@ -51,24 +53,26 @@ func Load() *Config {
 		ollamaModel = "llama3.1:8b"
 	}
 	return &Config{
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		JWTSecret:        os.Getenv("JWT_SECRET"),
-		Port:             port,
-		CORSOrigins:      os.Getenv("CORS_ORIGINS"),
-		NominatimBaseURL: os.Getenv("NOMINATIM_BASE_URL"),
-		GeocodeUserAgent: os.Getenv("GEOCODE_USER_AGENT"),
-		UploadDir:        uploadDir,
-		AIEnabled:        strings.EqualFold(strings.TrimSpace(os.Getenv("AI_ENABLED")), "true"),
-		OllamaHost:       ollamaHost,
-		OllamaModel:      ollamaModel,
-		OllamaTimeoutMS:  parsePositiveIntWithDefault(os.Getenv("OLLAMA_TIMEOUT_MS"), 7000),
-		NotifyIntervalMS: parsePositiveIntWithDefault(os.Getenv("NOTIFY_WORKER_INTERVAL_MS"), 5000),
-		NotifyMaxRetries: parseIntInRangeWithDefault(os.Getenv("NOTIFY_MAX_RETRIES"), 1, 20, 3),
-		SendGridAPIKey:   strings.TrimSpace(os.Getenv("SENDGRID_API_KEY")),
-		SendGridFrom:     strings.TrimSpace(os.Getenv("SENDGRID_FROM_EMAIL")),
-		TwilioAccountSID: strings.TrimSpace(os.Getenv("TWILIO_ACCOUNT_SID")),
-		TwilioAuthToken:  strings.TrimSpace(os.Getenv("TWILIO_AUTH_TOKEN")),
-		TwilioFromNumber: strings.TrimSpace(os.Getenv("TWILIO_FROM_NUMBER")),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		JWTSecret:             os.Getenv("JWT_SECRET"),
+		Port:                  port,
+		CORSOrigins:           os.Getenv("CORS_ORIGINS"),
+		NominatimBaseURL:      os.Getenv("NOMINATIM_BASE_URL"),
+		GeocodeUserAgent:      os.Getenv("GEOCODE_USER_AGENT"),
+		UploadDir:             uploadDir,
+		AIEnabled:             strings.EqualFold(strings.TrimSpace(os.Getenv("AI_ENABLED")), "true"),
+		OllamaHost:            ollamaHost,
+		OllamaModel:           ollamaModel,
+		OllamaTimeoutMS:       parsePositiveIntWithDefault(os.Getenv("OLLAMA_TIMEOUT_MS"), 7000),
+		NotifyIntervalMS:      parsePositiveIntWithDefault(os.Getenv("NOTIFY_WORKER_INTERVAL_MS"), 5000),
+		NotifyMaxRetries:      parseIntInRangeWithDefault(os.Getenv("NOTIFY_MAX_RETRIES"), 1, 20, 3),
+		SendGridAPIKey:        strings.TrimSpace(os.Getenv("SENDGRID_API_KEY")),
+		SendGridFrom:          strings.TrimSpace(os.Getenv("SENDGRID_FROM_EMAIL")),
+		SendGridWebhookSecret: strings.TrimSpace(os.Getenv("SENDGRID_WEBHOOK_SECRET")),
+		TwilioAccountSID:      strings.TrimSpace(os.Getenv("TWILIO_ACCOUNT_SID")),
+		TwilioAuthToken:       strings.TrimSpace(os.Getenv("TWILIO_AUTH_TOKEN")),
+		TwilioFromNumber:      strings.TrimSpace(os.Getenv("TWILIO_FROM_NUMBER")),
+		TwilioWebhookSecret:   strings.TrimSpace(os.Getenv("TWILIO_WEBHOOK_SECRET")),
 	}
 }
 

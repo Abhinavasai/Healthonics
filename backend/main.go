@@ -13,6 +13,7 @@ import (
 	"github.com/healthonyx/backend/db"
 	"github.com/healthonyx/backend/handlers"
 	"github.com/healthonyx/backend/middleware"
+	"github.com/healthonyx/backend/providers"
 	"github.com/healthonyx/backend/workers"
 )
 
@@ -47,6 +48,7 @@ func main() {
 	messaging := handlers.NewMessagingHandler(msgHub)
 	prescriptions := handlers.NewPrescriptionsHandler()
 	notifications := handlers.NewNotificationsHandler()
+	providerCallbacks := handlers.NewProviderCallbacksHandler(cfg.SendGridWebhookSecret, cfg.TwilioWebhookSecret)
 	criticalEscalations := handlers.NewCriticalEscalationsHandler()
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent)
@@ -79,6 +81,8 @@ func main() {
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
 		api.GET("/notifications", auth.RequireAuth(), notifications.ListMine)
+		api.POST("/provider-callbacks/sendgrid", providerCallbacks.SendGridWebhook)
+		api.POST("/provider-callbacks/twilio", providerCallbacks.TwilioWebhook)
 		api.GET("/notifications/preferences", auth.RequireAuth(), notifications.ListPreferences)
 		api.PUT("/notifications/preferences", auth.RequireAuth(), notifications.UpsertPreferences)
 		api.GET("/bootstrap", auth.RequireAuth(), bootstrap.Get)
@@ -178,6 +182,15 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	go workers.NewDocumentSummaryWorker(2 * time.Second).Run(context.Background())
+	notificationProviders := workers.NewNotificationProviderSet(
+		providers.NewSendGridAdapter(cfg.SendGridAPIKey, cfg.SendGridFrom),
+		providers.NewTwilioAdapter(cfg.TwilioAccountSID, cfg.TwilioAuthToken, cfg.TwilioFromNumber),
+	)
+	go workers.NewNotificationWorkerWithConfig(workers.NotificationWorkerConfig{
+		Interval:   time.Duration(cfg.NotifyIntervalMS) * time.Millisecond,
+		MaxRetries: cfg.NotifyMaxRetries,
+		Providers:  notificationProviders,
+	}).Run(context.Background())
 	log.Printf("Listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)

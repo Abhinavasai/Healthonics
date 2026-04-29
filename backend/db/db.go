@@ -391,6 +391,36 @@ func Migrate(ctx context.Context) error {
 
 		CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 
+		CREATE TABLE IF NOT EXISTS provider_callback_events (
+			id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			provider         TEXT NOT NULL CHECK (provider IN ('sendgrid', 'twilio')),
+			event_id         TEXT NOT NULL,
+			event_type       TEXT NOT NULL,
+			notification_id  UUID REFERENCES notifications(id) ON DELETE SET NULL,
+			recipient        TEXT NOT NULL DEFAULT '',
+			signature_valid  BOOLEAN NOT NULL DEFAULT FALSE,
+			payload_json     JSONB NOT NULL,
+			occurred_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(provider, event_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_provider_callback_events_notification ON provider_callback_events(notification_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_provider_callback_events_provider_time ON provider_callback_events(provider, created_at DESC);
+
+		CREATE TABLE IF NOT EXISTS notification_suppressions (
+			id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			provider       TEXT NOT NULL CHECK (provider IN ('sendgrid', 'twilio')),
+			recipient      TEXT NOT NULL,
+			reason_code    TEXT NOT NULL,
+			reason_detail  TEXT NOT NULL DEFAULT '',
+			active         BOOLEAN NOT NULL DEFAULT TRUE,
+			last_event_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(provider, recipient)
+		);
+		CREATE INDEX IF NOT EXISTS idx_notification_suppressions_active ON notification_suppressions(provider, recipient) WHERE active = TRUE;
+
 		CREATE TABLE IF NOT EXISTS message_thread_reads (
 			thread_id    UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
 			user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
