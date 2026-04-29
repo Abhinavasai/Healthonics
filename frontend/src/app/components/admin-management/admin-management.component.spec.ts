@@ -126,9 +126,13 @@ describe('AdminManagementComponent', () => {
 
   it('deactivates selected user', () => {
     fixture.componentInstance.selectUser('u1');
+    fixture.componentInstance.deactivateGuard.reason = 'Requested by compliance team';
+    fixture.componentInstance.deactivateGuard.confirm = 'CONFIRM';
     fixture.componentInstance.deactivateSelectedUser();
     const deactivateReq = httpMock.expectOne('/api/admin/user-lifecycle/users/u1/deactivate');
     expect(deactivateReq.request.method).toBe('PATCH');
+    expect(deactivateReq.request.body.reason).toContain('Requested by compliance team');
+    expect(deactivateReq.request.body.confirm).toBe('CONFIRM');
     deactivateReq.flush({
       id: 'u1',
       status: 'deactivated'
@@ -152,15 +156,27 @@ describe('AdminManagementComponent', () => {
   it('resets selected user password', () => {
     fixture.componentInstance.selectUser('u1');
     fixture.componentInstance.resetForm.newPassword = 'newpass123';
+    fixture.componentInstance.resetGuard.reason = 'Compromised credentials report';
+    fixture.componentInstance.resetGuard.confirm = 'CONFIRM';
     fixture.componentInstance.resetSelectedPassword();
     const resetReq = httpMock.expectOne('/api/admin/user-lifecycle/users/u1/reset-password');
     expect(resetReq.request.method).toBe('POST');
+    expect(resetReq.request.body.reason).toContain('Compromised credentials report');
+    expect(resetReq.request.body.confirm).toBe('CONFIRM');
     resetReq.flush({
       id: 'u1',
       password_reset: true
     });
     expect(fixture.componentInstance.resetForm.newPassword).toBe('');
     expect(fixture.componentInstance.success).toBe('Password reset complete.');
+  });
+
+  it('blocks deactivation when reason/confirm missing', () => {
+    fixture.componentInstance.selectUser('u1');
+    fixture.componentInstance.deactivateGuard.reason = 'short';
+    fixture.componentInstance.deactivateGuard.confirm = 'NO';
+    fixture.componentInstance.deactivateSelectedUser();
+    expect(fixture.componentInstance.error).toContain('Deactivate requires a reason');
   });
 });
 

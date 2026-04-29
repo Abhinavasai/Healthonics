@@ -42,6 +42,18 @@ export class AdminManagementComponent implements OnInit {
   resetForm = {
     newPassword: ''
   };
+  settingsGuard = {
+    reason: '',
+    confirm: ''
+  };
+  deactivateGuard = {
+    reason: '',
+    confirm: ''
+  };
+  resetGuard = {
+    reason: '',
+    confirm: ''
+  };
 
   constructor(private readonly api: AdminUserLifecycleService) {}
 
@@ -80,13 +92,19 @@ export class AdminManagementComponent implements OnInit {
   }
 
   save(): void {
+    if (!this.validGuardrail(this.settingsGuard.reason, this.settingsGuard.confirm)) {
+      this.error = 'Settings update requires a reason (min 8 chars) and CONFIRM.';
+      return;
+    }
     this.saving = true;
     this.error = null;
     this.success = null;
     this.api
       .updateSettings({
         new_user_window_days: Number(this.form.new_user_window_days),
-        inactive_window_days: Number(this.form.inactive_window_days)
+        inactive_window_days: Number(this.form.inactive_window_days),
+        reason: this.settingsGuard.reason.trim(),
+        confirm: this.settingsGuard.confirm.trim().toUpperCase()
       })
       .subscribe({
         next: (res) => {
@@ -96,7 +114,7 @@ export class AdminManagementComponent implements OnInit {
           this.saving = false;
         },
         error: () => {
-          this.error = 'Could not update settings.';
+          this.error = 'Could not update settings. Reason + CONFIRM are required.';
           this.saving = false;
         }
       });
@@ -165,39 +183,59 @@ export class AdminManagementComponent implements OnInit {
     if (!this.selectedUserId) {
       return;
     }
+    if (!this.validGuardrail(this.deactivateGuard.reason, this.deactivateGuard.confirm)) {
+      this.error = 'Deactivate requires a reason (min 8 chars) and CONFIRM.';
+      return;
+    }
     this.userBusy = true;
     this.error = null;
     this.success = null;
-    this.api.deactivateUser(this.selectedUserId).subscribe({
+    this.api
+      .deactivateUser(this.selectedUserId, {
+        reason: this.deactivateGuard.reason.trim(),
+        confirm: this.deactivateGuard.confirm.trim().toUpperCase()
+      })
+      .subscribe({
       next: () => {
         this.success = 'User deactivated.';
+        this.deactivateGuard = { reason: '', confirm: '' };
         this.refreshUsers();
       },
       error: () => {
         this.userBusy = false;
         this.error = 'Could not deactivate user.';
       }
-    });
+      });
   }
 
   resetSelectedPassword(): void {
     if (!this.selectedUserId || !this.resetForm.newPassword.trim()) {
       return;
     }
+    if (!this.validGuardrail(this.resetGuard.reason, this.resetGuard.confirm)) {
+      this.error = 'Reset password requires a reason (min 8 chars) and CONFIRM.';
+      return;
+    }
     this.userBusy = true;
     this.error = null;
     this.success = null;
-    this.api.resetPassword(this.selectedUserId, this.resetForm.newPassword).subscribe({
+    this.api
+      .resetPassword(this.selectedUserId, this.resetForm.newPassword, {
+        reason: this.resetGuard.reason.trim(),
+        confirm: this.resetGuard.confirm.trim().toUpperCase()
+      })
+      .subscribe({
       next: () => {
         this.success = 'Password reset complete.';
         this.resetForm.newPassword = '';
+        this.resetGuard = { reason: '', confirm: '' };
         this.userBusy = false;
       },
       error: () => {
         this.userBusy = false;
         this.error = 'Could not reset password.';
       }
-    });
+      });
   }
 
   private refreshUsers(): void {
@@ -217,5 +255,9 @@ export class AdminManagementComponent implements OnInit {
         this.error = 'Could not refresh users.';
       }
     });
+  }
+
+  private validGuardrail(reason: string, confirm: string): boolean {
+    return reason.trim().length >= 8 && confirm.trim().toUpperCase() === 'CONFIRM';
   }
 }

@@ -26,6 +26,8 @@ export class AdminUserLifecycleService {
   updateSettings(payload: {
     new_user_window_days: number;
     inactive_window_days: number;
+    reason: string;
+    confirm: string;
   }): Observable<AdminLifecycleSettingsKpisResponse> {
     return this.http.put<AdminLifecycleSettingsKpisResponse>(ApiContract.admin.userLifecycleSettings, payload);
   }
@@ -55,14 +57,18 @@ export class AdminUserLifecycleService {
     );
   }
 
-  deactivateUser(id: string): Observable<{ id: string; status: string }> {
-    return this.http.patch<{ id: string; status: string }>(ApiContract.admin.userLifecycleDeactivate(id), {});
+  deactivateUser(id: string, payload: { reason: string; confirm: string }): Observable<{ id: string; status: string }> {
+    return this.http.patch<{ id: string; status: string }>(ApiContract.admin.userLifecycleDeactivate(id), payload);
   }
 
-  resetPassword(id: string, newPassword: string): Observable<{ id: string; password_reset: boolean }> {
+  resetPassword(
+    id: string,
+    newPassword: string,
+    guardrail: { reason: string; confirm: string }
+  ): Observable<{ id: string; password_reset: boolean }> {
     return this.http.post<{ id: string; password_reset: boolean }>(
       ApiContract.admin.userLifecycleResetPassword(id),
-      { new_password: newPassword }
+      { new_password: newPassword, reason: guardrail.reason, confirm: guardrail.confirm }
     );
   }
 }

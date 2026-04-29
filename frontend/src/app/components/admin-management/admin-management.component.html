@@ -40,6 +40,14 @@
       />
     </label>
     <p class="muted">Last updated: {{ settings.updated_at || 'n/a' }}</p>
+    <label>
+      <span>Change reason</span>
+      <input type="text" name="settingsReason" [(ngModel)]="settingsGuard.reason" placeholder="Why is this sensitive change needed?" />
+    </label>
+    <label>
+      <span>Type CONFIRM</span>
+      <input type="text" name="settingsConfirm" [(ngModel)]="settingsGuard.confirm" />
+    </label>
     <button type="submit" [disabled]="saving">{{ saving ? 'Saving...' : 'Save settings' }}</button>
   </form>
 
@@ -136,8 +144,48 @@
           >
             Reset password
           </button>
+          <label>
+            <span>Reset reason</span>
+            <input
+              type="text"
+              name="resetReason"
+              [(ngModel)]="resetGuard.reason"
+              [disabled]="!selectedUserId"
+              data-cy="admin-user-reset-reason"
+            />
+          </label>
+          <label>
+            <span>Type CONFIRM</span>
+            <input
+              type="text"
+              name="resetConfirm"
+              [(ngModel)]="resetGuard.confirm"
+              [disabled]="!selectedUserId"
+              data-cy="admin-user-reset-confirm"
+            />
+          </label>
         </form>
 
+        <label>
+          <span>Deactivation reason</span>
+          <input
+            type="text"
+            name="deactivateReason"
+            [(ngModel)]="deactivateGuard.reason"
+            [disabled]="!selectedUserId"
+            data-cy="admin-user-deactivate-reason"
+          />
+        </label>
+        <label>
+          <span>Type CONFIRM</span>
+          <input
+            type="text"
+            name="deactivateConfirm"
+            [(ngModel)]="deactivateGuard.confirm"
+            [disabled]="!selectedUserId"
+            data-cy="admin-user-deactivate-confirm"
+          />
+        </label>
         <button
           type="button"
           class="danger"

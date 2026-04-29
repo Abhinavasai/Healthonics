@@ -63,16 +63,16 @@ func (h *PrescriptionsHandler) ListByPatient(c *gin.Context) {
 	defer rows.Close()
 
 	type row struct {
-		ID              uuid.UUID `json:"id"`
-		PatientID       uuid.UUID `json:"patient_id"`
-		DoctorID        uuid.UUID `json:"doctor_id"`
-		MedicationName  string    `json:"medication_name"`
-		Dosage          string    `json:"dosage"`
-		Frequency       string    `json:"frequency"`
-		DurationDays    int       `json:"duration_days"`
-		Instructions    string    `json:"instructions"`
-		Status          string    `json:"status"`
-		CreatedAt       string    `json:"created_at"`
+		ID             uuid.UUID `json:"id"`
+		PatientID      uuid.UUID `json:"patient_id"`
+		DoctorID       uuid.UUID `json:"doctor_id"`
+		MedicationName string    `json:"medication_name"`
+		Dosage         string    `json:"dosage"`
+		Frequency      string    `json:"frequency"`
+		DurationDays   int       `json:"duration_days"`
+		Instructions   string    `json:"instructions"`
+		Status         string    `json:"status"`
+		CreatedAt      string    `json:"created_at"`
 	}
 	var out []row
 	for rows.Next() {
@@ -103,6 +103,11 @@ type updatePrescriptionBody struct {
 	Frequency      *string `json:"frequency"`
 	DurationDays   *int    `json:"duration_days"`
 	Instructions   *string `json:"instructions"`
+}
+
+type revokePrescriptionBody struct {
+	Reason  string `json:"reason"`
+	Confirm string `json:"confirm"`
 }
 
 func reminderTimesForFrequency(frequency string) []string {
@@ -399,6 +404,15 @@ func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
 		return
 	}
+	var body revokePrescriptionBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if err := validateHighRiskGuardrail(body.Reason, body.Confirm); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	var doctorID, patientID uuid.UUID
 	err = db.Pool.QueryRow(c.Request.Context(), `SELECT doctor_id, patient_id FROM prescriptions WHERE id = $1`, id).Scan(&doctorID, &patientID)
@@ -411,15 +425,30 @@ func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
 		return
 	}
 
-	_, err = db.Pool.Exec(c.Request.Context(), `UPDATE prescriptions SET status = 'revoked' WHERE id = $1 AND status = 'active'`, id)
+	tx, err := db.Pool.Begin(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	_, _ = db.Pool.Exec(c.Request.Context(), `
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
+
+	_, err = tx.Exec(c.Request.Context(), `UPDATE prescriptions SET status = 'revoked' WHERE id = $1 AND status = 'active'`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	_, _ = tx.Exec(c.Request.Context(), `
 		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
 		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
 	`, patientID, "Prescription revoked", "One of your prescriptions has been revoked by your care team.")
+	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "prescription_revoked", "prescription", id.String(), appendAuditReason("prescription revoked", body.Reason)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"id": id, "patient_id": patientID, "status": "revoked"})
 }
 

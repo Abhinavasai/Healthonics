@@ -15,8 +15,10 @@ import (
 type AdminUserLifecycleHandler struct{}
 
 type updateLifecycleSettingsRequest struct {
-	NewUserWindowDays  int `json:"new_user_window_days"`
-	InactiveWindowDays int `json:"inactive_window_days"`
+	NewUserWindowDays  int    `json:"new_user_window_days"`
+	InactiveWindowDays int    `json:"inactive_window_days"`
+	Reason             string `json:"reason"`
+	Confirm            string `json:"confirm"`
 }
 
 type createLifecycleUserRequest struct {
@@ -32,6 +34,13 @@ type updateLifecycleUserRequest struct {
 
 type resetLifecyclePasswordRequest struct {
 	NewPassword string `json:"new_password"`
+	Reason      string `json:"reason"`
+	Confirm     string `json:"confirm"`
+}
+
+type deactivateLifecycleUserRequest struct {
+	Reason  string `json:"reason"`
+	Confirm string `json:"confirm"`
 }
 
 func NewAdminUserLifecycleHandler() *AdminUserLifecycleHandler {
@@ -192,8 +201,17 @@ func (h *AdminUserLifecycleHandler) UpdateSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "inactive_window_days must be between 1 and 3650"})
 		return
 	}
-
-	if _, err := db.Pool.Exec(c.Request.Context(), `
+	if err := validateHighRiskGuardrail(req.Reason, req.Confirm); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	tx, err := db.Pool.Begin(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
+	if _, err := tx.Exec(c.Request.Context(), `
 		UPDATE admin_user_lifecycle_settings
 		SET
 			new_user_window_days = $1,
@@ -202,6 +220,16 @@ func (h *AdminUserLifecycleHandler) UpdateSettings(c *gin.Context) {
 			updated_at = NOW()
 		WHERE id = TRUE
 	`, req.NewUserWindowDays, req.InactiveWindowDays, claims.UserID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	detail := fmt.Sprintf("updated lifecycle settings new_user_window_days=%d inactive_window_days=%d", req.NewUserWindowDays, req.InactiveWindowDays)
+	detail = appendAuditReason(detail, req.Reason)
+	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "admin_user_lifecycle_settings_updated", "admin_user_lifecycle_settings", "singleton", detail); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	if err := tx.Commit(c.Request.Context()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
@@ -365,6 +393,15 @@ func (h *AdminUserLifecycleHandler) DeactivateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot deactivate current admin"})
 		return
 	}
+	var req deactivateLifecycleUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if err := validateHighRiskGuardrail(req.Reason, req.Confirm); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	tx, err := db.Pool.Begin(c.Request.Context())
 	if err != nil {
@@ -391,7 +428,8 @@ func (h *AdminUserLifecycleHandler) DeactivateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "admin_user_deactivated", "user", userID, "deactivated user "+email); err != nil {
+	detail := appendAuditReason("deactivated user "+email, req.Reason)
+	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "admin_user_deactivated", "user", userID, detail); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
@@ -421,6 +459,10 @@ func (h *AdminUserLifecycleHandler) ResetPassword(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "new_password must be at least 6 characters"})
 		return
 	}
+	if err := validateHighRiskGuardrail(req.Reason, req.Confirm); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
@@ -443,7 +485,8 @@ func (h *AdminUserLifecycleHandler) ResetPassword(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "admin_user_password_reset", "user", userID, "password reset by admin"); err != nil {
+	detail := appendAuditReason("password reset by admin", req.Reason)
+	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "admin_user_password_reset", "user", userID, detail); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
