@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/healthonyx/backend/config"
 	"github.com/healthonyx/backend/db"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,10 +26,13 @@ func main() {
 	defer db.Close()
 
 	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		log.Fatalf("migration: %v", err)
+	}
 
 	hospitals := []struct {
 		name, city, region string
-		lat, lng            float64
+		lat, lng           float64
 	}{
 		{"UF Health Shands Hospital", "Gainesville", "Florida", 29.6406, -82.3444},
 		{"Orlando Health", "Orlando", "Florida", 28.5383, -81.3792},
@@ -90,9 +95,18 @@ func main() {
 		fmt.Println("Doctor profile: specialization + hospital linked.")
 	}
 
+	ids, err := loadDemoUserIDs(ctx)
+	if err != nil {
+		log.Fatalf("load demo user ids: %v", err)
+	}
+
+	if err := seedClinicalScenarioData(ctx, ids); err != nil {
+		log.Fatalf("seed clinical scenario data: %v", err)
+	}
+
 	// One demo open slot for the demo doctor (tomorrow 10:00 UTC window — adjust in app as needed)
 	var docID uuid.UUID
-	err := db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email = 'doctor@healthonyx.demo' AND role = 'doctor'`).Scan(&docID)
+	err = db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email = 'doctor@healthonyx.demo' AND role = 'doctor'`).Scan(&docID)
 	if err != nil {
 		log.Printf("demo slot: doctor id: %v", err)
 	} else {
@@ -112,4 +126,182 @@ func main() {
 	}
 
 	fmt.Println("Demo users seeded. Use these credentials to log in.")
+}
+
+type demoIDs struct {
+	admin   uuid.UUID
+	doctor  uuid.UUID
+	patient uuid.UUID
+}
+
+func loadDemoUserIDs(ctx context.Context) (demoIDs, error) {
+	var out demoIDs
+	if err := db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email='admin@healthonyx.demo'`).Scan(&out.admin); err != nil {
+		return out, err
+	}
+	if err := db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email='doctor@healthonyx.demo'`).Scan(&out.doctor); err != nil {
+		return out, err
+	}
+	if err := db.Pool.QueryRow(ctx, `SELECT id FROM users WHERE email='patient@healthonyx.demo'`).Scan(&out.patient); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func seedClinicalScenarioData(ctx context.Context, ids demoIDs) error {
+	now := time.Now().UTC()
+
+	// Appointment scenarios: pending + approved + completed.
+	var apptID uuid.UUID
+	err := db.Pool.QueryRow(ctx, `
+		INSERT INTO appointments (patient_id, doctor_id, scheduled_at, reason, status)
+		VALUES ($1, $2, $3, $4, 'approved')
+		RETURNING id
+	`, ids.patient, ids.doctor, now.Add(48*time.Hour), "Follow-up blood pressure review").Scan(&apptID)
+	if err != nil {
+		return err
+	}
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO appointment_activities (appointment_id, actor_user_id, action, detail)
+		VALUES ($1, $2, 'status_changed', 'approved')
+	`, apptID, ids.doctor)
+
+	// Prescription + reminder + guardrail-related notification scenarios.
+	var rxID uuid.UUID
+	err = db.Pool.QueryRow(ctx, `
+		INSERT INTO prescriptions (patient_id, doctor_id, medication_name, dosage, frequency, duration_days, instructions, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+		RETURNING id
+	`, ids.patient, ids.doctor, "Atorvastatin", "20mg", "once daily", 30, "Take after dinner").Scan(&rxID)
+	if err != nil {
+		return err
+	}
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for, provider, attempts, last_error)
+		VALUES ($1, $2, $3, 'email', 'pending', $4, 'sendgrid', 0, '')
+	`, ids.patient, "Medication reminder", "Take Atorvastatin 20mg tonight.", now.Add(12*time.Hour))
+
+	// AI summary ready documents: normal + critical.
+	docBodyNormal := []byte("CBC panel within expected range. Continue current regimen and hydration.")
+	docBodyCritical := []byte("Critical alert: potassium level dangerously high. Immediate doctor follow-up required.")
+	if err := insertPatientDocument(ctx, ids.patient, "cbc-report.pdf", docBodyNormal, "CBC panel within expected range.", "ready"); err != nil {
+		return err
+	}
+	if err := insertPatientDocument(ctx, ids.patient, "critical-potassium-lab.pdf", docBodyCritical, "Critical potassium result; urgent follow-up needed.", "ready"); err != nil {
+		return err
+	}
+
+	// Knowledge base scenario docs for stale/conflict/similarity workflows.
+	if err := insertKnowledgeDocIfMissing(ctx, ids.admin, "Hypertension Protocol v1", "Start with low-dose ACE inhibitor; monitor weekly."); err != nil {
+		return err
+	}
+	if err := insertKnowledgeDocIfMissing(ctx, ids.admin, "Hypertension Protocol Legacy", "Begin with beta blocker as first-line for all patients."); err != nil {
+		return err
+	}
+	if err := insertKnowledgeDocIfMissing(ctx, ids.admin, "Lab Escalation SOP", "Escalate critical results within 15 minutes and track acknowledgments."); err != nil {
+		return err
+	}
+
+	// Interoperability test fixtures for FHIR/HL7 boundaries.
+	hl7Fixture := strings.Join([]string{
+		"MSH|^~\\&|LAB|HOSP|HEALTHONYX|APP|" + now.Format("20060102150405") + "||ORU^R01|SEED-MSG-1|P|2.5",
+		"PID|1||" + ids.patient.String() + "^^^HEALTHONYX||Demo^Patient",
+		"OBX|1|NM|GLU^Glucose||110|mg/dL|70-110|N|||F",
+	}, "\r")
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO hl7_lab_ingestion_events (
+			message_control_id, patient_identifier, patient_id, observation_code, observation_value, units,
+			transform_status, transform_outcome, hl7_message
+		) VALUES ($1, $2, $3, $4, $5, $6, 'reconciled', 'seed_fixture_loaded', $7)
+	`, "SEED-MSG-1", ids.patient.String(), ids.patient, "GLU", "110", "mg/dL", hl7Fixture)
+
+	// Admin AI runtime seeded for observability/usability checks.
+	_, _ = db.Pool.Exec(ctx, `
+		UPDATE admin_ai_runtime_settings
+		SET fallback_enabled = TRUE,
+		    rate_limit_enabled = TRUE,
+		    cache_enabled = TRUE,
+		    prompt_version = 'v1',
+		    updated_by = $1,
+		    updated_at = NOW()
+		WHERE id = TRUE
+	`, ids.admin)
+
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO admin_ai_eval_runs (model_name, prompt_version, fixture_count, passed_count, success_rate, quality_score, runtime_mode, ai_enabled, ollama_reachable, model_available, created_by)
+		VALUES ('llama3.1:8b', 'v1', 5, 4, 0.8, 0.84, 'fallback_local', FALSE, FALSE, FALSE, $1)
+	`, ids.admin)
+
+	fmt.Printf("Seeded clinical scenarios for patient=%s doctor=%s rx=%s appointment=%s\n", ids.patient, ids.doctor, rxID, apptID)
+	return nil
+}
+
+func insertPatientDocument(ctx context.Context, patientID uuid.UUID, filename string, body []byte, summary string, summaryStatus string) error {
+	var existing int
+	if err := db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM patient_documents WHERE patient_id = $1 AND filename = $2`, patientID, filename).Scan(&existing); err != nil {
+		return err
+	}
+	if existing > 0 {
+		return nil
+	}
+	hasBody, err := tableHasColumn(ctx, "patient_documents", "body")
+	if err != nil {
+		return err
+	}
+	hasFileData, err := tableHasColumn(ctx, "patient_documents", "file_data")
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case hasBody && hasFileData:
+		_, err = db.Pool.Exec(ctx, `
+			INSERT INTO patient_documents (patient_id, filename, content_type, size_bytes, status, body, file_data, summary, summary_status)
+			VALUES ($1, $2, 'application/pdf', $3, 'ready', $4, $5, $6, $7)
+		`, patientID, filename, len(body), bytes.Clone(body), bytes.Clone(body), summary, summaryStatus)
+		return err
+	case hasBody:
+		_, err = db.Pool.Exec(ctx, `
+			INSERT INTO patient_documents (patient_id, filename, content_type, size_bytes, status, body, summary, summary_status)
+			VALUES ($1, $2, 'application/pdf', $3, 'ready', $4, $5, $6)
+		`, patientID, filename, len(body), bytes.Clone(body), summary, summaryStatus)
+		return err
+	case hasFileData:
+		_, err = db.Pool.Exec(ctx, `
+			INSERT INTO patient_documents (patient_id, filename, file_data, summary, summary_status)
+			VALUES ($1, $2, $3, $4, $5)
+		`, patientID, filename, bytes.Clone(body), summary, summaryStatus)
+		return err
+	default:
+		return fmt.Errorf("patient_documents has neither body nor file_data columns")
+	}
+}
+
+func insertKnowledgeDocIfMissing(ctx context.Context, createdBy uuid.UUID, title string, body string) error {
+	var existing int
+	if err := db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM knowledge_docs WHERE title = $1`, title).Scan(&existing); err != nil {
+		return err
+	}
+	if existing > 0 {
+		return nil
+	}
+	_, err := db.Pool.Exec(ctx, `
+		INSERT INTO knowledge_docs (title, body, created_by)
+		VALUES ($1, $2, $3)
+	`, title, body, createdBy)
+	return err
+}
+
+func tableHasColumn(ctx context.Context, tableName string, columnName string) (bool, error) {
+	var exists bool
+	err := db.Pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM information_schema.columns
+			WHERE table_schema = 'public'
+			  AND table_name = $1
+			  AND column_name = $2
+		)
+	`, tableName, columnName).Scan(&exists)
+	return exists, err
 }
