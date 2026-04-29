@@ -52,6 +52,12 @@ func TestIsPgUniqueViolation(t *testing.T) {
 	if !isPgUniqueViolation(&pgconn.PgError{Code: "23505"}) {
 		t.Fatal("expected true for postgres unique violation")
 	}
+	if !isPgUniqueViolation(fmt.Errorf("wrapped: %w", &pgconn.PgError{Code: "23505"})) {
+		t.Fatal("expected true for wrapped postgres unique violation")
+	}
+	if !isPgUniqueViolation(fmt.Errorf(`ERROR: duplicate key value violates unique constraint "idx_critical_result_escalations_active_doc" (SQLSTATE 23505)`)) {
+		t.Fatal("expected true for plain text duplicate key violation")
+	}
 	if isPgUniqueViolation(&pgconn.PgError{Code: "23503"}) {
 		t.Fatal("expected false for non-unique postgres error")
 	}

@@ -58,7 +58,13 @@ func escalationMessage(tier int, filename, patientEmail string) string {
 
 func isPgUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return true
+	}
+	// Some driver/code paths surface this as plain text; guard for the known index.
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(msg, "idx_critical_result_escalations_active_doc") &&
+		strings.Contains(msg, "duplicate key value")
 }
 
 func enqueueEscalationNotification(ctx context.Context, doctorID uuid.UUID, title, body string) {
