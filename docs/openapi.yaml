@@ -439,6 +439,20 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/integrations/hl7/lab-results:
+    post:
+      tags: [Admin]
+      summary: Ingest HL7 v2 lab result feed and persist transform outcomes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: HL7 message parsed and outcomes recorded
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/admin/notifications:
     get:
       tags: [Admin]

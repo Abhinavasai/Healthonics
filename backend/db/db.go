@@ -432,6 +432,22 @@ func Migrate(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_api_request_telemetry_created ON api_request_telemetry(created_at DESC);
 		CREATE INDEX IF NOT EXISTS idx_api_request_telemetry_path ON api_request_telemetry(path, created_at DESC);
 
+		CREATE TABLE IF NOT EXISTS hl7_lab_ingestion_events (
+			id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			message_control_id TEXT NOT NULL DEFAULT '',
+			patient_identifier TEXT NOT NULL DEFAULT '',
+			patient_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+			observation_code   TEXT NOT NULL DEFAULT '',
+			observation_value  TEXT NOT NULL DEFAULT '',
+			units              TEXT NOT NULL DEFAULT '',
+			transform_status   TEXT NOT NULL CHECK (transform_status IN ('reconciled', 'unmatched_patient', 'rejected_malformed')),
+			transform_outcome  TEXT NOT NULL DEFAULT '',
+			hl7_message        TEXT NOT NULL DEFAULT '',
+			created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_hl7_lab_ingestion_events_control_id ON hl7_lab_ingestion_events(message_control_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_hl7_lab_ingestion_events_patient ON hl7_lab_ingestion_events(patient_identifier, created_at DESC);
+
 		CREATE TABLE IF NOT EXISTS message_thread_reads (
 			thread_id    UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
 			user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
