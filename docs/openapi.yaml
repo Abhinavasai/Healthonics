@@ -391,6 +391,18 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/notifications/consent-history:
+    get:
+      tags: [Admin]
+      summary: List notification consent provenance events
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notification consent history list
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/admin/notifications/{id}/retry:
     post:
       tags: [Admin]

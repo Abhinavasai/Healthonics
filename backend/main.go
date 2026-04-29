@@ -109,6 +109,7 @@ func main() {
 		api.POST("/admin/ai/eval", auth.RequireAuth(), auth.RequireRole("admin"), aiRuntime.RunEval)
 		api.GET("/admin/notifications", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminList)
 		api.GET("/admin/notifications/summary", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminSummary)
+		api.GET("/admin/notifications/consent-history", auth.RequireAuth(), auth.RequireRole("admin"), notifications.AdminConsentHistory)
 		api.POST("/admin/notifications/:id/retry", auth.RequireAuth(), auth.RequireRole("admin"), notifications.RetryFailed)
 		api.GET("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.List)
 		api.POST("/admin/knowledge-docs", auth.RequireAuth(), auth.RequireRole("admin"), knowledge.Create)
