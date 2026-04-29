@@ -413,6 +413,32 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/fhir/export:
+    get:
+      tags: [Admin]
+      summary: Export canonical Healthonyx data as FHIR R4 bundle
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: FHIR export bundle
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/fhir/import:
+    post:
+      tags: [Admin]
+      summary: Validate and import FHIR R4 bundle into canonical adapters
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: FHIR import validation/apply result
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/admin/notifications:
     get:
       tags: [Admin]
