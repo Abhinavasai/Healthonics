@@ -31,6 +31,8 @@ Owner: Rohith (BE)
 
 ## CGS-03: Usability Validation for Clinical Workflows
 
+Owner: Abhinav (FE)
+
 - **As** a clinical product owner
 - **I want** repeatable usability benchmark scenarios with seeded data
 - **So that** we can verify that critical workflows are usable under realistic conditions.
