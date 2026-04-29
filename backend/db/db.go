@@ -421,6 +421,17 @@ func Migrate(ctx context.Context) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_notification_suppressions_active ON notification_suppressions(provider, recipient) WHERE active = TRUE;
 
+		CREATE TABLE IF NOT EXISTS api_request_telemetry (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			method        TEXT NOT NULL,
+			path          TEXT NOT NULL,
+			status_code   INTEGER NOT NULL,
+			latency_ms    INTEGER NOT NULL DEFAULT 0,
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_api_request_telemetry_created ON api_request_telemetry(created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_api_request_telemetry_path ON api_request_telemetry(path, created_at DESC);
+
 		CREATE TABLE IF NOT EXISTS message_thread_reads (
 			thread_id    UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
 			user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

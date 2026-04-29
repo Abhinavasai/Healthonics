@@ -36,6 +36,23 @@ type adminAIObservability struct {
 	FailedDocsCount   int     `json:"failed_docs_count"`
 }
 
+type adminSLOMetric struct {
+	TargetPercent   float64 `json:"target_percent"`
+	SuccessPercent  float64 `json:"success_percent"`
+	ErrorBudgetUsed float64 `json:"error_budget_used_percent"`
+	Errors24h       int     `json:"errors_24h"`
+	Requests24h     int     `json:"requests_24h"`
+	AvgLatencyMS    float64 `json:"avg_latency_ms"`
+	P95LatencyMS    float64 `json:"p95_latency_ms"`
+}
+
+type adminSLOOverview struct {
+	Notifications adminSLOMetric `json:"notifications"`
+	AI            adminSLOMetric `json:"ai"`
+	API           adminSLOMetric `json:"api"`
+	Alerts        []gin.H        `json:"alerts"`
+}
+
 type adminAIEvalResult struct {
 	ModelName        string  `json:"model_name"`
 	SamplesEvaluated int     `json:"samples_evaluated"`
@@ -98,6 +115,7 @@ func (h *AdminAIRuntimeHandler) GetObservability(c *gin.Context) {
 		"observability": obs,
 		"runtime":       runtime,
 		"recent_evals":  recentRuns,
+		"slo_overview":  loadSLOOverview(c),
 	})
 }
 
@@ -367,4 +385,115 @@ func loadAIObservability(c *gin.Context) (adminAIObservability, error) {
 		return out, err
 	}
 	return out, nil
+}
+
+func loadSLOOverview(c *gin.Context) adminSLOOverview {
+	out := adminSLOOverview{
+		Notifications: adminSLOMetric{TargetPercent: 99.0},
+		AI:            adminSLOMetric{TargetPercent: 97.0},
+		API:           adminSLOMetric{TargetPercent: 99.5},
+		Alerts:        []gin.H{},
+	}
+
+	_ = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT
+			COUNT(*)::int AS total,
+			COUNT(*) FILTER (WHERE success = FALSE)::int AS failed,
+			COALESCE(AVG(latency_ms)::float8, 0)::float8 AS avg_latency,
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::float8 AS p95_latency
+		FROM notification_delivery_attempts
+		WHERE created_at >= NOW() - INTERVAL '24 hours'
+	`).Scan(&out.Notifications.Requests24h, &out.Notifications.Errors24h, &out.Notifications.AvgLatencyMS, &out.Notifications.P95LatencyMS)
+	out.Notifications.SuccessPercent = successPercent(out.Notifications.Requests24h, out.Notifications.Errors24h)
+	out.Notifications.ErrorBudgetUsed = errorBudgetUsed(out.Notifications.SuccessPercent, out.Notifications.TargetPercent)
+
+	_ = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT
+			COUNT(*)::int AS total,
+			COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (finished_at - started_at)) * 1000) FILTER (
+				WHERE started_at IS NOT NULL AND finished_at IS NOT NULL
+			), 0)::float8 AS avg_latency,
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (
+				ORDER BY EXTRACT(EPOCH FROM (finished_at - started_at)) * 1000
+			) FILTER (WHERE started_at IS NOT NULL AND finished_at IS NOT NULL), 0)::float8 AS p95_latency
+		FROM document_summary_jobs
+		WHERE created_at >= NOW() - INTERVAL '24 hours'
+	`).Scan(&out.AI.Requests24h, &out.AI.Errors24h, &out.AI.AvgLatencyMS, &out.AI.P95LatencyMS)
+	out.AI.SuccessPercent = successPercent(out.AI.Requests24h, out.AI.Errors24h)
+	out.AI.ErrorBudgetUsed = errorBudgetUsed(out.AI.SuccessPercent, out.AI.TargetPercent)
+
+	_ = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT
+			COUNT(*)::int AS total,
+			COUNT(*) FILTER (WHERE status_code >= 500)::int AS failed,
+			COALESCE(AVG(latency_ms)::float8, 0)::float8 AS avg_latency,
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::float8 AS p95_latency
+		FROM api_request_telemetry
+		WHERE created_at >= NOW() - INTERVAL '24 hours'
+	`).Scan(&out.API.Requests24h, &out.API.Errors24h, &out.API.AvgLatencyMS, &out.API.P95LatencyMS)
+	out.API.SuccessPercent = successPercent(out.API.Requests24h, out.API.Errors24h)
+	out.API.ErrorBudgetUsed = errorBudgetUsed(out.API.SuccessPercent, out.API.TargetPercent)
+
+	out.Alerts = buildSLOAlerts(out)
+	return out
+}
+
+func successPercent(total, errors int) float64 {
+	if total <= 0 {
+		return 100
+	}
+	ok := float64(total - errors)
+	if ok < 0 {
+		ok = 0
+	}
+	return (ok / float64(total)) * 100
+}
+
+func errorBudgetUsed(successPercentValue, targetPercent float64) float64 {
+	if targetPercent >= 100 {
+		return 0
+	}
+	allowed := 100 - targetPercent
+	if allowed <= 0 {
+		return 0
+	}
+	actualFailure := 100 - successPercentValue
+	if actualFailure <= 0 {
+		return 0
+	}
+	return (actualFailure / allowed) * 100
+}
+
+func buildSLOAlerts(overview adminSLOOverview) []gin.H {
+	alerts := []gin.H{}
+	add := func(domain string, m adminSLOMetric) {
+		if m.ErrorBudgetUsed >= 100 {
+			alerts = append(alerts, gin.H{
+				"severity": "warning",
+				"code":     domain + "_error_budget_exhausted",
+				"message":  domain + " SLO error budget exhausted in last 24h.",
+				"value":    m.ErrorBudgetUsed,
+			})
+		} else if m.ErrorBudgetUsed >= 50 {
+			alerts = append(alerts, gin.H{
+				"severity": "info",
+				"code":     domain + "_error_budget_burn_high",
+				"message":  domain + " SLO error budget burn is above 50% in last 24h.",
+				"value":    m.ErrorBudgetUsed,
+			})
+		}
+		if m.P95LatencyMS >= 2000 {
+			alerts = append(alerts, gin.H{
+				"severity": "warning",
+				"code":     domain + "_p95_latency_high",
+				"message":  domain + " p95 latency is above 2000ms.",
+				"value":    m.P95LatencyMS,
+			})
+		}
+	}
+	add("notifications", overview.Notifications)
+	add("ai", overview.AI)
+	add("api", overview.API)
+	return alerts
 }

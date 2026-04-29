@@ -107,6 +107,23 @@ export type AdminAiObservability = {
   failed_docs_count: number;
 };
 
+export type AdminSloMetric = {
+  target_percent: number;
+  success_percent: number;
+  error_budget_used_percent: number;
+  errors_24h: number;
+  requests_24h: number;
+  avg_latency_ms: number;
+  p95_latency_ms: number;
+};
+
+export type AdminSloOverview = {
+  notifications: AdminSloMetric;
+  ai: AdminSloMetric;
+  api: AdminSloMetric;
+  alerts: { severity: string; code: string; message: string; value: number }[];
+};
+
 export type AdminAiRuntimeStatus = {
   ai_enabled: boolean;
   ollama_host: string;
@@ -120,6 +137,7 @@ export type AdminAiObservabilityResponse = {
   settings: AdminAiRuntimeSettings;
   observability: AdminAiObservability;
   runtime?: AdminAiRuntimeStatus;
+  slo_overview?: AdminSloOverview;
 };
 
 export type AdminAiEvalResponse = {

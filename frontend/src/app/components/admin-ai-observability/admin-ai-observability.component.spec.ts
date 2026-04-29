@@ -42,6 +42,36 @@ describe('AdminAiObservabilityComponent', () => {
           ollama_reachable: true,
           model_available: true,
           active_mode: 'ollama'
+        },
+        slo_overview: {
+          notifications: {
+            target_percent: 99,
+            success_percent: 99.1,
+            error_budget_used_percent: 90,
+            errors_24h: 5,
+            requests_24h: 550,
+            avg_latency_ms: 45,
+            p95_latency_ms: 210
+          },
+          ai: {
+            target_percent: 97,
+            success_percent: 98.4,
+            error_budget_used_percent: 53,
+            errors_24h: 2,
+            requests_24h: 120,
+            avg_latency_ms: 330,
+            p95_latency_ms: 980
+          },
+          api: {
+            target_percent: 99.5,
+            success_percent: 99.8,
+            error_budget_used_percent: 40,
+            errors_24h: 3,
+            requests_24h: 1500,
+            avg_latency_ms: 22,
+            p95_latency_ms: 120
+          },
+          alerts: [{ severity: 'info', code: 'ai_error_budget_burn_high', message: 'ai SLO error budget burn is above 50% in last 24h.', value: 53 }]
         }
       })
     );
@@ -60,6 +90,7 @@ describe('AdminAiObservabilityComponent', () => {
     expect(serviceSpy.getObservability).toHaveBeenCalled();
     expect(el.querySelector('[data-cy="admin-ai-observability-page"]')).toBeTruthy();
     expect(el.querySelector('[data-cy="ai-runtime-health"]')).toBeTruthy();
+    expect(el.querySelector('[data-cy="admin-slo-overview"]')).toBeTruthy();
   });
 
   it('saves settings', () => {

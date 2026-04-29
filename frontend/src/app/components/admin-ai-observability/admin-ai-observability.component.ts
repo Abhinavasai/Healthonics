@@ -7,6 +7,7 @@ import {
   AdminAiRuntimeService,
   AdminAiRuntimeSettings
 } from '../../services/admin-ai-runtime.service';
+import { AdminSloOverview } from '../../services/api-types';
 
 @Component({
   selector: 'app-admin-ai-observability',
@@ -23,6 +24,7 @@ export class AdminAiObservabilityComponent implements OnInit {
   success: string | null = null;
   settings: AdminAiRuntimeSettings | null = null;
   obs: AdminAiObservability | null = null;
+  slo: AdminSloOverview | null = null;
   runtime: AdminAiObservabilityResponse['runtime'] | null = null;
   evalResult: { model_name: string; samples_evaluated: number; success_rate: number; quality_score: number } | null =
     null;
@@ -67,6 +69,7 @@ export class AdminAiObservabilityComponent implements OnInit {
         this.settings = res.settings;
         this.obs = res.observability;
         this.runtime = res.runtime ?? null;
+        this.slo = res.slo_overview ?? null;
         this.form = {
           ollama_enabled: res.settings.ollama_enabled,
           fallback_enabled: res.settings.fallback_enabled,
@@ -100,6 +103,7 @@ export class AdminAiObservabilityComponent implements OnInit {
           this.settings = res.settings;
           this.obs = res.observability;
           this.runtime = res.runtime ?? null;
+          this.slo = res.slo_overview ?? this.slo;
           this.success = 'AI runtime settings updated.';
           this.saving = false;
         },

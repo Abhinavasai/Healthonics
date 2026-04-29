@@ -48,6 +48,30 @@
     <article><span>Pending docs</span><strong>{{ obs.pending_docs_count }}</strong></article>
   </div>
 
+  <section class="runtime-health" *ngIf="!loading && slo" data-cy="admin-slo-overview">
+    <h2>SLO overview (24h)</h2>
+    <div class="runtime-grid">
+      <article>
+        <span>Notifications SLO</span>
+        <strong>{{ slo.notifications.success_percent | number: '1.2-2' }}%</strong>
+        <small>budget used {{ slo.notifications.error_budget_used_percent | number: '1.1-1' }}%</small>
+      </article>
+      <article>
+        <span>AI SLO</span>
+        <strong>{{ slo.ai.success_percent | number: '1.2-2' }}%</strong>
+        <small>budget used {{ slo.ai.error_budget_used_percent | number: '1.1-1' }}%</small>
+      </article>
+      <article>
+        <span>API SLO</span>
+        <strong>{{ slo.api.success_percent | number: '1.2-2' }}%</strong>
+        <small>budget used {{ slo.api.error_budget_used_percent | number: '1.1-1' }}%</small>
+      </article>
+    </div>
+    <ul *ngIf="slo.alerts.length > 0" data-cy="admin-slo-alerts">
+      <li *ngFor="let a of slo.alerts">{{ a.message }}</li>
+    </ul>
+  </section>
+
   <form class="controls" *ngIf="!loading" (ngSubmit)="save()">
     <h2>Runtime settings</h2>
     <label><input type="checkbox" name="ollamaEnabled" [(ngModel)]="form.ollama_enabled" /> Ollama enabled</label>
