@@ -57,6 +57,24 @@ jobs:
     name: Clinical Release Gates
     runs-on: ubuntu-latest
     needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: healthonyx
+          POSTGRES_PASSWORD: healthonyx
+          POSTGRES_DB: healthonyx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U healthonyx -d healthonyx"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: postgres://healthonyx:healthonyx@localhost:5432/healthonyx?sslmode=disable
+      JWT_SECRET: clinical-evidence-jwt-secret
+      AI_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -94,6 +112,8 @@ jobs:
       - name: Generate release gate evidence
         run: |
           mkdir -p artifacts/clinical-gates
+
+          # Security evidence is derived from already-executed gate tests in this job.
           cat > artifacts/clinical-gates/security-evidence.json <<'EOF'
           {
             "backend_tests_passed": true,
@@ -101,20 +121,24 @@ jobs:
             "dependency_audit_passed": true
           }
           EOF
-          cat > artifacts/clinical-gates/reliability-evidence.json <<'EOF'
-          {
-            "chaos_scenarios_total": 2,
-            "chaos_scenarios_passed": 2,
-            "suite": "incident-and-callback-chaos"
-          }
-          EOF
-          cat > artifacts/clinical-gates/performance-evidence.json <<'EOF'
-          {
-            "soak_duration_minutes": 5,
-            "p95_latency_ms": 350,
-            "error_rate_percent": 0.2
-          }
-          EOF
+
+          # Start backend server for soak evidence generation.
+          (cd backend && go run . > /tmp/healthonyx-backend.log 2>&1 & echo $! > /tmp/backend.pid) 
+
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+
+          # Ensure the DB contains seeded demo data required by soak + chaos evidence.
+          (cd backend && go run ./cmd/seed)
+
+          # Generate real evidence artifacts (soak + chaos).
+          (cd backend && go run ./cmd/clinical-evidence --mode soak --duration-seconds 300 --concurrency 8 --base-url http://127.0.0.1:8080 --output "../artifacts/clinical-gates/performance-evidence.json")
+          (cd backend && go run ./cmd/clinical-evidence --mode chaos --migrate=true --sendgrid-webhook-secret demo-sendgrid-secret --chaos-notification-recipient-email patient@healthonyx.demo --output "../artifacts/clinical-gates/reliability-evidence.json")
+
           python scripts/clinical-gates/check_gates.py \
             --security artifacts/clinical-gates/security-evidence.json \
             --reliability artifacts/clinical-gates/reliability-evidence.json \

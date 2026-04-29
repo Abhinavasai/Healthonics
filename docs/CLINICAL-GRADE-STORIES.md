@@ -17,6 +17,8 @@ This backlog translates remaining clinical-grade gaps into testable user stories
 
 ## CGS-02: Production-Grade Evidence Expansion
 
+Owner: Rohith (BE)
+
 - **As** a release manager
 - **I want** sustained performance and chaos evidence from production-like runs
 - **So that** release gates are based on operationally meaningful proof.
