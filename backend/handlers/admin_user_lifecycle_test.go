@@ -40,6 +40,22 @@ func TestAdminUserLifecycle_UpdateSettings_BadRange(t *testing.T) {
 	}
 }
 
+func TestAdminUserLifecycle_UpdateSettings_RequiresGuardrail(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("PUT", "/api/admin/user-lifecycle/settings", strings.NewReader(`{"new_user_window_days":30,"inactive_window_days":60,"reason":"short","confirm":"NO"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("claims", &Claims{UserID: uuid.New(), Role: "admin"})
+
+	h := NewAdminUserLifecycleHandler()
+	h.UpdateSettings(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
 func TestAdminUserLifecycle_ListUsers_Unauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
@@ -104,12 +120,46 @@ func TestAdminUserLifecycle_DeactivateUser_CannotDeactivateSelf(t *testing.T) {
 	}
 }
 
+func TestAdminUserLifecycle_DeactivateUser_RequiresGuardrailFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "id", Value: uuid.NewString()}}
+	c.Request = httptest.NewRequest("PATCH", "/api/admin/user-lifecycle/users/id/deactivate", strings.NewReader(`{"reason":"short","confirm":"NO"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("claims", &Claims{UserID: uuid.New(), Role: "admin"})
+
+	h := NewAdminUserLifecycleHandler()
+	h.DeactivateUser(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
 func TestAdminUserLifecycle_ResetPassword_BadPayload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Params = gin.Params{{Key: "id", Value: uuid.NewString()}}
 	c.Request = httptest.NewRequest("POST", "/api/admin/user-lifecycle/users/id/reset-password", strings.NewReader(`{"new_password":"123"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("claims", &Claims{UserID: uuid.New(), Role: "admin"})
+
+	h := NewAdminUserLifecycleHandler()
+	h.ResetPassword(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestAdminUserLifecycle_ResetPassword_RequiresGuardrailFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "id", Value: uuid.NewString()}}
+	c.Request = httptest.NewRequest("POST", "/api/admin/user-lifecycle/users/id/reset-password", strings.NewReader(`{"new_password":"newpass123","reason":"ok reason","confirm":"not-confirm"}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set("claims", &Claims{UserID: uuid.New(), Role: "admin"})
 
