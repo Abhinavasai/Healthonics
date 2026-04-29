@@ -163,6 +163,32 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/doctor/critical-escalations:
+    get:
+      tags: [Dashboard]
+      summary: List and refresh critical-result escalations for current doctor
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Escalation list
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/doctor/critical-escalations/{id}/ack:
+    post:
+      tags: [Dashboard]
+      summary: Acknowledge a critical-result escalation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Escalation acknowledged
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/doctor/documents:
     get:
       tags: [Documents]

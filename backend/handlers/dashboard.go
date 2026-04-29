@@ -203,7 +203,27 @@ func (h *DashboardHandler) DoctorSummary(c *gin.Context) {
 		return
 	}
 
+	if err := refreshDoctorCriticalEscalations(ctx, claims.UserID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	criticalEscalations, err := listDoctorCriticalEscalations(ctx, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
 	alerts := buildDoctorAlerts(today, pending, unread)
+	if len(criticalEscalations) > 0 {
+		alerts = append([]gin.H{
+			{
+				"severity": "warning",
+				"code":     "critical_result_escalations",
+				"message":  "Critical findings require acknowledgement.",
+				"count":    len(criticalEscalations),
+			},
+		}, alerts...)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"role":               "doctor",
@@ -212,7 +232,9 @@ func (h *DashboardHandler) DoctorSummary(c *gin.Context) {
 		"aggregations": gin.H{
 			"unread_messages":        unread,
 			"appointments_this_week": week,
+			"critical_open_count":    len(criticalEscalations),
 		},
-		"alerts": alerts,
+		"alerts":               alerts,
+		"critical_escalations": criticalEscalations,
 	})
 }
