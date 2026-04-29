@@ -72,4 +72,35 @@
   <main class="content">
     <router-outlet />
   </main>
+
+  @if (notificationPopup) {
+    <aside class="notif-popup" data-cy="notification-popup">
+      <div class="notif-popup__head">
+        <strong>{{ notificationPopup.title }}</strong>
+        <button type="button" class="notif-popup__close" (click)="dismissNotificationPopup()">✕</button>
+      </div>
+      <p class="notif-popup__body">{{ notificationPopup.body }}</p>
+      <small class="notif-popup__meta">
+        {{ notificationPopup.channel | titlecase }} · {{ notificationPopup.created_at | date: 'medium' }}
+      </small>
+    </aside>
+  }
+
+  <button type="button" class="assistant-fab" (click)="toggleAssistant()" data-cy="assistant-fab">
+    {{ assistantOpen ? 'Close AI' : 'AI assistant' }}
+  </button>
+  @if (assistantOpen) {
+    <aside class="assistant-panel" data-cy="assistant-panel">
+      <h3>Care assistant</h3>
+      <div class="assistant-chat">
+        @for (m of assistantMessages; track $index) {
+          <p [class]="m.from === 'me' ? 'msg msg-me' : 'msg msg-ai'">{{ m.text }}</p>
+        }
+      </div>
+      <div class="assistant-input">
+        <input [(ngModel)]="assistantInput" placeholder="Ask about features..." (keydown.enter)="sendAssistant()" />
+        <button type="button" (click)="sendAssistant()">Send</button>
+      </div>
+    </aside>
+  }
 </div>

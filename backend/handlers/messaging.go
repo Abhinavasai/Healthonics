@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -23,6 +24,11 @@ func NewMessagingHandler(hub *MessagingHub) *MessagingHandler {
 }
 
 const maxMessageRunes = 8000
+
+func allowPlaintextMessagingFallback() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("ALLOW_PLAINTEXT_MESSAGING")))
+	return v == "" || v == "1" || v == "true" || v == "yes"
+}
 
 func previewText(s string) string {
 	s = strings.TrimSpace(s)
@@ -285,15 +291,30 @@ func (h *MessagingHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
+	encrypted := true
+	encryptedBody := body
+	keyVersion := 0
+	wrappedKey := ""
+	wrappedNonce := ""
+	dataNonce := ""
 	kr, krErr := security.LoadKeyringFromEnv()
 	if krErr != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
-		return
-	}
-	env, encErr := kr.Encrypt([]byte(body))
-	if encErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to encrypt message"})
-		return
+		if !allowPlaintextMessagingFallback() {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
+			return
+		}
+		encrypted = false
+	} else {
+		env, encErr := kr.Encrypt([]byte(body))
+		if encErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to encrypt message"})
+			return
+		}
+		encryptedBody = security.B64Encode(env.Ciphertext)
+		keyVersion = env.KeyVersion
+		wrappedKey = security.B64Encode(env.WrappedKey)
+		wrappedNonce = security.B64Encode(env.WrappedNonce)
+		dataNonce = security.B64Encode(env.DataNonce)
 	}
 
 	var msg chatMessageRow
@@ -302,10 +323,10 @@ func (h *MessagingHandler) SendMessage(c *gin.Context) {
 			thread_id, sender_id, body,
 			body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce
 		)
-		VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, thread_id, sender_id, created_at
-	`, threadID, claims.UserID, security.B64Encode(env.Ciphertext),
-		env.KeyVersion, security.B64Encode(env.WrappedKey), security.B64Encode(env.WrappedNonce), security.B64Encode(env.DataNonce),
+	`, threadID, claims.UserID, encryptedBody,
+		encrypted, keyVersion, wrappedKey, wrappedNonce, dataNonce,
 	).Scan(&msg.ID, &msg.ThreadID, &msg.SenderID, &msg.CreatedAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to send message"})
@@ -396,15 +417,30 @@ func (h *MessagingHandler) CreateThread(c *gin.Context) {
 		return
 	}
 
+	encrypted := true
+	encryptedBody := body
+	keyVersion := 0
+	wrappedKey := ""
+	wrappedNonce := ""
+	dataNonce := ""
 	kr, krErr := security.LoadKeyringFromEnv()
 	if krErr != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
-		return
-	}
-	env, encErr := kr.Encrypt([]byte(body))
-	if encErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to encrypt message"})
-		return
+		if !allowPlaintextMessagingFallback() {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Encryption keyring not configured"})
+			return
+		}
+		encrypted = false
+	} else {
+		env, encErr := kr.Encrypt([]byte(body))
+		if encErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to encrypt message"})
+			return
+		}
+		encryptedBody = security.B64Encode(env.Ciphertext)
+		keyVersion = env.KeyVersion
+		wrappedKey = security.B64Encode(env.WrappedKey)
+		wrappedNonce = security.B64Encode(env.WrappedNonce)
+		dataNonce = security.B64Encode(env.DataNonce)
 	}
 
 	var msg chatMessageRow
@@ -413,10 +449,10 @@ func (h *MessagingHandler) CreateThread(c *gin.Context) {
 			thread_id, sender_id, body,
 			body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce
 		)
-		VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at
-	`, threadID, claims.UserID, security.B64Encode(env.Ciphertext),
-		env.KeyVersion, security.B64Encode(env.WrappedKey), security.B64Encode(env.WrappedNonce), security.B64Encode(env.DataNonce),
+	`, threadID, claims.UserID, encryptedBody,
+		encrypted, keyVersion, wrappedKey, wrappedNonce, dataNonce,
 	).Scan(&msg.ID, &msg.CreatedAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to send first message"})

@@ -20,7 +20,6 @@ import { DoctorAvailabilityComponent } from './components/doctor-availability/do
 import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
 import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
 import { MessagesComponent } from './components/messages/messages.component';
-import { PatientFilesComponent } from './components/patient-files/patient-files.component';
 import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
 import { NotificationsInboxComponent } from './components/notifications-inbox/notifications-inbox.component';
 import { PatientDashboardComponent } from './components/patient-dashboard/patient-dashboard.component';
@@ -87,9 +86,8 @@ export const routes: Routes = [
           },
           {
             path: 'my-files',
-            component: PatientFilesComponent,
-            data: { title: 'My files', roles: ['patient'] },
-            canActivate: [roleGuard]
+            pathMatch: 'full',
+            redirectTo: 'documents'
           },
           {
             path: 'prescriptions',

@@ -4,21 +4,32 @@ import { RouterModule, Router } from '@angular/router';
 import { Subscription, timer, switchMap } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { MessagingService } from '../../services/messaging.service';
+import { NotificationsInboxService, NotificationRow } from '../../services/notifications.service';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, TitleCasePipe, AsyncPipe],
+  imports: [CommonModule, RouterModule, TitleCasePipe, AsyncPipe, FormsModule],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss'
 })
 export class AppShellComponent implements OnInit, OnDestroy {
   private unreadPoll?: Subscription;
+  private notifPoll?: Subscription;
   private realtimeUnreadSub?: Subscription;
+  private seenNotificationIds = new Set<string>();
+  notificationPopup: NotificationRow | null = null;
+  assistantOpen = false;
+  assistantInput = '';
+  assistantMessages: { from: 'assistant' | 'me'; text: string }[] = [
+    { from: 'assistant', text: 'Hi, I can help with summaries, notifications, and find-care workflows.' }
+  ];
 
   constructor(
     public auth: AuthService,
     public messaging: MessagingService,
+    private notifications: NotificationsInboxService,
     private router: Router
   ) {}
 
@@ -34,10 +45,16 @@ export class AppShellComponent implements OnInit, OnDestroy {
     this.unreadPoll = timer(0, 30_000)
       .pipe(switchMap(() => this.messaging.refreshUnread()))
       .subscribe();
+    if (role === 'patient' || role === 'doctor') {
+      this.notifPoll = timer(0, 20_000).pipe(switchMap(() => this.notifications.listMine())).subscribe({
+        next: (res) => this.handleNotificationPoll(res.notifications ?? [])
+      });
+    }
   }
 
   ngOnDestroy(): void {
     this.unreadPoll?.unsubscribe();
+    this.notifPoll?.unsubscribe();
     this.realtimeUnreadSub?.unsubscribe();
     this.messaging.disconnectRealtime();
   }
@@ -59,7 +76,6 @@ export class AppShellComponent implements OnInit, OnDestroy {
     if (
       path.endsWith('/appointments') ||
       path.endsWith('/messages') ||
-      path.endsWith('/my-files') ||
       path.endsWith('/prescriptions') ||
       path.endsWith('/notifications') ||
       path.endsWith('/dashboard') ||
@@ -76,7 +92,6 @@ export class AppShellComponent implements OnInit, OnDestroy {
     const all = [
       { path: '/patient/dashboard', label: 'Dashboard', roles: ['patient'] },
       { path: '/patient/find-care', label: 'Find care', roles: ['patient'] },
-      { path: '/patient/my-files', label: 'My files', roles: ['patient'] },
       { path: '/patient/prescriptions', label: 'Prescriptions', roles: ['patient'] },
       { path: '/patient/appointments', label: 'My Appointments', roles: ['patient'] },
       { path: '/patient/documents', label: 'My documents', roles: ['patient'] },
@@ -93,6 +108,48 @@ export class AppShellComponent implements OnInit, OnDestroy {
       { path: '/admin/knowledge', label: 'Knowledge (admin)', roles: ['admin'] }
     ];
     return all.filter((l) => l.roles.includes(this.role));
+  }
+
+  dismissNotificationPopup(): void {
+    this.notificationPopup = null;
+  }
+
+  toggleAssistant(): void {
+    this.assistantOpen = !this.assistantOpen;
+  }
+
+  sendAssistant(): void {
+    const q = this.assistantInput.trim();
+    if (!q) {
+      return;
+    }
+    this.assistantMessages = [...this.assistantMessages, { from: 'me', text: q }];
+    this.assistantInput = '';
+    const lower = q.toLowerCase();
+    let answer = 'I can help with: document AI summary, notifications settings, and nearby hospitals.';
+    if (lower.includes('summary') || lower.includes('document')) {
+      answer = 'For AI summaries, open doctor -> Patient documents -> Open a document -> Start summary.';
+    } else if (lower.includes('notification')) {
+      answer = 'Open Notifications to configure channels and view live alerts with popups.';
+    } else if (lower.includes('find care') || lower.includes('hospital') || lower.includes('location')) {
+      answer = 'Use Find care, click "Use my location", then Hospitals nearby. You can also filter by department.';
+    }
+    this.assistantMessages = [...this.assistantMessages, { from: 'assistant', text: answer }];
+  }
+
+  private handleNotificationPoll(rows: NotificationRow[]): void {
+    if (rows.length === 0) {
+      return;
+    }
+    if (this.seenNotificationIds.size === 0) {
+      rows.forEach((r) => this.seenNotificationIds.add(r.id));
+      return;
+    }
+    const newest = rows.find((r) => !this.seenNotificationIds.has(r.id));
+    rows.forEach((r) => this.seenNotificationIds.add(r.id));
+    if (newest) {
+      this.notificationPopup = newest;
+    }
   }
 
 }
