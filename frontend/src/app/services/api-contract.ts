@@ -82,6 +82,8 @@ export const ApiContract = {
     aiObservability: `${API}/admin/ai/observability`,
     aiSettings: `${API}/admin/ai/settings`,
     aiEval: `${API}/admin/ai/eval`,
+    fhirExport: `${API}/admin/fhir/export`,
+    fhirImport: `${API}/admin/fhir/import`,
     notifications: `${API}/admin/notifications`,
     notificationsSummary: `${API}/admin/notifications/summary`,
     notificationsConsentHistory: `${API}/admin/notifications/consent-history`,
