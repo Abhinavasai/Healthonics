@@ -125,6 +125,8 @@ docker run -d --name healthonyx-db -e POSTGRES_USER=healthonyx -e POSTGRES_PASSW
 ## CI
 GitHub Actions runs on push/PR to `main` (or `master`): backend `go build` and `go test`, frontend `npm run test` and `npm run build`. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
+Clinical-grade release gating is also enforced in CI. A dedicated gate job validates security, reliability/chaos, and performance thresholds and publishes run evidence artifacts. See [docs/CLINICAL-RELEASE-GATES.md](docs/CLINICAL-RELEASE-GATES.md).
+
 ---
 
 ## Sprint 1 documentation
