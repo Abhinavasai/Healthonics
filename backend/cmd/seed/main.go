@@ -14,6 +14,27 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func buildMinimalPDFBytes(text string) []byte {
+	// Minimal PDF fixture that passes `extractTextFromPDF` unit checks.
+	// NOTE: keep `text` free of parentheses to avoid breaking PDF literal syntax.
+	if text == "" {
+		text = "empty"
+	}
+	text = strings.ReplaceAll(text, "(", "")
+	text = strings.ReplaceAll(text, ")", "")
+	return []byte(fmt.Sprintf(
+		`%%PDF-1.4
+1 0 obj
+<<>>
+stream
+BT (%s) Tj ET
+endstream
+endobj
+%%EOF`,
+		text,
+	))
+}
+
 func main() {
 	cfg := config.Load()
 	if cfg.DatabaseURL == "" {
@@ -110,18 +131,43 @@ func main() {
 	if err != nil {
 		log.Printf("demo slot: doctor id: %v", err)
 	} else {
-		start := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Hour)
-		start = time.Date(start.Year(), start.Month(), start.Day(), 14, 0, 0, 0, time.UTC)
-		end := start.Add(30 * time.Minute)
+		now := time.Now().UTC()
+		baseDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).Add(24 * time.Hour)
+
+		// Multiple windows to make the UI feel "alive" during manual testing.
+		times := []struct{ h, m int }{
+			{9, 0},
+			{10, 0},
+			{14, 0},
+			{16, 0},
+		}
+		for dayOffset := 0; dayOffset < 4; dayOffset++ {
+			day := baseDay.AddDate(0, 0, dayOffset)
+			for _, t := range times {
+				start := time.Date(day.Year(), day.Month(), day.Day(), t.h, t.m, 0, 0, time.UTC)
+				end := start.Add(30 * time.Minute)
+				_, err = db.Pool.Exec(ctx, `
+					INSERT INTO doctor_slots (doctor_id, start_at, end_at)
+					VALUES ($1, $2, $3)
+					ON CONFLICT (doctor_id, start_at) DO NOTHING
+				`, docID, start, end)
+				if err != nil {
+					log.Printf("demo slot: %v", err)
+				}
+			}
+		}
+
+		// Mark one slot as booked so the doctor list shows both available/unavailable rows.
+		bookedDay := baseDay.AddDate(0, 0, 1)
+		bookedStart := time.Date(bookedDay.Year(), bookedDay.Month(), bookedDay.Day(), 11, 0, 0, 0, time.UTC)
+		bookedEnd := bookedStart.Add(30 * time.Minute)
 		_, err = db.Pool.Exec(ctx, `
-			INSERT INTO doctor_slots (doctor_id, start_at, end_at)
-			VALUES ($1, $2, $3)
+			INSERT INTO doctor_slots (doctor_id, start_at, end_at, patient_id)
+			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (doctor_id, start_at) DO NOTHING
-		`, docID, start, end)
+		`, docID, bookedStart, bookedEnd, ids.patient)
 		if err != nil {
-			log.Printf("demo slot: %v", err)
-		} else {
-			fmt.Printf("Demo doctor slot: %s – %s (UTC)\n", start.Format(time.RFC3339), end.Format(time.RFC3339))
+			log.Printf("demo booked slot: %v", err)
 		}
 	}
 
@@ -179,15 +225,38 @@ func seedClinicalScenarioData(ctx context.Context, ids demoIDs) error {
 	_, _ = db.Pool.Exec(ctx, `
 		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for, provider, attempts, last_error)
 		VALUES ($1, $2, $3, 'email', 'pending', $4, 'sendgrid', 0, '')
-	`, ids.patient, "Medication reminder", "Take Atorvastatin 20mg tonight.", now.Add(12*time.Hour))
+	`, ids.patient, "Medication reminder", "Take Atorvastatin 20mg tonight after dinner.", now.Add(36*time.Hour))
+
+	// Additional reminder + alert items for inbox realism.
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for, provider, attempts, last_error)
+		VALUES ($1, $2, $3, 'in_app', 'pending', $4, 'sendgrid', 0, '')
+	`, ids.patient, "Appointment reminder", "Upcoming follow-up scheduled. Review your notes before the visit.", now.Add(42*time.Hour))
+
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for, provider, attempts, last_error)
+		VALUES ($1, $2, $3, 'email', 'pending', $4, 'sendgrid', 0, '')
+	`, ids.patient, "Lab result alert", "Your latest lab review is available. A clinician will follow up if needed.", now.Add(48*time.Hour))
+
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for, provider, attempts, last_error)
+		VALUES ($1, $2, $3, 'in_app', 'pending', $4, 'sendgrid', 0, '')
+	`, ids.patient, "Announcement: clinic updates", "New patient portal updates are live. Please review your preferences.", now.Add(60*time.Hour))
 
 	// AI summary ready documents: normal + critical.
-	docBodyNormal := []byte("CBC panel within expected range. Continue current regimen and hydration.")
-	docBodyCritical := []byte("Critical alert: potassium level dangerously high. Immediate doctor follow-up required.")
-	if err := insertPatientDocument(ctx, ids.patient, "cbc-report.pdf", docBodyNormal, "CBC panel within expected range.", "ready"); err != nil {
+	docBodyNormal := buildMinimalPDFBytes("CBC panel within expected range. Continue current regimen and hydration.")
+	docBodyCritical := buildMinimalPDFBytes("Critical alert: potassium level dangerously high. Immediate doctor follow-up required.")
+
+	if err := insertPatientDocument(ctx, ids.patient, "cbc-report.pdf", docBodyNormal, "CBC panel within expected range.", "ready", "ready"); err != nil {
 		return err
 	}
-	if err := insertPatientDocument(ctx, ids.patient, "critical-potassium-lab.pdf", docBodyCritical, "Critical potassium result; urgent follow-up needed.", "ready"); err != nil {
+	if err := insertPatientDocument(ctx, ids.patient, "critical-potassium-lab.pdf", docBodyCritical, "Critical potassium result; urgent follow-up needed.", "ready", "ready"); err != nil {
+		return err
+	}
+
+	// A non-ready document to exercise AI summarize usability (fallback/local extraction).
+	aiUnreadyBody := buildMinimalPDFBytes("A1c test: normal. No urgent abnormalities detected. Continue lifestyle plan.")
+	if err := insertPatientDocument(ctx, ids.patient, "a1c-lab.pdf", aiUnreadyBody, "", "none", "pending"); err != nil {
 		return err
 	}
 
@@ -199,6 +268,12 @@ func seedClinicalScenarioData(ctx context.Context, ids demoIDs) error {
 		return err
 	}
 	if err := insertKnowledgeDocIfMissing(ctx, ids.admin, "Lab Escalation SOP", "Escalate critical results within 15 minutes and track acknowledgments."); err != nil {
+		return err
+	}
+	if err := insertKnowledgeDocIfMissing(ctx, ids.admin, "Diabetes Monitoring Checklist", "Check A1c trends quarterly; ensure medication adherence and lifestyle follow-up."); err != nil {
+		return err
+	}
+	if err := insertKnowledgeDocIfMissing(ctx, ids.admin, "High-Risk Action Guardrails", "Before escalating, verify patient identity, consent, and device/source reliability."); err != nil {
 		return err
 	}
 
@@ -232,11 +307,22 @@ func seedClinicalScenarioData(ctx context.Context, ids demoIDs) error {
 		VALUES ('llama3.1:8b', 'v1', 5, 4, 0.8, 0.84, 'fallback_local', FALSE, FALSE, FALSE, $1)
 	`, ids.admin)
 
+	// Admin audit log entries to make the UI useful out of the box.
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, detail)
+		VALUES
+			($1, 'seeded_demo_data', 'knowledge_docs', 'Hypertension Protocol v1', 'Seeded demo knowledge baseline'),
+			($1, 'seeded_demo_data', 'notifications', 'Medication reminder', 'Seeded reminder notification'),
+			($1, 'seeded_demo_data', 'doctor_slots', 'availability_windows', 'Seeded multiple doctor availability windows'),
+			($1, 'seeded_demo_data', 'ai_runtime', 'cache', 'Seeded AI runtime settings for usability'),
+			($1, 'seeded_demo_data', 'patient_documents', 'cbc-report.pdf', 'Seeded patient document fixtures')
+	`, ids.admin)
+
 	fmt.Printf("Seeded clinical scenarios for patient=%s doctor=%s rx=%s appointment=%s\n", ids.patient, ids.doctor, rxID, apptID)
 	return nil
 }
 
-func insertPatientDocument(ctx context.Context, patientID uuid.UUID, filename string, body []byte, summary string, summaryStatus string) error {
+func insertPatientDocument(ctx context.Context, patientID uuid.UUID, filename string, body []byte, summary string, summaryStatus string, docStatus string) error {
 	var existing int
 	if err := db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM patient_documents WHERE patient_id = $1 AND filename = $2`, patientID, filename).Scan(&existing); err != nil {
 		return err
@@ -257,14 +343,14 @@ func insertPatientDocument(ctx context.Context, patientID uuid.UUID, filename st
 	case hasBody && hasFileData:
 		_, err = db.Pool.Exec(ctx, `
 			INSERT INTO patient_documents (patient_id, filename, content_type, size_bytes, status, body, file_data, summary, summary_status)
-			VALUES ($1, $2, 'application/pdf', $3, 'ready', $4, $5, $6, $7)
-		`, patientID, filename, len(body), bytes.Clone(body), bytes.Clone(body), summary, summaryStatus)
+			VALUES ($1, $2, 'application/pdf', $3, $4, $5, $6, $7, $8)
+		`, patientID, filename, len(body), docStatus, bytes.Clone(body), bytes.Clone(body), summary, summaryStatus)
 		return err
 	case hasBody:
 		_, err = db.Pool.Exec(ctx, `
 			INSERT INTO patient_documents (patient_id, filename, content_type, size_bytes, status, body, summary, summary_status)
-			VALUES ($1, $2, 'application/pdf', $3, 'ready', $4, $5, $6)
-		`, patientID, filename, len(body), bytes.Clone(body), summary, summaryStatus)
+			VALUES ($1, $2, 'application/pdf', $3, $4, $5, $6, $7)
+		`, patientID, filename, len(body), docStatus, bytes.Clone(body), summary, summaryStatus)
 		return err
 	case hasFileData:
 		_, err = db.Pool.Exec(ctx, `

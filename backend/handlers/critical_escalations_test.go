@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestHasCriticalSignal_RuleEngine(t *testing.T) {
@@ -42,5 +45,17 @@ func TestNextEscalation_SlaTimers(t *testing.T) {
 	}
 	if next3b.Sub(now) != 30*time.Minute {
 		t.Fatalf("expected 30m follow-up SLA at tier3, got %v", next3b.Sub(now))
+	}
+}
+
+func TestIsPgUniqueViolation(t *testing.T) {
+	if !isPgUniqueViolation(&pgconn.PgError{Code: "23505"}) {
+		t.Fatal("expected true for postgres unique violation")
+	}
+	if isPgUniqueViolation(&pgconn.PgError{Code: "23503"}) {
+		t.Fatal("expected false for non-unique postgres error")
+	}
+	if isPgUniqueViolation(fmt.Errorf("generic error")) {
+		t.Fatal("expected false for non-postgres error")
 	}
 }

@@ -218,13 +218,18 @@ type slotJSON struct {
 
 // ListOpenSlotsForDoctor returns slots for a doctor that are not yet booked.
 func (h *GeoBookingHandler) ListOpenSlotsForDoctor(c *gin.Context) {
-	if _, ok := getClaims(c); !ok {
+	claims, ok := getClaims(c)
+	if !ok {
 		return
 	}
 
 	doctorID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid doctor id"})
+		return
+	}
+	if claims.Role == "doctor" && claims.UserID != doctorID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		return
 	}
 
