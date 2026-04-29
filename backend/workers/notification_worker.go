@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/healthonyx/backend/db"
+	"github.com/healthonyx/backend/failures"
 	"github.com/healthonyx/backend/providers"
 	"github.com/jackc/pgx/v5"
 )
@@ -136,11 +137,12 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 	if suppressed, reason, err := w.isSuppressed(ctx, n); err != nil {
 		return err
 	} else if suppressed {
+		f := failures.ClassifySuppression(n.Provider, reason)
 		nextAttempt := n.Attempts + 1
 		_, _ = db.Pool.Exec(ctx, `
 			INSERT INTO notification_delivery_attempts(notification_id, channel, provider, attempt_no, success, error_message, latency_ms)
 			VALUES($1, $2, $3, $4, FALSE, $5, 0)
-		`, n.ID, n.Channel, n.Provider, nextAttempt, "suppressed:"+reason)
+		`, n.ID, n.Channel, n.Provider, nextAttempt, f.Encode())
 		_, _ = db.Pool.Exec(ctx, `
 			INSERT INTO notification_dead_letters(notification_id, channel, provider, final_error, attempt_count)
 			VALUES($1, $2, $3, $4, $5)
@@ -149,7 +151,7 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 				final_error = EXCLUDED.final_error,
 				attempt_count = EXCLUDED.attempt_count,
 				created_at = NOW()
-		`, n.ID, n.Channel, n.Provider, "suppressed:"+reason, nextAttempt)
+		`, n.ID, n.Channel, n.Provider, f.Encode(), nextAttempt)
 		_, updateErr := db.Pool.Exec(ctx, `
 			UPDATE notifications
 			SET status = 'failed',
@@ -157,7 +159,7 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 			    last_error = $3,
 			    next_retry_at = NULL
 			WHERE id = $1
-		`, n.ID, nextAttempt, "suppressed:"+reason)
+		`, n.ID, nextAttempt, f.Encode())
 		return updateErr
 	}
 
@@ -168,10 +170,11 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 		latencyMS = 0
 	}
 	nextAttempt := n.Attempts + 1
+	classified := failures.ClassifyProviderSend(mode, err)
 	_, _ = db.Pool.Exec(ctx, `
 		INSERT INTO notification_delivery_attempts(notification_id, channel, provider, attempt_no, success, error_message, latency_ms)
 		VALUES($1, $2, $3, $4, $5, $6, $7)
-	`, n.ID, n.Channel, mode, nextAttempt, err == nil, errorString(err), latencyMS)
+	`, n.ID, n.Channel, mode, nextAttempt, err == nil, errorStringOrClassified(err, classified), latencyMS)
 
 	if err == nil {
 		_, updateErr := db.Pool.Exec(ctx, `
@@ -196,7 +199,7 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 				final_error = EXCLUDED.final_error,
 				attempt_count = EXCLUDED.attempt_count,
 				created_at = NOW()
-		`, n.ID, n.Channel, mode, err.Error(), nextAttempt); deadErr != nil {
+		`, n.ID, n.Channel, mode, classified.Encode(), nextAttempt); deadErr != nil {
 			return deadErr
 		}
 		_, updateErr := db.Pool.Exec(ctx, `
@@ -207,7 +210,7 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 			    last_error = $4,
 			    next_retry_at = NULL
 			WHERE id = $1
-		`, n.ID, nextAttempt, mode, err.Error())
+		`, n.ID, nextAttempt, mode, classified.Encode())
 		return updateErr
 	}
 
@@ -220,7 +223,7 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 		    last_error = $4,
 		    next_retry_at = $5
 		WHERE id = $1
-	`, n.ID, nextAttempt, mode, err.Error(), nextRetry)
+	`, n.ID, nextAttempt, mode, classified.Encode(), nextRetry)
 	return updateErr
 }
 
@@ -294,4 +297,11 @@ func errorString(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func errorStringOrClassified(err error, classified failures.Failure) string {
+	if err == nil {
+		return ""
+	}
+	return classified.Encode()
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
+	"github.com/healthonyx/backend/failures"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -307,7 +308,8 @@ func (h *NotificationsHandler) RetryFailed(c *gin.Context) {
 	}
 	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification id"})
+		f := failures.ClassifyAPI("NTF_RETRY_ID_INVALID", "invalid notification id")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification id", "failure": f})
 		return
 	}
 	var prevStatus string
@@ -325,10 +327,12 @@ func (h *NotificationsHandler) RetryFailed(c *gin.Context) {
 	`, id).Scan(&prevStatus)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Failed notification not found"})
+			f := failures.ClassifyAPI("NTF_RETRY_TARGET_MISSING", "failed notification not found")
+			c.JSON(http.StatusNotFound, gin.H{"error": "Failed notification not found", "failure": f})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		f := failures.ClassifyAPI("NTF_RETRY_UPDATE_FAILED", "internal error")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error", "failure": f})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -506,22 +510,22 @@ func (h *NotificationsHandler) AdminConsentHistory(c *gin.Context) {
 	defer rows.Close()
 
 	type row struct {
-		ID              string `json:"id"`
-		UserID          string `json:"user_id"`
-		ActorUserID     string `json:"actor_user_id"`
-		ActorRole       string `json:"actor_role"`
-		ActorSource     string `json:"actor_source"`
-		PolicyVersion   string `json:"policy_version"`
-		Category        string `json:"category"`
-		PrevEnabled     bool   `json:"prev_enabled"`
-		PrevEmail       bool   `json:"prev_email_enabled"`
-		PrevSMS         bool   `json:"prev_sms_enabled"`
-		PrevInApp       bool   `json:"prev_in_app_enabled"`
-		NewEnabled      bool   `json:"new_enabled"`
-		NewEmail        bool   `json:"new_email_enabled"`
-		NewSMS          bool   `json:"new_sms_enabled"`
-		NewInApp        bool   `json:"new_in_app_enabled"`
-		CreatedAt       string `json:"created_at"`
+		ID            string `json:"id"`
+		UserID        string `json:"user_id"`
+		ActorUserID   string `json:"actor_user_id"`
+		ActorRole     string `json:"actor_role"`
+		ActorSource   string `json:"actor_source"`
+		PolicyVersion string `json:"policy_version"`
+		Category      string `json:"category"`
+		PrevEnabled   bool   `json:"prev_enabled"`
+		PrevEmail     bool   `json:"prev_email_enabled"`
+		PrevSMS       bool   `json:"prev_sms_enabled"`
+		PrevInApp     bool   `json:"prev_in_app_enabled"`
+		NewEnabled    bool   `json:"new_enabled"`
+		NewEmail      bool   `json:"new_email_enabled"`
+		NewSMS        bool   `json:"new_sms_enabled"`
+		NewInApp      bool   `json:"new_in_app_enabled"`
+		CreatedAt     string `json:"created_at"`
 	}
 	var out []row
 	for rows.Next() {

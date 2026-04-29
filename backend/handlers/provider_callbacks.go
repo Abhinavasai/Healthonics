@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/healthonyx/backend/db"
+	"github.com/healthonyx/backend/failures"
 )
 
 type ProviderCallbacksHandler struct {
@@ -89,7 +90,8 @@ func twilioFailureTaxonomy(status string) (reason string, suppress bool) {
 func (h *ProviderCallbacksHandler) SendGridWebhook(c *gin.Context) {
 	bodyBytes, err := c.GetRawData()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_PAYLOAD_INVALID", "invalid payload")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "failure": f})
 		return
 	}
 	body := string(bodyBytes)
@@ -97,13 +99,15 @@ func (h *ProviderCallbacksHandler) SendGridWebhook(c *gin.Context) {
 	sig := c.GetHeader("X-Twilio-Email-Event-Webhook-Signature")
 	valid := verifySendGridSignature(h.sendGridSecret, ts, body, sig)
 	if !valid {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook signature"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_SIGNATURE_INVALID", "invalid webhook signature")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook signature", "failure": f})
 		return
 	}
 
 	var events []sendGridEvent
 	if err := json.Unmarshal(bodyBytes, &events); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_PAYLOAD_INVALID", "invalid payload")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "failure": f})
 		return
 	}
 	processed := 0
@@ -128,7 +132,8 @@ func (h *ProviderCallbacksHandler) SendGridWebhook(c *gin.Context) {
 			ON CONFLICT(provider, event_id) DO NOTHING
 		`, eventID, strings.ToLower(strings.TrimSpace(e.Event)), nullableUUID(notifID), strings.TrimSpace(strings.ToLower(e.Email)), payloadJSON, e.Timestamp)
 		if insErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			f := failures.ClassifyAPI("NTF_CALLBACK_PERSIST_FAILED", "internal error")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error", "failure": f})
 			return
 		}
 		if cmd.RowsAffected() == 0 {
@@ -152,18 +157,19 @@ func (h *ProviderCallbacksHandler) reconcileSendGridEvent(c *gin.Context, e send
 				WHERE id = $1
 			`, *notifID)
 		default:
-			reason, suppress := sendGridFailureTaxonomy(event)
+			_, suppress := sendGridFailureTaxonomy(event)
+			classified := failures.ClassifyCallback("sendgrid", event, strings.TrimSpace(e.Reason))
 			_, _ = db.Pool.Exec(c.Request.Context(), `
 				UPDATE notifications
 				SET status = 'failed', provider = 'sendgrid', last_error = $2, next_retry_at = NULL
 				WHERE id = $1
-			`, *notifID, reason+":"+strings.TrimSpace(e.Reason))
+			`, *notifID, classified.Encode())
 			if suppress {
 				_, _ = db.Pool.Exec(c.Request.Context(), `
 					INSERT INTO notification_dead_letters(notification_id, channel, provider, final_error, attempt_count)
 					VALUES($1, 'email', 'sendgrid', $2, 1)
 					ON CONFLICT(notification_id) DO UPDATE SET final_error = EXCLUDED.final_error, provider = EXCLUDED.provider, attempt_count = GREATEST(notification_dead_letters.attempt_count, EXCLUDED.attempt_count), created_at = NOW()
-				`, *notifID, reason+":"+strings.TrimSpace(e.Reason))
+				`, *notifID, classified.Encode())
 			}
 		}
 	}
@@ -181,18 +187,21 @@ func (h *ProviderCallbacksHandler) reconcileSendGridEvent(c *gin.Context, e send
 func (h *ProviderCallbacksHandler) TwilioWebhook(c *gin.Context) {
 	bodyBytes, err := c.GetRawData()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_PAYLOAD_INVALID", "invalid payload")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "failure": f})
 		return
 	}
 	body := string(bodyBytes)
 	sig := c.GetHeader("X-Twilio-Signature")
 	if !verifyTwilioSignature(h.twilioSecret, body, sig) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook signature"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_SIGNATURE_INVALID", "invalid webhook signature")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook signature", "failure": f})
 		return
 	}
 	messageSID := strings.TrimSpace(c.PostForm("MessageSid"))
 	if messageSID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing MessageSid"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_PAYLOAD_INVALID", "missing MessageSid")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing MessageSid", "failure": f})
 		return
 	}
 	status := strings.ToLower(strings.TrimSpace(c.PostForm("MessageStatus")))
@@ -218,7 +227,8 @@ func (h *ProviderCallbacksHandler) TwilioWebhook(c *gin.Context) {
 		ON CONFLICT(provider, event_id) DO NOTHING
 	`, messageSID, status, nullableUUID(notifID), to, payloadJSON)
 	if insErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		f := failures.ClassifyAPI("NTF_CALLBACK_PERSIST_FAILED", "internal error")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error", "failure": f})
 		return
 	}
 	if cmd.RowsAffected() == 0 {
@@ -239,18 +249,19 @@ func (h *ProviderCallbacksHandler) reconcileTwilioEvent(c *gin.Context, status, 
 				WHERE id = $1
 			`, *notifID)
 		default:
-			reason, suppress := twilioFailureTaxonomy(status)
+			_, suppress := twilioFailureTaxonomy(status)
+			classified := failures.ClassifyCallback("twilio", status, errMsg)
 			_, _ = db.Pool.Exec(c.Request.Context(), `
 				UPDATE notifications
 				SET status = 'failed', provider = 'twilio', last_error = $2, next_retry_at = NULL
 				WHERE id = $1
-			`, *notifID, reason+":"+errMsg)
+			`, *notifID, classified.Encode())
 			if suppress {
 				_, _ = db.Pool.Exec(c.Request.Context(), `
 					INSERT INTO notification_dead_letters(notification_id, channel, provider, final_error, attempt_count)
 					VALUES($1, 'sms', 'twilio', $2, 1)
 					ON CONFLICT(notification_id) DO UPDATE SET final_error = EXCLUDED.final_error, provider = EXCLUDED.provider, attempt_count = GREATEST(notification_dead_letters.attempt_count, EXCLUDED.attempt_count), created_at = NOW()
-				`, *notifID, reason+":"+errMsg)
+				`, *notifID, classified.Encode())
 			}
 		}
 	}
