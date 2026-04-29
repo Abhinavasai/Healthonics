@@ -45,6 +45,25 @@ export interface AdminNotificationsSummary {
   failed_count: number;
 }
 
+export interface NotificationConsentEventRow {
+  id: string;
+  user_id: string;
+  actor_user_id: string;
+  actor_role: string;
+  actor_source: string;
+  policy_version: string;
+  category: string;
+  prev_enabled: boolean;
+  prev_email_enabled: boolean;
+  prev_sms_enabled: boolean;
+  prev_in_app_enabled: boolean;
+  new_enabled: boolean;
+  new_email_enabled: boolean;
+  new_sms_enabled: boolean;
+  new_in_app_enabled: boolean;
+  created_at: string;
+}
+
 export type AdminLifecycleSettings = {
   new_user_window_days: number;
   inactive_window_days: number;

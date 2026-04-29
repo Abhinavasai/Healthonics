@@ -6,6 +6,7 @@ import type {
   AdminNotificationRow,
   AdminNotificationsSummary,
   ApiListResponse,
+  NotificationConsentEventRow,
   NotificationPreferenceRow,
   NotificationRow
 } from './api-types';
@@ -13,7 +14,8 @@ export type {
   NotificationRow,
   NotificationPreferenceRow,
   AdminNotificationRow,
-  AdminNotificationsSummary
+  AdminNotificationsSummary,
+  NotificationConsentEventRow
 } from './api-types';
 
 @Injectable({ providedIn: 'root' })
@@ -46,6 +48,12 @@ export class NotificationsInboxService {
 
   adminSummary(): Observable<AdminNotificationsSummary> {
     return this.http.get<AdminNotificationsSummary>(ApiContract.admin.notificationsSummary);
+  }
+
+  listAdminConsentHistory(): Observable<ApiListResponse<NotificationConsentEventRow, 'events'>> {
+    return this.http.get<ApiListResponse<NotificationConsentEventRow, 'events'>>(
+      ApiContract.admin.notificationsConsentHistory
+    );
   }
 
   retryFailedNotification(id: string): Observable<{ id: string; status: string }> {

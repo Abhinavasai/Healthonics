@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import {
   AdminNotificationRow,
   AdminNotificationsSummary,
+  NotificationConsentEventRow,
   NotificationsInboxService
 } from '../../services/notifications.service';
 
@@ -15,6 +16,7 @@ import {
 })
 export class AdminNotificationsLogComponent implements OnInit {
   rows: AdminNotificationRow[] = [];
+  consentRows: NotificationConsentEventRow[] = [];
   summary: AdminNotificationsSummary | null = null;
   loading = true;
   retryingId: string | null = null;
@@ -65,7 +67,16 @@ export class AdminNotificationsLogComponent implements OnInit {
         this.api.listAdminNotifications().subscribe({
           next: (r) => {
             this.rows = r.notifications ?? [];
-            this.loading = false;
+            this.api.listAdminConsentHistory().subscribe({
+              next: (consent) => {
+                this.consentRows = consent.events ?? [];
+                this.loading = false;
+              },
+              error: () => {
+                this.error = 'Could not load consent history.';
+                this.loading = false;
+              }
+            });
           },
           error: () => {
             this.error = 'Could not load notification log.';

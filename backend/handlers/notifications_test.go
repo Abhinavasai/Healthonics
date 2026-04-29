@@ -131,3 +131,26 @@ func TestNotifications_RetryFailed_InvalidID(t *testing.T) {
 		t.Fatalf("expected 400, got %d", w.Code)
 	}
 }
+
+func TestNotifications_AdminConsentHistory_Unauthorized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/api/admin/notifications/consent-history", nil)
+
+	h := NewNotificationsHandler()
+	h.AdminConsentHistory(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestNormalizeConsentDefaults(t *testing.T) {
+	if got := normalizeConsentSource(""); got != "self_service_portal" {
+		t.Fatalf("unexpected consent source default: %s", got)
+	}
+	if got := normalizeConsentSource("ADMIN_CONSOLE"); got != "admin_console" {
+		t.Fatalf("unexpected normalized source: %s", got)
+	}
+}

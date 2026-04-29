@@ -27,6 +27,7 @@ describe('AdminNotificationsLogComponent', () => {
       failed_count: 0
     });
     httpMock.expectOne('/api/admin/notifications').flush({ notifications: [] });
+    httpMock.expectOne('/api/admin/notifications/consent-history').flush({ events: [] });
     fixture.detectChanges();
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-cy="admin-notifications-empty"]')
@@ -55,6 +56,7 @@ describe('AdminNotificationsLogComponent', () => {
         }
       ]
     });
+    httpMock.expectOne('/api/admin/notifications/consent-history').flush({ events: [] });
     fixture.detectChanges();
     expect(
       (fixture.nativeElement as HTMLElement).querySelectorAll('[data-cy="admin-notifications-row"]')
@@ -85,6 +87,7 @@ describe('AdminNotificationsLogComponent', () => {
         }
       ]
     });
+    httpMock.expectOne('/api/admin/notifications/consent-history').flush({ events: [] });
     fixture.detectChanges();
     (fixture.nativeElement as HTMLElement).querySelector('[data-cy="retry-failed-notification"]')?.dispatchEvent(
       new Event('click')
@@ -97,6 +100,7 @@ describe('AdminNotificationsLogComponent', () => {
       failed_count: 0
     });
     httpMock.expectOne('/api/admin/notifications').flush({ notifications: [] });
+    httpMock.expectOne('/api/admin/notifications/consent-history').flush({ events: [] });
     expect(fixture.componentInstance.retryingId).toBeNull();
   });
 
@@ -134,9 +138,34 @@ describe('AdminNotificationsLogComponent', () => {
         }
       ]
     });
+    httpMock.expectOne('/api/admin/notifications/consent-history').flush({
+      events: [
+        {
+          id: 'ce-1',
+          user_id: 'u-1',
+          actor_user_id: 'u-1',
+          actor_role: 'patient',
+          actor_source: 'self_service_portal',
+          policy_version: 'v2',
+          category: 'appointment_reminders',
+          prev_enabled: true,
+          prev_email_enabled: true,
+          prev_sms_enabled: false,
+          prev_in_app_enabled: true,
+          new_enabled: false,
+          new_email_enabled: true,
+          new_sms_enabled: false,
+          new_in_app_enabled: true,
+          created_at: 'now'
+        }
+      ]
+    });
     fixture.detectChanges();
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-cy="provider-health-cards"]')
+    ).toBeTruthy();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-cy="admin-consent-history"]')
     ).toBeTruthy();
   });
 });
