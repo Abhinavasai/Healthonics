@@ -19,6 +19,8 @@ describe('PatientFindCareComponent', () => {
     geoMock.hospitalsNearGoogle.calls.reset();
     geoMock.hospitalsNear.calls.reset();
     geoMock.searchDoctors.calls.reset();
+    geoMock.hospitalsNearGoogle.and.returnValue(of({ hospitals: [] }));
+    geoMock.hospitalsNear.and.returnValue(of({ hospitals: [] }));
 
     await TestBed.configureTestingModule({
       imports: [PatientFindCareComponent],

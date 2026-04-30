@@ -7,6 +7,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import * as L from 'leaflet';
 import {
   DoctorSearchRow,
@@ -37,6 +38,7 @@ import {
               type="text"
               data-cy="location-query"
               [(ngModel)]="locationQuery"
+              (ngModelChange)="onLocationInputChange($event)"
               (keydown.enter)="runGeocodeSearch()"
               placeholder="City, address, landmark…"
               autocomplete="off"
@@ -86,6 +88,9 @@ import {
       </div>
 
       <div #mapHost class="map-host"></div>
+      <div class="google-map-wrap">
+        <iframe [src]="googleMapUrl" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Google map of selected location"></iframe>
+      </div>
       <p class="map-note">Use location + department filters for faster and more accurate nearby results.</p>
 
       <p *ngIf="error" class="error">{{ error }}</p>
@@ -221,6 +226,16 @@ import {
         border: 1px solid rgba(148, 163, 184, 0.25);
         z-index: 0;
       }
+      .google-map-wrap {
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .google-map-wrap iframe {
+        width: 100%;
+        height: 320px;
+        border: 0;
+      }
       .map-note {
         margin: -0.25rem 0 0;
         font-size: 0.75rem;
@@ -258,6 +273,8 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   loadingGeocode = false;
   loadingGeo = false;
   error = '';
+  googleMapUrl: SafeResourceUrl;
+  private geocodeDebounce?: ReturnType<typeof setTimeout>;
 
   private map?: L.Map;
   private userMarker?: L.Marker;
@@ -279,13 +296,19 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
     'Radiology'
   ];
 
-  constructor(private geo: GeoBookingService) {}
+  constructor(private geo: GeoBookingService, private sanitizer: DomSanitizer) {
+    this.googleMapUrl = this.buildGoogleMapUrl(this.lat, this.lng);
+  }
 
   ngAfterViewInit(): void {
     queueMicrotask(() => this.initMap());
   }
 
   ngOnDestroy(): void {
+    if (this.geocodeDebounce) {
+      clearTimeout(this.geocodeDebounce);
+      this.geocodeDebounce = undefined;
+    }
     this.map?.remove();
     this.map = undefined;
   }
@@ -323,6 +346,7 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
     this.lng = lng;
     this.selectedLocationLabel = label;
     this.geocodeSuggestions = [];
+    this.googleMapUrl = this.buildGoogleMapUrl(lat, lng);
     this.ensureMapReady();
     if (this.userMarker && this.map) {
       this.userMarker.setLatLng([lat, lng]);
@@ -331,10 +355,31 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
   }
 
   runGeocodeSearch(): void {
+    this.executeGeocodeSearch(false);
+  }
+
+  onLocationInputChange(raw: string): void {
+    const query = (raw || '').trim();
+    if (this.geocodeDebounce) {
+      clearTimeout(this.geocodeDebounce);
+      this.geocodeDebounce = undefined;
+    }
+    if (query.length < 3) {
+      this.geocodeSuggestions = [];
+      return;
+    }
+    this.geocodeDebounce = setTimeout(() => this.executeGeocodeSearch(true), 350);
+  }
+
+  private executeGeocodeSearch(silentOnEmpty: boolean): void {
     const q = this.locationQuery.trim();
-    this.error = '';
+    if (!silentOnEmpty) {
+      this.error = '';
+    }
     if (!q) {
-      this.error = 'Enter a place or address to search.';
+      if (!silentOnEmpty) {
+        this.error = 'Enter a place or address to search.';
+      }
       return;
     }
     this.loadingGeocode = true;
@@ -344,7 +389,9 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
         this.loadingGeocode = false;
         const hits = res.results ?? [];
         if (!hits.length) {
-          this.error = 'No locations found. Try a different search.';
+          if (!silentOnEmpty) {
+            this.error = 'No locations found. Try a different search.';
+          }
           return;
         }
         if (hits.length === 1) {
@@ -356,7 +403,9 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
       },
       error: (err) => {
         this.loadingGeocode = false;
-        this.error = err?.error?.error ?? 'Location search failed.';
+        if (!silentOnEmpty) {
+          this.error = err?.error?.error ?? 'Location search failed.';
+        }
       },
     });
   }
@@ -473,5 +522,10 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
     if (this.hospitals.length || this.googleHospitals.length) {
       this.map.fitBounds(L.latLngBounds(bounds), { padding: [28, 28], maxZoom: 12 });
     }
+  }
+
+  private buildGoogleMapUrl(lat: number, lng: number): SafeResourceUrl {
+    const base = `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}&z=12&output=embed`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(base);
   }
 }
