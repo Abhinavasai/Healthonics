@@ -249,6 +249,25 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/doctor/documents/{id}/download:
+    get:
+      tags: [Documents]
+      summary: Download doctor-visible patient document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Document stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/admin:
     get:
       tags: [Admin]
@@ -644,6 +663,16 @@ paths:
       responses:
         "200":
           description: Nearby hospitals
+
+  /api/find-care/places/nearby:
+    post:
+      tags: [GeoBooking]
+      summary: List nearby hospitals using Google Places
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Nearby hospitals via Places
 
   /api/doctors/search:
     get:
@@ -1113,6 +1142,16 @@ paths:
           description: WebSocket upgraded
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/assistant/chat:
+    post:
+      tags: [Messaging]
+      summary: Chat with care assistant (Azure OpenAI/Ollama fallback)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Assistant reply payload
 
 components:
   securitySchemes:
