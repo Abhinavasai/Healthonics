@@ -1,0 +1,566 @@
+{
+  "info": {
+    "_postman_id": "6cda7a47-6b07-4b28-b1a6-95d7d6f9d941",
+    "name": "Healthonyx Backend API - Sprint 4",
+    "description": "Comprehensive backend API collection aligned with docs/openapi.yaml and current backend/main.go wiring on dev.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8080" },
+    { "key": "jwt_token", "value": "" },
+    { "key": "patient_id", "value": "" },
+    { "key": "doctor_id", "value": "" },
+    { "key": "admin_user_id", "value": "" },
+    { "key": "appointment_id", "value": "" },
+    { "key": "document_id", "value": "" },
+    { "key": "file_id", "value": "" },
+    { "key": "thread_id", "value": "" },
+    { "key": "slot_id", "value": "" },
+    { "key": "knowledge_doc_id", "value": "" },
+    { "key": "notification_id", "value": "" },
+    { "key": "comment_context_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "HEAD /health",
+          "request": {
+            "method": "HEAD",
+            "header": [],
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth and Bootstrap",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "POST /api/register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient.demo@healthonyx.local\",\n  \"password\": \"Password123!\",\n  \"role\": \"patient\"\n}"
+            },
+            "url": "{{base_url}}/api/register"
+          }
+        },
+        {
+          "name": "POST /api/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient.demo@healthonyx.local\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": "{{base_url}}/api/login"
+          }
+        },
+        {
+          "name": "GET /api/me",
+          "request": { "method": "GET", "url": "{{base_url}}/api/me" }
+        },
+        {
+          "name": "GET /api/bootstrap",
+          "request": { "method": "GET", "url": "{{base_url}}/api/bootstrap" }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "GET /api/notifications",
+          "request": { "method": "GET", "url": "{{base_url}}/api/notifications" }
+        },
+        {
+          "name": "GET /api/notifications/preferences",
+          "request": { "method": "GET", "url": "{{base_url}}/api/notifications/preferences" }
+        },
+        {
+          "name": "PUT /api/notifications/preferences",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": [\n    {\n      \"category\": \"appointment_reminders\",\n      \"enabled\": true,\n      \"email_enabled\": true,\n      \"sms_enabled\": false,\n      \"in_app_enabled\": true\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/notifications/preferences"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Provider Callbacks",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "POST /api/provider-callbacks/sendgrid",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"event\": \"delivered\"\n}" },
+            "url": "{{base_url}}/api/provider-callbacks/sendgrid"
+          }
+        },
+        {
+          "name": "POST /api/provider-callbacks/twilio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"MessageStatus\": \"delivered\"\n}" },
+            "url": "{{base_url}}/api/provider-callbacks/twilio"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboards and Escalations",
+      "item": [
+        {
+          "name": "GET /api/patient/dashboard/summary",
+          "request": { "method": "GET", "url": "{{base_url}}/api/patient/dashboard/summary" }
+        },
+        {
+          "name": "GET /api/doctor/dashboard/summary",
+          "request": { "method": "GET", "url": "{{base_url}}/api/doctor/dashboard/summary" }
+        },
+        {
+          "name": "GET /api/doctor/critical-escalations",
+          "request": { "method": "GET", "url": "{{base_url}}/api/doctor/critical-escalations" }
+        },
+        {
+          "name": "POST /api/doctor/critical-escalations/{id}/ack",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/doctor/critical-escalations/{{notification_id}}/ack"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctor Documents",
+      "item": [
+        {
+          "name": "GET /api/doctor/documents",
+          "request": { "method": "GET", "url": "{{base_url}}/api/doctor/documents" }
+        },
+        {
+          "name": "GET /api/doctor/documents/{id}",
+          "request": { "method": "GET", "url": "{{base_url}}/api/doctor/documents/{{document_id}}" }
+        },
+        {
+          "name": "POST /api/doctor/documents/{id}/summarize",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"force\": false\n}" },
+            "url": "{{base_url}}/api/doctor/documents/{{document_id}}/summarize"
+          }
+        },
+        {
+          "name": "GET /api/doctor/documents/{id}/download",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/doctor/documents/{{document_id}}/download"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Core and Lifecycle",
+      "item": [
+        { "name": "GET /api/admin", "request": { "method": "GET", "url": "{{base_url}}/api/admin" } },
+        { "name": "GET /api/admin/audit-log", "request": { "method": "GET", "url": "{{base_url}}/api/admin/audit-log" } },
+        { "name": "GET /api/admin/user-lifecycle/settings-kpis", "request": { "method": "GET", "url": "{{base_url}}/api/admin/user-lifecycle/settings-kpis" } },
+        {
+          "name": "PUT /api/admin/user-lifecycle/settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_user_window_days\": 14,\n  \"inactive_window_days\": 30,\n  \"reason\": \"policy update\",\n  \"confirm\": \"CONFIRM\"\n}"
+            },
+            "url": "{{base_url}}/api/admin/user-lifecycle/settings"
+          }
+        },
+        { "name": "GET /api/admin/user-lifecycle/users", "request": { "method": "GET", "url": "{{base_url}}/api/admin/user-lifecycle/users" } },
+        {
+          "name": "POST /api/admin/user-lifecycle/users",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"new.user@healthonyx.local\",\n  \"password\": \"Password123!\",\n  \"role\": \"patient\"\n}" },
+            "url": "{{base_url}}/api/admin/user-lifecycle/users"
+          }
+        },
+        {
+          "name": "PUT /api/admin/user-lifecycle/users/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"updated.user@healthonyx.local\",\n  \"role\": \"doctor\"\n}" },
+            "url": "{{base_url}}/api/admin/user-lifecycle/users/{{admin_user_id}}"
+          }
+        },
+        {
+          "name": "PATCH /api/admin/user-lifecycle/users/{id}/deactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"demo cleanup\",\n  \"confirm\": \"CONFIRM\"\n}" },
+            "url": "{{base_url}}/api/admin/user-lifecycle/users/{{admin_user_id}}/deactivate"
+          }
+        },
+        {
+          "name": "POST /api/admin/user-lifecycle/users/{id}/reset-password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"new_password\": \"Password123!\",\n  \"reason\": \"support request\",\n  \"confirm\": \"CONFIRM\"\n}" },
+            "url": "{{base_url}}/api/admin/user-lifecycle/users/{{admin_user_id}}/reset-password"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin AI / Interoperability / Notifications / Knowledge",
+      "item": [
+        { "name": "GET /api/admin/ai/observability", "request": { "method": "GET", "url": "{{base_url}}/api/admin/ai/observability" } },
+        {
+          "name": "PUT /api/admin/ai/settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ollama_enabled\": true,\n  \"fallback_enabled\": true,\n  \"rate_limit_enabled\": true,\n  \"rate_limit_per_minute\": 30,\n  \"cache_enabled\": true,\n  \"cache_ttl_seconds\": 900,\n  \"ollama_model\": \"llama3.1:8b\"\n}" },
+            "url": "{{base_url}}/api/admin/ai/settings"
+          }
+        },
+        { "name": "POST /api/admin/ai/eval", "request": { "method": "POST", "url": "{{base_url}}/api/admin/ai/eval" } },
+        { "name": "GET /api/admin/fhir/export", "request": { "method": "GET", "url": "{{base_url}}/api/admin/fhir/export" } },
+        {
+          "name": "POST /api/admin/fhir/import",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"resourceType\": \"Bundle\",\n  \"type\": \"collection\",\n  \"entry\": []\n}" },
+            "url": "{{base_url}}/api/admin/fhir/import"
+          }
+        },
+        {
+          "name": "POST /api/integrations/hl7/lab-results",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "text/plain" }],
+            "body": { "mode": "raw", "raw": "MSH|^~\\&|LAB|..." },
+            "url": "{{base_url}}/api/integrations/hl7/lab-results"
+          }
+        },
+        { "name": "GET /api/admin/notifications", "request": { "method": "GET", "url": "{{base_url}}/api/admin/notifications" } },
+        { "name": "GET /api/admin/notifications/summary", "request": { "method": "GET", "url": "{{base_url}}/api/admin/notifications/summary" } },
+        { "name": "GET /api/admin/notifications/consent-history", "request": { "method": "GET", "url": "{{base_url}}/api/admin/notifications/consent-history" } },
+        { "name": "POST /api/admin/notifications/{id}/retry", "request": { "method": "POST", "url": "{{base_url}}/api/admin/notifications/{{notification_id}}/retry" } },
+        { "name": "GET /api/admin/knowledge-docs", "request": { "method": "GET", "url": "{{base_url}}/api/admin/knowledge-docs" } },
+        {
+          "name": "POST /api/admin/knowledge-docs",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Clinical note\",\n  \"body\": \"Knowledge content\",\n  \"review_interval_days\": 30\n}" },
+            "url": "{{base_url}}/api/admin/knowledge-docs"
+          }
+        },
+        { "name": "GET /api/admin/knowledge-docs/{id}", "request": { "method": "GET", "url": "{{base_url}}/api/admin/knowledge-docs/{{knowledge_doc_id}}" } },
+        {
+          "name": "PATCH /api/admin/knowledge-docs/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated title\",\n  \"body\": \"Updated content\"\n}" },
+            "url": "{{base_url}}/api/admin/knowledge-docs/{{knowledge_doc_id}}"
+          }
+        },
+        { "name": "GET /api/admin/knowledge-docs/similarity-scan", "request": { "method": "GET", "url": "{{base_url}}/api/admin/knowledge-docs/similarity-scan" } },
+        { "name": "POST /api/admin/knowledge-docs/{id}/embeddings", "request": { "method": "POST", "url": "{{base_url}}/api/admin/knowledge-docs/{{knowledge_doc_id}}/embeddings" } },
+        { "name": "GET /api/admin/knowledge-docs/{id}/versions", "request": { "method": "GET", "url": "{{base_url}}/api/admin/knowledge-docs/{{knowledge_doc_id}}/versions" } },
+        { "name": "POST /api/admin/knowledge-docs/{id}/review", "request": { "method": "POST", "url": "{{base_url}}/api/admin/knowledge-docs/{{knowledge_doc_id}}/review" } }
+      ]
+    },
+    {
+      "name": "Role Validation Endpoints",
+      "item": [
+        { "name": "GET /api/doctor", "request": { "method": "GET", "url": "{{base_url}}/api/doctor" } },
+        { "name": "GET /api/patient", "request": { "method": "GET", "url": "{{base_url}}/api/patient" } }
+      ]
+    },
+    {
+      "name": "Find Care and Geo Booking",
+      "item": [
+        {
+          "name": "GET /api/geocode",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/geocode?q=Orlando&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["api", "geocode"],
+              "query": [
+                { "key": "q", "value": "Orlando" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/hospitals/near",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/hospitals/near?lat=28.5421&lng=-81.379&radius_km=25",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hospitals", "near"],
+              "query": [
+                { "key": "lat", "value": "28.5421" },
+                { "key": "lng", "value": "-81.379" },
+                { "key": "radius_km", "value": "25" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /api/find-care/places/nearby",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"lat\": 28.5421,\n  \"lng\": -81.379,\n  \"radius_km\": 25,\n  \"department\": \"Cardiology\"\n}" },
+            "url": "{{base_url}}/api/find-care/places/nearby"
+          }
+        },
+        {
+          "name": "GET /api/doctors/search",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/doctors/search?lat=28.5421&lng=-81.379&radius_km=25&specialization=Cardiology",
+              "host": ["{{base_url}}"],
+              "path": ["api", "doctors", "search"],
+              "query": [
+                { "key": "lat", "value": "28.5421" },
+                { "key": "lng", "value": "-81.379" },
+                { "key": "radius_km", "value": "25" },
+                { "key": "specialization", "value": "Cardiology" }
+              ]
+            }
+          }
+        },
+        { "name": "GET /api/doctors/{id}/slots", "request": { "method": "GET", "url": "{{base_url}}/api/doctors/{{doctor_id}}/slots" } },
+        {
+          "name": "POST /api/doctor/slots",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"start_at\": \"2026-05-10T10:00:00Z\",\n  \"end_at\": \"2026-05-10T10:30:00Z\"\n}" },
+            "url": "{{base_url}}/api/doctor/slots"
+          }
+        },
+        { "name": "DELETE /api/doctor/slots/{id}", "request": { "method": "DELETE", "url": "{{base_url}}/api/doctor/slots/{{slot_id}}" } },
+        {
+          "name": "POST /api/appointments/book-slot",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"slot_id\": \"{{slot_id}}\",\n  \"reason\": \"Follow-up consultation\"\n}" },
+            "url": "{{base_url}}/api/appointments/book-slot"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments and Comments",
+      "item": [
+        {
+          "name": "POST /api/appointments",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"scheduled_at\": \"2026-05-11T14:30:00Z\",\n  \"reason\": \"General consultation\"\n}" },
+            "url": "{{base_url}}/api/appointments"
+          }
+        },
+        { "name": "POST /api/patient/appointments/{id}/cancel", "request": { "method": "POST", "url": "{{base_url}}/api/patient/appointments/{{appointment_id}}/cancel" } },
+        { "name": "GET /api/appointments/patient", "request": { "method": "GET", "url": "{{base_url}}/api/appointments/patient" } },
+        { "name": "GET /api/appointments/doctor", "request": { "method": "GET", "url": "{{base_url}}/api/appointments/doctor" } },
+        { "name": "GET /api/appointments/{id}", "request": { "method": "GET", "url": "{{base_url}}/api/appointments/{{appointment_id}}" } },
+        {
+          "name": "PATCH /api/appointments/{id}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" },
+            "url": "{{base_url}}/api/appointments/{{appointment_id}}/status"
+          }
+        },
+        { "name": "GET /api/appointments/{id}/activity", "request": { "method": "GET", "url": "{{base_url}}/api/appointments/{{appointment_id}}/activity" } },
+        { "name": "GET /api/appointments/{id}/comments", "request": { "method": "GET", "url": "{{base_url}}/api/appointments/{{appointment_id}}/comments" } },
+        {
+          "name": "POST /api/appointments/{id}/comments",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"Clinical note comment\",\n  \"visibility\": \"internal\"\n}" },
+            "url": "{{base_url}}/api/appointments/{{appointment_id}}/comments"
+          }
+        },
+        { "name": "GET /api/comments/{contextType}/{contextId}", "request": { "method": "GET", "url": "{{base_url}}/api/comments/document/{{comment_context_id}}" } },
+        {
+          "name": "POST /api/comments/{contextType}/{contextId}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"Contextual comment\",\n  \"visibility\": \"internal\"\n}" },
+            "url": "{{base_url}}/api/comments/document/{{comment_context_id}}"
+          }
+        },
+        { "name": "GET /api/doctors", "request": { "method": "GET", "url": "{{base_url}}/api/doctors" } }
+      ]
+    },
+    {
+      "name": "Documents, Files, Prescriptions",
+      "item": [
+        { "name": "GET /api/documents", "request": { "method": "GET", "url": "{{base_url}}/api/documents" } },
+        {
+          "name": "POST /api/documents (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": "" }]
+            },
+            "url": "{{base_url}}/api/documents"
+          }
+        },
+        { "name": "GET /api/documents/{id}/download", "request": { "method": "GET", "url": "{{base_url}}/api/documents/{{document_id}}/download" } },
+        { "name": "GET /api/patients/{patientId}/files", "request": { "method": "GET", "url": "{{base_url}}/api/patients/{{patient_id}}/files" } },
+        {
+          "name": "POST /api/patients/{patientId}/files (multipart)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "description", "type": "text", "value": "Lab report upload" }
+              ]
+            },
+            "url": "{{base_url}}/api/patients/{{patient_id}}/files"
+          }
+        },
+        { "name": "GET /api/files/{id}", "request": { "method": "GET", "url": "{{base_url}}/api/files/{{file_id}}" } },
+        { "name": "GET /api/patients/{patientId}/prescriptions", "request": { "method": "GET", "url": "{{base_url}}/api/patients/{{patient_id}}/prescriptions" } },
+        {
+          "name": "POST /api/patients/{patientId}/prescriptions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"medication_name\": \"Amoxicillin\",\n  \"dosage\": \"500mg\",\n  \"frequency\": \"Twice daily\",\n  \"duration_days\": 5,\n  \"instructions\": \"After food\"\n}" },
+            "url": "{{base_url}}/api/patients/{{patient_id}}/prescriptions"
+          }
+        },
+        {
+          "name": "PATCH /api/prescriptions/{id}/revoke",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"duplicate entry\",\n  \"confirm\": \"CONFIRM\"\n}" },
+            "url": "{{base_url}}/api/prescriptions/{{document_id}}/revoke"
+          }
+        },
+        { "name": "GET /api/prescriptions/{id}/pdf", "request": { "method": "GET", "url": "{{base_url}}/api/prescriptions/{{document_id}}/pdf" } },
+        {
+          "name": "PUT /api/prescriptions/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"dosage\": \"250mg\",\n  \"frequency\": \"Once daily\"\n}" },
+            "url": "{{base_url}}/api/prescriptions/{{document_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messaging and Assistant",
+      "item": [
+        { "name": "GET /api/messages/unread", "request": { "method": "GET", "url": "{{base_url}}/api/messages/unread" } },
+        { "name": "GET /api/messages/threads", "request": { "method": "GET", "url": "{{base_url}}/api/messages/threads" } },
+        {
+          "name": "POST /api/messages/threads",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"recipient_id\": \"{{doctor_id}}\",\n  \"subject\": \"Follow-up\",\n  \"message\": \"Hello doctor\"\n}" },
+            "url": "{{base_url}}/api/messages/threads"
+          }
+        },
+        { "name": "GET /api/messages/threads/{threadId}", "request": { "method": "GET", "url": "{{base_url}}/api/messages/threads/{{thread_id}}" } },
+        {
+          "name": "POST /api/messages/threads/{threadId}/messages",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"Can we reschedule?\"\n}" },
+            "url": "{{base_url}}/api/messages/threads/{{thread_id}}/messages"
+          }
+        },
+        { "name": "POST /api/messages/threads/{threadId}/read", "request": { "method": "POST", "url": "{{base_url}}/api/messages/threads/{{thread_id}}/read" } },
+        {
+          "name": "GET /api/messages/ws",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/messages/ws?token={{jwt_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "ws"],
+              "query": [{ "key": "token", "value": "{{jwt_token}}" }]
+            }
+          }
+        },
+        {
+          "name": "POST /api/assistant/chat",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Summarize my current care plan\",\n  \"context\": \"patient dashboard\"\n}" },
+            "url": "{{base_url}}/api/assistant/chat"
+          }
+        }
+      ]
+    }
+  ]
+}
