@@ -86,8 +86,9 @@
     </aside>
   }
 
-  <button type="button" class="assistant-fab" (click)="toggleAssistant()" data-cy="assistant-fab">
-    {{ assistantOpen ? 'Close AI' : 'AI assistant' }}
+  <button type="button" class="assistant-fab" (click)="toggleAssistant()" data-cy="assistant-fab" [attr.aria-label]="assistantOpen ? 'Close AI assistant' : 'Open AI assistant'">
+    <span class="assistant-fab__dot"></span>
+    <span>{{ assistantOpen ? 'Close assistant' : 'AI assistant' }}</span>
   </button>
   @if (assistantOpen) {
     <aside class="assistant-panel" data-cy="assistant-panel">

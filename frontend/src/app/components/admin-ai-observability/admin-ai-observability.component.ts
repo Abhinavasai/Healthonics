@@ -50,7 +50,7 @@ export class AdminAiObservabilityComponent implements OnInit {
       return null;
     }
     if (!this.runtime.ai_enabled) {
-      return 'Global AI is disabled by backend config (AI_ENABLED=false).';
+      return 'Global AI is disabled by backend config. Set AI_ENABLED=true in backend env and restart the backend.';
     }
     if (!this.runtime.ollama_reachable) {
       return 'Ollama server is not reachable from backend.';
