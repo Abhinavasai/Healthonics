@@ -446,7 +446,7 @@ export class PatientAppointmentsComponent implements OnInit {
     return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
   }
 
-  private getTodayLocalDate(): string {
+  getTodayLocalDate(): string {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     return new Date(now.getTime() - offset).toISOString().slice(0, 10);
