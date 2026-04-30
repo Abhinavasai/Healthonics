@@ -9,12 +9,14 @@ describe('PatientFindCareComponent', () => {
 
   const geoMock = {
     geocodeSearch: jasmine.createSpy('geocodeSearch'),
+    hospitalsNearGoogle: jasmine.createSpy('hospitalsNearGoogle'),
     hospitalsNear: jasmine.createSpy('hospitalsNear'),
     searchDoctors: jasmine.createSpy('searchDoctors'),
   };
 
   beforeEach(async () => {
     geoMock.geocodeSearch.calls.reset();
+    geoMock.hospitalsNearGoogle.calls.reset();
     geoMock.hospitalsNear.calls.reset();
     geoMock.searchDoctors.calls.reset();
 
@@ -94,17 +96,14 @@ describe('PatientFindCareComponent', () => {
     component.lng = -82.3248;
     component.radiusKm = 25;
 
-    geoMock.hospitalsNear.and.returnValue(
+    geoMock.hospitalsNearGoogle.and.returnValue(
       of({
         hospitals: [
           {
-            id: '11111111-1111-1111-1111-111111111111',
             name: 'UF Health Shands Hospital',
-            city: 'Gainesville',
-            region: 'Florida',
+            address: 'Gainesville, Florida',
             latitude: 29.6516,
             longitude: -82.3248,
-            distance_km: 1.23,
           },
         ],
       })
@@ -112,9 +111,9 @@ describe('PatientFindCareComponent', () => {
 
     component.loadHospitals();
 
-    expect(geoMock.hospitalsNear).toHaveBeenCalledWith(29.6516, -82.3248, 25);
-    expect(component.hospitals.length).toBe(1);
-    expect(component.hospitals[0].name).toBe('UF Health Shands Hospital');
+    expect(geoMock.hospitalsNearGoogle).toHaveBeenCalledWith(29.6516, -82.3248, 25, '');
+    expect(component.googleHospitals.length).toBe(1);
+    expect(component.googleHospitals[0].name).toBe('UF Health Shands Hospital');
     expect((component as any).plotHospitals).toHaveBeenCalled();
   });
 

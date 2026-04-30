@@ -405,6 +405,10 @@ func (h *GeoBookingHandler) BookSlot(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "Slot is no longer available"})
 		return
 	}
+	if !startAt.UTC().After(time.Now().UTC()) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot book a slot in the past"})
+		return
+	}
 
 	if doctorID == claims.UserID {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slot"})

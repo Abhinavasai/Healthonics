@@ -64,6 +64,10 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "scheduled_at is required"})
 		return
 	}
+	if !req.ScheduledAt.UTC().After(time.Now().UTC()) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scheduled_at must be in the future"})
+		return
+	}
 
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {

@@ -38,6 +38,7 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
                 type="date"
                 name="selectedDate"
                 [(ngModel)]="selectedDate"
+                [min]="getTodayLocalDate()"
                 required
                 (click)="openDatePicker()"
               />
@@ -66,11 +67,12 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
               [(ngModel)]="selectedTime"
               required
             >
-              <option *ngFor="let slot of daySlots" [value]="slot.value">
+              <option *ngFor="let slot of availableDaySlots" [value]="slot.value">
                 {{ slot.label }}
               </option>
             </select>
           </label>
+          <p *ngIf="availableDaySlots.length === 0" class="error">No remaining slots for this date. Please choose another date.</p>
         </div>
 
         <label>
@@ -341,6 +343,16 @@ export class PatientAppointmentsComponent implements OnInit {
     return slots;
   }
 
+  get availableDaySlots(): { value: string; label: string; minutes: number }[] {
+    const slots = this.daySlots;
+    if (this.selectedDate !== this.getTodayLocalDate()) {
+      return slots;
+    }
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    return slots.filter((slot) => slot.minutes > currentMinutes);
+  }
+
   cancelAppointment(id: string, ev: Event): void {
     ev.preventDefault();
     ev.stopPropagation();
@@ -363,6 +375,11 @@ export class PatientAppointmentsComponent implements OnInit {
     if (!scheduledAt) {
       this.submitting = false;
       this.formMessage = 'Please choose a valid date and 15-minute time slot.';
+      return;
+    }
+    if (new Date(scheduledAt).getTime() <= Date.now()) {
+      this.submitting = false;
+      this.formMessage = 'Please choose a future date and time.';
       return;
     }
     const payload = {
