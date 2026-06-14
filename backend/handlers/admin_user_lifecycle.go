@@ -93,6 +93,10 @@ func (h *AdminUserLifecycleHandler) ListUsers(c *gin.Context) {
 		}
 		out = append(out, r)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"users": out})
 }
 
@@ -249,7 +253,7 @@ func (h *AdminUserLifecycleHandler) CreateUser(c *gin.Context) {
 	}
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	req.Role = strings.TrimSpace(strings.ToLower(req.Role))
-	if req.Email == "" || !strings.Contains(req.Email, "@") {
+	if !validEmailFormat(req.Email) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Valid email is required"})
 		return
 	}
@@ -342,7 +346,7 @@ func (h *AdminUserLifecycleHandler) UpdateUser(c *gin.Context) {
 	nextRole := oldRole
 	if req.Email != nil {
 		nextEmail = strings.TrimSpace(strings.ToLower(*req.Email))
-		if nextEmail == "" || !strings.Contains(nextEmail, "@") {
+		if !validEmailFormat(nextEmail) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Valid email is required"})
 			return
 		}

@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -13,6 +14,9 @@ func Connect(databaseURL string) error {
 	Pool, err = pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
 		return err
+	}
+	if err = Pool.Ping(context.Background()); err != nil {
+		return fmt.Errorf("database ping failed: %w", err)
 	}
 	return nil
 }
@@ -311,22 +315,7 @@ func Migrate(ctx context.Context) error {
 
 		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id UUID UNIQUE REFERENCES doctor_slots(id) ON DELETE SET NULL;
 
-		CREATE TABLE IF NOT EXISTS patient_documents (
-			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			patient_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-			filename      TEXT NOT NULL,
-			content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
-			size_bytes    BIGINT NOT NULL,
-			status        TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('pending', 'ready', 'failed')),
-			body          BYTEA NOT NULL,
-			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id);
-		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'application/octet-stream';
-		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS size_bytes BIGINT NOT NULL DEFAULT 0;
-		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready';
-		ALTER TABLE patient_documents ADD COLUMN IF NOT EXISTS body BYTEA NOT NULL DEFAULT ''::bytea;
+		-- patient_documents already created above; these alters are safe no-ops on fresh DBs.
 		ALTER TABLE patient_documents DROP CONSTRAINT IF EXISTS patient_documents_status_check;
 		ALTER TABLE patient_documents ADD CONSTRAINT patient_documents_status_check CHECK (status IN ('pending', 'ready', 'failed'));
 
@@ -536,6 +525,106 @@ func Migrate(ctx context.Context) error {
 		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_wrapped_key TEXT NOT NULL DEFAULT '';
 		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_wrapped_nonce TEXT NOT NULL DEFAULT '';
 		ALTER TABLE patient_files ADD COLUMN IF NOT EXISTS enc_data_nonce TEXT NOT NULL DEFAULT '';
+
+		CREATE TABLE IF NOT EXISTS refresh_tokens (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token       TEXT NOT NULL UNIQUE,
+			expires_at  TIMESTAMPTZ NOT NULL,
+			revoked     BOOLEAN NOT NULL DEFAULT FALSE,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token) WHERE revoked = FALSE;
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+
+		CREATE TABLE IF NOT EXISTS symptom_checks (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			patient_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			symptoms    TEXT NOT NULL,
+			urgency     TEXT NOT NULL DEFAULT 'routine',
+			reply       TEXT NOT NULL,
+			provider    TEXT NOT NULL,
+			age         INTEGER,
+			gender      TEXT,
+			checked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_symptom_checks_patient ON symptom_checks(patient_id, checked_at DESC);
+
+		CREATE TABLE IF NOT EXISTS appointment_questionnaires (
+			appointment_id UUID PRIMARY KEY REFERENCES appointments(id) ON DELETE CASCADE,
+			questions_json TEXT NOT NULL,
+			answers_json   TEXT,
+			submitted_at   TIMESTAMPTZ,
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE TABLE IF NOT EXISTS second_opinions (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			author_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			title         TEXT NOT NULL,
+			anonymized    TEXT NOT NULL,
+			specialty     TEXT NOT NULL DEFAULT '',
+			status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE TABLE IF NOT EXISTS second_opinion_replies (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			case_id     UUID NOT NULL REFERENCES second_opinions(id) ON DELETE CASCADE,
+			author_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			body        TEXT NOT NULL,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		-- Feature 1: teleconsult video link
+		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS video_link TEXT;
+
+		-- Feature 2: prescription refill requests
+		CREATE TABLE IF NOT EXISTS prescription_refill_requests (
+			id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			prescription_id UUID NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
+			patient_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			doctor_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			note            TEXT NOT NULL DEFAULT '',
+			status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+			reviewed_at     TIMESTAMPTZ,
+			reviewed_by     UUID REFERENCES users(id) ON DELETE SET NULL,
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_refill_requests_doctor ON prescription_refill_requests(doctor_id, status);
+		CREATE INDEX IF NOT EXISTS idx_refill_requests_patient ON prescription_refill_requests(patient_id);
+
+		-- Feature 5: appointment reminder tracking (avoid duplicate sends)
+		CREATE TABLE IF NOT EXISTS appointment_reminder_log (
+			appointment_id UUID NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+			reminder_type  TEXT NOT NULL CHECK (reminder_type IN ('24h', '1h')),
+			sent_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (appointment_id, reminder_type)
+		);
+
+		-- Feature 8: bulk message broadcasts
+		CREATE TABLE IF NOT EXISTS bulk_message_broadcasts (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			doctor_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			subject    TEXT NOT NULL DEFAULT '',
+			body       TEXT NOT NULL,
+			sent_count INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_bulk_message_broadcasts_doctor ON bulk_message_broadcasts(doctor_id, created_at DESC);
+
+		-- Feature 9: waiting room (arrival check-in)
+		ALTER TABLE appointments ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
+
+		-- Feature 10: appointment ratings
+		CREATE TABLE IF NOT EXISTS appointment_ratings (
+			appointment_id UUID PRIMARY KEY REFERENCES appointments(id) ON DELETE CASCADE,
+			patient_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			doctor_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			rating         INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+			comment        TEXT NOT NULL DEFAULT '',
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_appointment_ratings_doctor ON appointment_ratings(doctor_id);
 	`)
 	return err
 }

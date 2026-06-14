@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -70,11 +71,15 @@ func isAllowedWSOrigin(origin string) bool {
 
 func (c *wsClient) readPump() {
 	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ws readPump panic recovered: %v", r)
+		}
 		if c.hub != nil {
 			c.hub.unregister <- c
 		}
 		_ = c.conn.Close()
 	}()
+	c.conn.SetReadLimit(65536) // 64 KiB max incoming frame
 	_ = c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	c.conn.SetPongHandler(func(string) error {
 		return c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -88,6 +93,11 @@ func (c *wsClient) readPump() {
 }
 
 func (c *wsClient) writePump() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ws writePump panic recovered: %v", r)
+		}
+	}()
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {

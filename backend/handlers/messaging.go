@@ -25,9 +25,11 @@ func NewMessagingHandler(hub *MessagingHub) *MessagingHandler {
 
 const maxMessageRunes = 8000
 
+// allowPlaintextMessagingFallback is intentionally disabled for production safety.
+// PHI must always be encrypted; if the keyring is missing the request fails loudly.
 func allowPlaintextMessagingFallback() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("ALLOW_PLAINTEXT_MESSAGING")))
-	return v == "" || v == "1" || v == "true" || v == "yes"
+	return v == "1" || v == "true" || v == "yes" // must be explicitly opted in; empty string is NOT allowed
 }
 
 func previewText(s string) string {
@@ -198,6 +200,10 @@ func (h *MessagingHandler) ListThreads(c *gin.Context) {
 		}
 		out = append(out, r)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load threads"})
+		return
+	}
 	if out == nil {
 		out = []messageThreadRow{}
 	}
@@ -253,6 +259,10 @@ func (h *MessagingHandler) ListMessages(c *gin.Context) {
 		}
 		m.Body = body
 		list = append(list, m)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load messages"})
+		return
 	}
 	if list == nil {
 		list = []chatMessageRow{}
@@ -317,8 +327,15 @@ func (h *MessagingHandler) SendMessage(c *gin.Context) {
 		dataNonce = security.B64Encode(env.DataNonce)
 	}
 
+	tx, txErr := db.Pool.Begin(ctx)
+	if txErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
 	var msg chatMessageRow
-	err = db.Pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO messages (
 			thread_id, sender_id, body,
 			body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce
@@ -332,13 +349,23 @@ func (h *MessagingHandler) SendMessage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to send message"})
 		return
 	}
-	msg.Body = body
-	_, _ = db.Pool.Exec(ctx, `
+
+	preview := previewText(body)
+	if _, err = tx.Exec(ctx, `
 		UPDATE message_threads
 		SET last_message_at = $2, last_preview = $3
 		WHERE id = $1
-	`, threadID, msg.CreatedAt, "New message")
+	`, threadID, msg.CreatedAt, preview); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to update thread"})
+		return
+	}
 
+	if err = tx.Commit(ctx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	msg.Body = body
 	if h.hub != nil {
 		h.hub.NotifyNewMessage(ctx, threadID, msg)
 	}
@@ -547,3 +574,107 @@ func participantInThread(ctx context.Context, threadID, userID uuid.UUID) bool {
 	`, threadID, userID).Scan(&n)
 	return err == nil
 }
+
+// BulkBroadcast — doctor sends the same message to all active patients they have a thread with.
+func (h *MessagingHandler) BulkBroadcast(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "doctor" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+	var body struct {
+		Body string `json:"body" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body required"})
+		return
+	}
+	msgBody := strings.TrimSpace(body.Body)
+	if utf8.RuneCountInString(msgBody) > maxMessageRunes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "message too long"})
+		return
+	}
+	if msgBody == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body required"})
+		return
+	}
+
+	kr, krErr := security.LoadKeyringFromEnv()
+	var encryptedBody, wrappedKey, wrappedNonce, dataNonce string
+	var keyVersion int
+	var isEncrypted bool
+	if krErr == nil {
+		env, encErr := kr.Encrypt([]byte(msgBody))
+		if encErr == nil {
+			encryptedBody = security.B64Encode(env.Ciphertext)
+			wrappedKey = security.B64Encode(env.WrappedKey)
+			wrappedNonce = security.B64Encode(env.WrappedNonce)
+			dataNonce = security.B64Encode(env.DataNonce)
+			keyVersion = env.KeyVersion
+			isEncrypted = true
+		}
+	}
+	if !isEncrypted {
+		if !allowPlaintextMessagingFallback() {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Messaging encryption not configured"})
+			return
+		}
+		encryptedBody = msgBody
+	}
+
+	ctx := c.Request.Context()
+	// Find all threads for this doctor.
+	rows, err := db.Pool.Query(ctx, `
+		SELECT id, patient_id FROM message_threads WHERE doctor_id = $1
+	`, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	defer rows.Close()
+
+	type thread struct {
+		ID        uuid.UUID
+		PatientID uuid.UUID
+	}
+	var threads []thread
+	for rows.Next() {
+		var t thread
+		if err := rows.Scan(&t.ID, &t.PatientID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			return
+		}
+		threads = append(threads, t)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	sentCount := 0
+	for _, t := range threads {
+		_, err := db.Pool.Exec(ctx, `
+			INSERT INTO messages (thread_id, sender_id, body, body_is_encrypted, body_key_version, body_wrapped_key, body_wrapped_nonce, body_data_nonce)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`, t.ID, claims.UserID, encryptedBody, isEncrypted, keyVersion, wrappedKey, wrappedNonce, dataNonce)
+		if err != nil {
+			continue
+		}
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE message_threads SET last_message_at = NOW(), last_preview = $1 WHERE id = $2
+		`, previewText(msgBody), t.ID)
+		sentCount++
+	}
+
+	// Record the broadcast.
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO bulk_message_broadcasts (doctor_id, body, sent_count)
+		VALUES ($1, $2, $3)
+	`, claims.UserID, msgBody, sentCount)
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "sent_count": sentCount})
+}
+

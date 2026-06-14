@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -28,10 +29,19 @@ func (PrescriptionsHandler) canAccessPatient(c *gin.Context, patientID uuid.UUID
 	}
 	if claims.Role == "doctor" {
 		var ok bool
-		_ = db.Pool.QueryRow(c.Request.Context(),
-			`SELECT EXISTS(SELECT 1 FROM appointments WHERE patient_id = $1 AND doctor_id = $2)`,
+		if err := db.Pool.QueryRow(c.Request.Context(),
+			`SELECT EXISTS(
+				SELECT 1 FROM appointments
+				WHERE patient_id = $1
+				  AND doctor_id = $2
+				  AND status IN ('approved', 'completed')
+				  AND scheduled_at >= NOW() - INTERVAL '2 years'
+			)`,
 			patientID, claims.UserID,
-		).Scan(&ok)
+		).Scan(&ok); err != nil {
+			log.Printf("prescriptions: canAccessPatient DB error for doctor %s: %v", claims.UserID, err)
+			return false
+		}
 		return ok
 	}
 	return false
@@ -82,6 +92,10 @@ func (h *PrescriptionsHandler) ListByPatient(c *gin.Context) {
 			return
 		}
 		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
 	}
 	if out == nil {
 		out = []row{}
@@ -254,7 +268,9 @@ func (h *PrescriptionsHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	_ = schedulePrescriptionReminders(c, pid, strings.TrimSpace(body.MedicationName), strings.TrimSpace(body.Dosage), strings.TrimSpace(body.Frequency), body.DurationDays)
+	if err := schedulePrescriptionReminders(c, pid, strings.TrimSpace(body.MedicationName), strings.TrimSpace(body.Dosage), strings.TrimSpace(body.Frequency), body.DurationDays); err != nil {
+		log.Printf("prescriptions: failed to schedule reminders for patient %s: %v", pid, err)
+	}
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
@@ -372,11 +388,15 @@ func (h *PrescriptionsHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	_, _ = db.Pool.Exec(c.Request.Context(), `
+	if _, notifErr := db.Pool.Exec(c.Request.Context(), `
 		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
 		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
-	`, patientID, "Prescription updated", fmt.Sprintf("Your prescription for %s has been updated.", newMedication))
-	_ = schedulePrescriptionReminders(c, patientID, newMedication, newDosage, newFrequency, newDuration)
+	`, patientID, "Prescription updated", fmt.Sprintf("Your prescription for %s has been updated.", newMedication)); notifErr != nil {
+		log.Printf("prescriptions: failed to queue update notification for patient %s: %v", patientID, notifErr)
+	}
+	if err := schedulePrescriptionReminders(c, patientID, newMedication, newDosage, newFrequency, newDuration); err != nil {
+		log.Printf("prescriptions: failed to schedule reminders after update for patient %s: %v", patientID, err)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":              id,
@@ -437,10 +457,6 @@ func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	_, _ = tx.Exec(c.Request.Context(), `
-		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
-		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
-	`, patientID, "Prescription revoked", "One of your prescriptions has been revoked by your care team.")
 	if err := writeAudit(c.Request.Context(), tx, claims.UserID, "prescription_revoked", "prescription", id.String(), appendAuditReason("prescription revoked", body.Reason)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
@@ -448,6 +464,13 @@ func (h *PrescriptionsHandler) Revoke(c *gin.Context) {
 	if err := tx.Commit(c.Request.Context()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
+	}
+	// Queue notification outside the transaction so a delivery failure doesn't roll back the revocation.
+	if _, notifErr := db.Pool.Exec(c.Request.Context(), `
+		INSERT INTO notifications (user_id, title, body, channel, status, scheduled_for)
+		VALUES ($1, $2, $3, 'in_app', 'pending', NOW())
+	`, patientID, "Prescription revoked", "One of your prescriptions has been revoked by your care team."); notifErr != nil {
+		log.Printf("prescriptions: failed to queue revocation notification for patient %s: %v", patientID, notifErr)
 	}
 	c.JSON(http.StatusOK, gin.H{"id": id, "patient_id": patientID, "status": "revoked"})
 }

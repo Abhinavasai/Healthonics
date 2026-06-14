@@ -25,10 +25,12 @@ func NewMessagingHub() *MessagingHub {
 	}
 }
 
-// Run processes registration lifecycle until Stop is integrated (runs forever).
-func (h *MessagingHub) Run() {
+// Run processes registration lifecycle. Exits cleanly when ctx is cancelled.
+func (h *MessagingHub) Run(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case client := <-h.register:
 			if h.clients[client.userID] == nil {
 				h.clients[client.userID] = make(map[*wsClient]bool)

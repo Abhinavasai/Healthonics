@@ -65,6 +65,10 @@ func (h *DocumentsHandler) List(c *gin.Context) {
 		}
 		out = append(out, r)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to list documents"})
+		return
+	}
 	if out == nil {
 		out = []patientDocumentJSON{}
 	}
