@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -84,6 +85,25 @@ func Load() *Config {
 		AzureOpenAIAPIVersion: strings.TrimSpace(os.Getenv("AZURE_OPENAI_API_VERSION")),
 		AzureOpenAIModel:      strings.TrimSpace(os.Getenv("AZURE_OPENAI_MODEL")),
 	}
+}
+
+// Validate returns an error if any required configuration is missing or invalid.
+// Call this at startup so the service fails fast rather than dying mid-request.
+func (c *Config) Validate() error {
+	var missing []string
+	if c.DatabaseURL == "" {
+		missing = append(missing, "DATABASE_URL")
+	}
+	if c.JWTSecret == "" {
+		missing = append(missing, "JWT_SECRET")
+	}
+	if len(c.JWTSecret) < 32 {
+		return errors.New("JWT_SECRET must be at least 32 characters")
+	}
+	if len(missing) > 0 {
+		return errors.New("required environment variables not set: " + strings.Join(missing, ", "))
+	}
+	return nil
 }
 
 func parsePositiveIntWithDefault(raw string, fallback int) int {
