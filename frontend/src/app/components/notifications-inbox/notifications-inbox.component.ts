@@ -422,7 +422,7 @@ export class NotificationsInboxComponent implements OnInit, OnDestroy {
       return;
     }
     if (text.includes('medication') || text.includes('prescription')) {
-      void this.router.navigate(['/patient/prescriptions']);
+      void this.router.navigate(role === 'patient' ? ['/patient/prescriptions'] : [`/${role}/dashboard`]);
       return;
     }
     if (text.includes('message')) {

@@ -6,10 +6,14 @@ import { ApiContract } from './api-contract';
 export interface Appointment {
   id: string;
   patient_id: string;
+  patient_email?: string;
   doctor_id: string;
+  doctor_email?: string;
   scheduled_at: string;
   reason: string;
   status: string;
+  video_link?: string;
+  checked_in_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -88,4 +92,23 @@ export class AppointmentsService {
   cancelAsPatient(id: string): Observable<Appointment> {
     return this.http.post<Appointment>(ApiContract.appointments.patientCancel(id), {});
   }
+
+  recommendSlots(doctorId: string): Observable<SlotRecommendationResponse> {
+    return this.http.get<SlotRecommendationResponse>(ApiContract.appointments.recommend(doctorId));
+  }
+}
+
+export interface SlotRecommendation {
+  slot_id: string;
+  doctor_id: string;
+  start_time: string;
+  end_time: string;
+  score: number;
+  reason: string;
+}
+
+export interface SlotRecommendationResponse {
+  recommendations: SlotRecommendation[];
+  total_available: number;
+  message?: string;
 }

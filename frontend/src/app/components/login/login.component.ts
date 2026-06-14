@@ -39,6 +39,21 @@ export class LoginComponent implements OnInit {
     }
   }
 
+  loginWithGoogle(): void {
+    // Google OAuth 2.0 — redirects to Google's sign-in page.
+    // Requires GOOGLE_CLIENT_ID set in environment and a callback route configured
+    // in Google Cloud Console (APIs & Services → Credentials).
+    const clientId = (window as any).__GOOGLE_CLIENT_ID__ || '';
+    if (!clientId) {
+      this.error = 'Google login is not configured yet. Please use email and password to sign in.';
+      return;
+    }
+    const redirectUri = encodeURIComponent(window.location.origin + '/auth/google/callback');
+    const scope = encodeURIComponent('openid email profile');
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline`;
+    window.location.href = url;
+  }
+
   onSubmit(): void {
     this.error = '';
     if (this.form.invalid) {

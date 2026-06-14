@@ -3,7 +3,7 @@ import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { Appointment, AppointmentsService, DoctorOption } from '../../services/appointments.service';
+import { Appointment, AppointmentsService, DoctorOption, SlotRecommendation, SlotRecommendationResponse } from '../../services/appointments.service';
 
 @Component({
   selector: 'app-patient-appointments',
@@ -29,6 +29,26 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
             </option>
           </select>
         </label>
+
+        <!-- Smart Slot Recommendations -->
+        <div *ngIf="selectedDoctorId" class="recommendations">
+          <div class="rec-header">
+            <span class="rec-label">AI Recommended Slots</span>
+            <button type="button" class="rec-refresh" (click)="loadRecommendations()" [disabled]="recLoading">
+              {{ recLoading ? 'Loading...' : 'Refresh' }}
+            </button>
+          </div>
+          <p *ngIf="!recLoading && recommendations.length === 0" class="muted rec-empty">No recommendations available — pick a date and time manually.</p>
+          <div *ngFor="let rec of recommendations; let i = index" class="rec-card" [class.rec-selected]="selectedSlotId === rec.slot_id" (click)="selectRecommendedSlot(rec)">
+            <div class="rec-rank">#{{ i + 1 }}</div>
+            <div class="rec-info">
+              <div class="rec-time">{{ rec.start_time | date:'EEE MMM d, h:mm a' }} – {{ rec.end_time | date:'h:mm a' }}</div>
+              <div class="rec-reason">{{ rec.reason }}</div>
+            </div>
+            <div class="rec-score">{{ (rec.score * 100).toFixed(0) }}%</div>
+          </div>
+        </div>
+
         <div class="schedule-grid">
           <label>
             Date
@@ -207,16 +227,28 @@ import { Appointment, AppointmentsService, DoctorOption } from '../../services/a
     .time-title { margin: 0; font-size: 0.95rem; color: #93c5fd; font-weight: 600; }
     .time-select-label select { width: 100%; max-width: 100%; }
     .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
     }
+    .recommendations { margin: 0.75rem 0; }
+    .rec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .rec-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #7c3aed; }
+    .rec-refresh { font-size: 0.75rem; background: transparent; border: 1px solid #4f46e5; border-radius: 6px; color: #a5b4fc; padding: 2px 10px; cursor: pointer; }
+    .rec-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+    .rec-empty { font-size: 0.82rem; }
+    .rec-card {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: rgba(79, 70, 229, 0.06); border: 1px solid rgba(79, 70, 229, 0.2);
+      border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.4rem; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .rec-card:hover { border-color: rgba(79, 70, 229, 0.5); background: rgba(79, 70, 229, 0.12); }
+    .rec-selected { border-color: #7c3aed !important; background: rgba(124, 58, 237, 0.15) !important; }
+    .rec-rank { font-size: 0.75rem; font-weight: 800; color: #7c3aed; width: 22px; flex-shrink: 0; }
+    .rec-info { flex: 1; }
+    .rec-time { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; }
+    .rec-reason { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+    .rec-score { font-size: 0.8rem; font-weight: 700; color: #a5b4fc; }
   `]
 })
 export class PatientAppointmentsComponent implements OnInit {
@@ -233,8 +265,11 @@ export class PatientAppointmentsComponent implements OnInit {
   loading = false;
   doctorsLoading = false;
   submitting = false;
+  recLoading = false;
   error = '';
   formMessage = '';
+  recommendations: SlotRecommendation[] = [];
+  selectedSlotId = '';
 
   constructor(private appointmentsService: AppointmentsService) {}
 
@@ -271,12 +306,34 @@ export class PatientAppointmentsComponent implements OnInit {
           this.doctors = res.doctors ?? [];
           if (!this.selectedDoctorId && this.doctors.length > 0) {
             this.selectedDoctorId = this.doctors[0].id;
+            this.loadRecommendations();
           }
         },
         error: (err) => {
           this.formMessage = err?.error?.error ?? 'Unable to load doctors';
         }
       });
+  }
+
+  loadRecommendations(): void {
+    if (!this.selectedDoctorId) return;
+    this.recLoading = true;
+    this.recommendations = [];
+    this.appointmentsService.recommendSlots(this.selectedDoctorId)
+      .pipe(finalize(() => (this.recLoading = false)))
+      .subscribe({
+        next: (res) => { this.recommendations = res.recommendations ?? []; },
+        error: () => {}
+      });
+  }
+
+  selectRecommendedSlot(rec: SlotRecommendation): void {
+    this.selectedSlotId = rec.slot_id;
+    const dt = new Date(rec.start_time);
+    this.selectedDate = dt.toISOString().slice(0, 10);
+    const hh = String(dt.getUTCHours()).padStart(2, '0');
+    const mm = String(dt.getUTCMinutes()).padStart(2, '0');
+    this.selectedTime = `${hh}:${mm}`;
   }
 
   load(): void {
@@ -411,11 +468,12 @@ export class PatientAppointmentsComponent implements OnInit {
     const [year, month, day] = date.split('-').map((v) => Number(v));
     const hours = Math.floor(mins / 60);
     const minutes = mins % 60;
-    const local = new Date(year, (month ?? 1) - 1, day ?? 1, hours, minutes, 0, 0);
-    if (Number.isNaN(local.getTime())) {
+    // Construct in UTC so the selected date/time is not shifted by the browser's local offset.
+    const utc = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1, hours, minutes, 0, 0));
+    if (Number.isNaN(utc.getTime())) {
       return null;
     }
-    return local.toISOString();
+    return utc.toISOString();
   }
 
   private parseHHMM(value: string): number | null {

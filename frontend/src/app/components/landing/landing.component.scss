@@ -285,21 +285,53 @@
   color: var(--text-secondary);
 }
 
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+  justify-content: flex-end;
+  padding-right: 4px;
+
+  svg { width: 14px; height: 14px; }
+}
+
+.features-carousel {
+  display: flex;
   gap: var(--space-xl);
+  overflow-x: auto;
+  padding-bottom: var(--space-lg);
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.3) transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.3);
+    border-radius: 2px;
+  }
 }
 
 .feature-card {
   position: relative;
+  flex: 0 0 300px;
   padding: var(--space-2xl);
   background: var(--gradient-card);
   border: var(--border-subtle);
   border-radius: var(--radius-xl);
   transition: var(--transition-base);
   overflow: hidden;
-  
+  scroll-snap-align: start;
+  opacity: 1 !important; // prevent GSAP from hiding cards
+
   &::before {
     content: '';
     position: absolute;
@@ -311,15 +343,15 @@
     opacity: 0;
     transition: var(--transition-base);
   }
-  
+
   &:hover {
-    transform: translateY(-8px);
+    transform: translateY(-6px);
     border-color: rgba(0, 240, 255, 0.3);
-    
+
     &::before {
       opacity: 1;
     }
-    
+
     .icon-glow {
       opacity: 1;
     }

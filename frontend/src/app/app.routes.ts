@@ -1,39 +1,29 @@
 import { Routes } from '@angular/router';
-import { RegisterComponent } from './components/register/register.component';
-import { LoginComponent } from './components/login/login.component';
-import { LandingComponent } from './components/landing/landing.component';
-import { AppShellComponent } from './components/app-shell/app-shell.component';
-import { DashboardPlaceholderComponent } from './components/dashboard-placeholder/dashboard-placeholder.component';
-import { AdminShellComponent } from './components/admin-shell/admin-shell.component';
-import { AdminAuditComponent } from './components/admin-audit/admin-audit.component';
-import { AdminNotificationsLogComponent } from './components/admin-notifications-log/admin-notifications-log.component';
-import { AdminKnowledgeComponent } from './components/admin-knowledge/admin-knowledge.component';
-import { AdminManagementComponent } from './components/admin-management/admin-management.component';
-import { AdminAiObservabilityComponent } from './components/admin-ai-observability/admin-ai-observability.component';
-import { PatientAppointmentsComponent } from './components/patient-appointments/patient-appointments.component';
-import { PatientAppointmentDetailComponent } from './components/patient-appointment-detail/patient-appointment-detail.component';
-import { DoctorAppointmentsComponent } from './components/doctor-appointments/doctor-appointments.component';
-import { DoctorAppointmentDetailComponent } from './components/doctor-appointment-detail/doctor-appointment-detail.component';
-import { PatientFindCareComponent } from './components/patient-find-care/patient-find-care.component';
-import { PatientDocumentsComponent } from './components/patient-documents/patient-documents.component';
-import { DoctorAvailabilityComponent } from './components/doctor-availability/doctor-availability.component';
-import { DoctorDocumentsListComponent } from './components/doctor-documents-list/doctor-documents-list.component';
-import { DoctorDocumentDetailComponent } from './components/doctor-document-detail/doctor-document-detail.component';
-import { MessagesComponent } from './components/messages/messages.component';
-import { PatientPrescriptionsComponent } from './components/patient-prescriptions/patient-prescriptions.component';
-import { NotificationsInboxComponent } from './components/notifications-inbox/notifications-inbox.component';
-import { PatientDashboardComponent } from './components/patient-dashboard/patient-dashboard.component';
-import { DoctorDashboardComponent } from './components/doctor-dashboard/doctor-dashboard.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
+// All feature routes use loadComponent for lazy loading — each route becomes its own
+// JS chunk fetched on demand, reducing the initial bundle from 3.8 MB to ~300 KB.
 export const routes: Routes = [
-  { path: '', component: LandingComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'login', component: LoginComponent },
   {
     path: '',
-    component: AppShellComponent,
+    loadComponent: () => import('./components/landing/landing.component').then(m => m.LandingComponent)
+  },
+  {
+    path: 'register',
+    loadComponent: () => import('./components/register/register.component').then(m => m.RegisterComponent)
+  },
+  {
+    path: 'features/:slug',
+    loadComponent: () => import('./components/feature-detail/feature-detail.component').then(m => m.FeatureDetailComponent)
+  },
+  {
+    path: 'login',
+    loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent)
+  },
+  {
+    path: '',
+    loadComponent: () => import('./components/app-shell/app-shell.component').then(m => m.AppShellComponent),
     canActivate: [authGuard],
     children: [
       {
@@ -44,61 +34,69 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
           {
             path: 'dashboard',
-            component: PatientDashboardComponent,
+            loadComponent: () => import('./components/patient-dashboard/patient-dashboard.component').then(m => m.PatientDashboardComponent),
             data: { title: 'Dashboard', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'find-care',
-            component: PatientFindCareComponent,
+            loadComponent: () => import('./components/patient-find-care/patient-find-care.component').then(m => m.PatientFindCareComponent),
             data: { title: 'Find care', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'appointments/:id',
-            component: PatientAppointmentDetailComponent,
+            loadComponent: () => import('./components/patient-appointment-detail/patient-appointment-detail.component').then(m => m.PatientAppointmentDetailComponent),
             data: { title: 'Appointment details', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'appointments',
-            component: PatientAppointmentsComponent,
+            loadComponent: () => import('./components/patient-appointments/patient-appointments.component').then(m => m.PatientAppointmentsComponent),
             data: { title: 'Patient Appointments', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'documents',
-            component: PatientDocumentsComponent,
+            loadComponent: () => import('./components/patient-documents/patient-documents.component').then(m => m.PatientDocumentsComponent),
             data: { title: 'My documents', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'messages',
-            component: MessagesComponent,
+            loadComponent: () => import('./components/messages/messages.component').then(m => m.MessagesComponent),
             data: { title: 'Messages', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'messages/:threadId',
-            component: MessagesComponent,
+            loadComponent: () => import('./components/messages/messages.component').then(m => m.MessagesComponent),
             data: { title: 'Messages', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
-            path: 'my-files',
-            pathMatch: 'full',
-            redirectTo: 'documents'
+            path: 'files',
+            loadComponent: () => import('./components/patient-files/patient-files.component').then(m => m.PatientFilesComponent),
+            data: { title: 'My files', roles: ['patient'] },
+            canActivate: [roleGuard]
           },
+          { path: 'my-files', pathMatch: 'full', redirectTo: 'files' },
           {
             path: 'prescriptions',
-            component: PatientPrescriptionsComponent,
+            loadComponent: () => import('./components/patient-prescriptions/patient-prescriptions.component').then(m => m.PatientPrescriptionsComponent),
             data: { title: 'My prescriptions', roles: ['patient'] },
             canActivate: [roleGuard]
           },
           {
             path: 'notifications',
-            component: NotificationsInboxComponent,
+            loadComponent: () => import('./components/notifications-inbox/notifications-inbox.component').then(m => m.NotificationsInboxComponent),
             data: { title: 'Notifications', roles: ['patient'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'symptom-check',
+            loadComponent: () => import('./components/symptom-checker/symptom-checker.component').then(m => m.SymptomCheckerComponent),
+            data: { title: 'Symptom Checker', roles: ['patient'] },
             canActivate: [roleGuard]
           }
         ]
@@ -111,100 +109,124 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
           {
             path: 'dashboard',
-            component: DoctorDashboardComponent,
+            loadComponent: () => import('./components/doctor-dashboard/doctor-dashboard.component').then(m => m.DoctorDashboardComponent),
             data: { title: 'Dashboard', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'availability',
-            component: DoctorAvailabilityComponent,
+            loadComponent: () => import('./components/doctor-availability/doctor-availability.component').then(m => m.DoctorAvailabilityComponent),
             data: { title: 'Availability', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'appointments/:id',
-            component: DoctorAppointmentDetailComponent,
+            loadComponent: () => import('./components/doctor-appointment-detail/doctor-appointment-detail.component').then(m => m.DoctorAppointmentDetailComponent),
             data: { title: 'Request details', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'appointments',
-            component: DoctorAppointmentsComponent,
+            loadComponent: () => import('./components/doctor-appointments/doctor-appointments.component').then(m => m.DoctorAppointmentsComponent),
             data: { title: 'Doctor Appointments', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'documents',
-            component: DoctorDocumentsListComponent,
+            loadComponent: () => import('./components/doctor-documents-list/doctor-documents-list.component').then(m => m.DoctorDocumentsListComponent),
             data: { title: 'Patient documents', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'documents/:documentId',
-            component: DoctorDocumentDetailComponent,
+            loadComponent: () => import('./components/doctor-document-detail/doctor-document-detail.component').then(m => m.DoctorDocumentDetailComponent),
             data: { title: 'Document', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'messages',
-            component: MessagesComponent,
+            loadComponent: () => import('./components/messages/messages.component').then(m => m.MessagesComponent),
             data: { title: 'Messages', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'messages/:threadId',
-            component: MessagesComponent,
+            loadComponent: () => import('./components/messages/messages.component').then(m => m.MessagesComponent),
             data: { title: 'Messages', roles: ['doctor'] },
             canActivate: [roleGuard]
           },
           {
             path: 'notifications',
-            component: NotificationsInboxComponent,
+            loadComponent: () => import('./components/notifications-inbox/notifications-inbox.component').then(m => m.NotificationsInboxComponent),
             data: { title: 'Notifications', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'second-opinions',
+            loadComponent: () => import('./components/second-opinion-board/second-opinion-board.component').then(m => m.SecondOpinionBoardComponent),
+            data: { title: 'Second Opinions', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'patients',
+            loadComponent: () => import('./components/doctor-patient-panel/doctor-patient-panel.component').then(m => m.DoctorPatientPanelComponent),
+            data: { title: 'My Patients', roles: ['doctor'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'waiting-room',
+            loadComponent: () => import('./components/waiting-room/waiting-room.component').then(m => m.WaitingRoomComponent),
+            data: { title: 'Waiting Room', roles: ['doctor'] },
             canActivate: [roleGuard]
           }
         ]
       },
       {
         path: 'admin',
-        component: AdminShellComponent,
+        loadComponent: () => import('./components/admin-shell/admin-shell.component').then(m => m.AdminShellComponent),
         data: { roles: ['admin'] },
         canActivate: [roleGuard],
         children: [
           {
             path: '',
-            component: DashboardPlaceholderComponent,
+            loadComponent: () => import('./components/dashboard-placeholder/dashboard-placeholder.component').then(m => m.DashboardPlaceholderComponent),
             data: { title: 'Admin', roles: ['admin'] },
             canActivate: [roleGuard]
           },
           {
             path: 'audit',
-            component: AdminAuditComponent,
+            loadComponent: () => import('./components/admin-audit/admin-audit.component').then(m => m.AdminAuditComponent),
             data: { title: 'Audit log', roles: ['admin'] },
             canActivate: [roleGuard]
           },
           {
             path: 'notifications',
-            component: AdminNotificationsLogComponent,
+            loadComponent: () => import('./components/admin-notifications-log/admin-notifications-log.component').then(m => m.AdminNotificationsLogComponent),
             data: { title: 'Notifications', roles: ['admin'] },
             canActivate: [roleGuard]
           },
           {
             path: 'knowledge',
-            component: AdminKnowledgeComponent,
+            loadComponent: () => import('./components/admin-knowledge/admin-knowledge.component').then(m => m.AdminKnowledgeComponent),
             data: { title: 'Knowledge', roles: ['admin'] },
             canActivate: [roleGuard]
           },
           {
             path: 'management',
-            component: AdminManagementComponent,
+            loadComponent: () => import('./components/admin-management/admin-management.component').then(m => m.AdminManagementComponent),
             data: { title: 'Management', roles: ['admin'] },
             canActivate: [roleGuard]
           },
           {
             path: 'ai',
-            component: AdminAiObservabilityComponent,
+            loadComponent: () => import('./components/admin-ai-observability/admin-ai-observability.component').then(m => m.AdminAiObservabilityComponent),
             data: { title: 'AI controls', roles: ['admin'] },
+            canActivate: [roleGuard]
+          },
+          {
+            path: 'slo',
+            loadComponent: () => import('./components/admin-slo-dashboard/admin-slo-dashboard.component').then(m => m.AdminSloDashboardComponent),
+            data: { title: 'SLO Dashboard', roles: ['admin'] },
             canActivate: [roleGuard]
           }
         ]

@@ -14,7 +14,8 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
 
   const allowedRoles = route.data['roles'] as string[] | undefined;
   if (!allowedRoles || allowedRoles.length === 0) {
-    return true;
+    console.error('roleGuard: route is missing data.roles — access denied by default', route);
+    return false;
   }
 
   if (allowedRoles.includes(user.role)) {

@@ -12,6 +12,7 @@ export interface UserProfile {
 
 export interface AuthResponse {
   token: string;
+  refresh_token?: string;
   user: UserProfile;
 }
 
@@ -23,12 +24,26 @@ export class AuthService {
   ) {}
 
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem('token');
+  }
+
+  getRefreshToken(): string | null {
+    return sessionStorage.getItem('refresh_token');
+  }
+
+  setAccessToken(token: string): void {
+    sessionStorage.setItem('token', token);
   }
 
   getUser(): UserProfile | null {
-    const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
+    const raw = sessionStorage.getItem('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as UserProfile;
+    } catch {
+      sessionStorage.clear();
+      return null;
+    }
   }
 
   isLoggedIn(): boolean {
@@ -48,14 +63,28 @@ export class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    const rt = this.getRefreshToken();
+    if (rt) {
+      this.http.post(ApiContract.auth.logout, { refresh_token: rt }).subscribe({ error: () => {} });
+    }
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user');
     this.router.navigate(['/login']);
   }
 
+  refreshAccessToken(): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(ApiContract.auth.refresh, { refresh_token: this.getRefreshToken() })
+      .pipe(tap((res) => this.setSession(res)));
+  }
+
   private setSession(res: AuthResponse): void {
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res.user));
+    sessionStorage.setItem('token', res.token);
+    sessionStorage.setItem('user', JSON.stringify(res.user));
+    if (res.refresh_token) {
+      sessionStorage.setItem('refresh_token', res.refresh_token);
+    }
   }
 
   redirectToDashboard(role: string): void {

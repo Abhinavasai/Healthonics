@@ -508,16 +508,22 @@ export class PatientFindCareComponent implements AfterViewInit, OnDestroy {
     for (const h of this.hospitals) {
       const ll: L.LatLngExpression = [h.latitude, h.longitude];
       bounds.push(ll);
-      L.marker(ll)
-        .bindPopup(`<strong>${h.name}</strong><br>${h.distance_km} km`)
-        .addTo(this.hospitalsLayer);
+      const el = document.createElement('div');
+      const strong = document.createElement('strong');
+      strong.textContent = h.name ?? '';
+      el.appendChild(strong);
+      el.appendChild(document.createTextNode(` — ${h.distance_km ?? ''} km`));
+      L.marker(ll).bindPopup(el).addTo(this.hospitalsLayer);
     }
     for (const g of this.googleHospitals) {
       const ll: L.LatLngExpression = [g.latitude, g.longitude];
       bounds.push(ll);
-      L.marker(ll)
-        .bindPopup(`<strong>${g.name}</strong><br>${g.address}`)
-        .addTo(this.hospitalsLayer);
+      const el = document.createElement('div');
+      const strong = document.createElement('strong');
+      strong.textContent = g.name ?? '';
+      el.appendChild(strong);
+      el.appendChild(document.createTextNode(` — ${g.address ?? ''}`));
+      L.marker(ll).bindPopup(el).addTo(this.hospitalsLayer);
     }
     if (this.hospitals.length || this.googleHospitals.length) {
       this.map.fitBounds(L.latLngBounds(bounds), { padding: [28, 28], maxZoom: 12 });

@@ -5,7 +5,9 @@ export const ApiContract = {
   auth: {
     register: `${API}/register`,
     login: `${API}/login`,
-    me: `${API}/me`
+    me: `${API}/me`,
+    refresh: `${API}/auth/refresh`,
+    logout: `${API}/auth/logout`
   },
   bootstrap: {
     get: `${API}/bootstrap`
@@ -39,7 +41,12 @@ export const ApiContract = {
     comments: (id: string): string => `${API}/appointments/${id}/comments`,
     activity: (id: string): string => `${API}/appointments/${id}/activity`,
     updateStatus: (id: string): string => `${API}/appointments/${id}/status`,
-    patientCancel: (id: string): string => `${API}/patient/appointments/${id}/cancel`
+    patientCancel: (id: string): string => `${API}/patient/appointments/${id}/cancel`,
+    recommend: (doctorId: string): string => `${API}/appointments/recommend?doctor_id=${doctorId}`,
+    questionnaire: (id: string): string => `${API}/appointments/${id}/questionnaire`,
+    videoLink: (id: string): string => `${API}/appointments/${id}/video-link`,
+    checkIn: (id: string): string => `${API}/appointments/${id}/check-in`,
+    rating: (id: string): string => `${API}/appointments/${id}/rating`
   },
   documents: {
     base: `${API}/documents`,
@@ -51,6 +58,19 @@ export const ApiContract = {
     download: (id: string): string => `${API}/doctor/documents/${id}/download`,
     summarize: (id: string): string => `${API}/doctor/documents/${id}/summarize`
   },
+  doctor: {
+    workloadHeatmap: `${API}/doctor/workload-heatmap`,
+    patients: `${API}/doctor/patients`,
+    refillRequests: `${API}/doctor/refill-requests`,
+    broadcast: `${API}/doctor/broadcast`,
+    waitingRoom: `${API}/doctor/waiting-room`,
+    ratingSummary: `${API}/doctor/rating-summary`
+  },
+  patients: {
+    adherenceScore: (patientId: string): string => `${API}/patients/${patientId}/adherence-score`,
+    fhirExport: `${API}/patient/fhir-export`,
+    healthSummary: `${API}/patient/health-summary`
+  },
   patientFiles: {
     list: (patientId: string): string => `${API}/patients/${patientId}/files`,
     upload: (patientId: string): string => `${API}/patients/${patientId}/files`,
@@ -60,7 +80,17 @@ export const ApiContract = {
     listByPatient: (patientId: string): string => `${API}/patients/${patientId}/prescriptions`,
     createForPatient: (patientId: string): string => `${API}/patients/${patientId}/prescriptions`,
     pdf: (id: string): string => `${API}/prescriptions/${id}/pdf`,
-    revoke: (id: string): string => `${API}/prescriptions/${id}/revoke`
+    revoke: (id: string): string => `${API}/prescriptions/${id}/revoke`,
+    refillRequest: (id: string): string => `${API}/prescriptions/${id}/refill-request`
+  },
+  refillRequests: {
+    patientList: `${API}/patient/refill-requests`,
+    doctorList: `${API}/doctor/refill-requests`,
+    review: (id: string): string => `${API}/refill-requests/${id}/review`
+  },
+  labResults: {
+    list: `${API}/patient/lab-results`,
+    interpret: (id: string): string => `${API}/patient/lab-results/${id}/interpret`
   },
   messaging: {
     unread: `${API}/messages/unread`,
@@ -70,7 +100,12 @@ export const ApiContract = {
     markRead: (threadId: string): string => `${API}/messages/threads/${threadId}/read`
   },
   assistant: {
-    chat: `${API}/assistant/chat`
+    chat: `${API}/assistant/chat`,
+    symptomCheck: `${API}/assistant/symptom-check`,
+    drugInteractions: `${API}/assistant/drug-interactions`,
+    patientSummary: (patientId: string): string => `${API}/patients/${patientId}/ai-summary`,
+    noteAssist: (appointmentId: string): string => `${API}/appointments/${appointmentId}/note-assist`,
+    symptomTrends: `${API}/assistant/symptom-trends`
   },
   contextualComments: {
     byContext: (contextType: string, contextId: string): string => `${API}/comments/${contextType}/${contextId}`
@@ -98,7 +133,8 @@ export const ApiContract = {
     knowledgeDocById: (id: string): string => `${API}/admin/knowledge-docs/${id}`,
     knowledgeDocVersions: (id: string): string => `${API}/admin/knowledge-docs/${id}/versions`,
     knowledgeDocReview: (id: string): string => `${API}/admin/knowledge-docs/${id}/review`,
-    knowledgeDocEmbeddings: (id: string): string => `${API}/admin/knowledge-docs/${id}/embeddings`
+    knowledgeDocEmbeddings: (id: string): string => `${API}/admin/knowledge-docs/${id}/embeddings`,
+    slo: `${API}/admin/slo`
   }
 } as const;
 

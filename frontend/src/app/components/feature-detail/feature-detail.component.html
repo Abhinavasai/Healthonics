@@ -1,0 +1,122 @@
+<div class="feature-page">
+  <!-- Background -->
+  <div class="feature-bg">
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="feature-nav">
+    <a routerLink="/" class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">Healthonyx</span>
+    </a>
+    <div class="nav-actions">
+      <a routerLink="/" class="back-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Home
+      </a>
+      <a routerLink="/login" class="btn btn-primary">Sign In</a>
+    </div>
+  </nav>
+
+  @if (notFound) {
+    <div class="not-found">
+      <span class="not-found-icon">🔍</span>
+      <h2>Feature not found</h2>
+      <p>The feature page you're looking for doesn't exist.</p>
+      <a routerLink="/" class="btn btn-primary">Back to Home</a>
+    </div>
+  }
+
+  @if (feature) {
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="feature-badge" [style.--accent]="feature.color">
+          <span class="feature-icon-large">{{ feature.icon }}</span>
+        </div>
+        <h1 class="hero-title">{{ feature.title }}</h1>
+        <p class="hero-tagline">{{ feature.tagline }}</p>
+        <div class="hero-ctas">
+          <a routerLink="/register" class="btn btn-primary btn-lg">Get Started Free</a>
+          <a routerLink="/login" class="btn btn-secondary btn-lg">Sign In</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Overview -->
+    <section class="section overview-section">
+      <div class="section-inner">
+        <h2 class="section-heading">What is <span class="accent" [style.color]="feature.color">{{ feature.title }}</span>?</h2>
+        <p class="overview-text">{{ feature.overview }}</p>
+      </div>
+    </section>
+
+    <!-- Capabilities -->
+    <section class="section capabilities-section">
+      <div class="section-inner">
+        <div class="section-label">What's included</div>
+        <h2 class="section-heading">Key Capabilities</h2>
+        <div class="capabilities-grid">
+          @for (cap of feature.capabilities; track cap.title) {
+            <div class="capability-card">
+              <span class="cap-icon">{{ cap.icon }}</span>
+              <h3 class="cap-title">{{ cap.title }}</h3>
+              <p class="cap-desc">{{ cap.description }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="section how-section">
+      <div class="section-inner">
+        <div class="section-label">The process</div>
+        <h2 class="section-heading">How It Works</h2>
+        <div class="steps">
+          @for (step of feature.howItWorks; track step.step) {
+            <div class="step">
+              <div class="step-number" [style.--accent]="feature.color">{{ step.step }}</div>
+              <div class="step-content">
+                <h3 class="step-title">{{ step.title }}</h3>
+                <p class="step-desc">{{ step.description }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Who It's For -->
+    <section class="section who-section">
+      <div class="section-inner">
+        <div class="section-label">Built for</div>
+        <h2 class="section-heading">Who Is This For?</h2>
+        <div class="who-grid">
+          @for (who of feature.whoItsFor; track who) {
+            <div class="who-card">
+              <span class="who-check" [style.color]="feature.color">✓</span>
+              <span>{{ who }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+      <div class="cta-inner">
+        <h2>Ready to experience {{ feature.title }}?</h2>
+        <p>Join Healthonyx today — free to start, no credit card required.</p>
+        <div class="cta-buttons">
+          <a routerLink="/register" class="btn btn-primary btn-lg">Create Free Account</a>
+          <a routerLink="/" class="btn btn-ghost btn-lg">Explore All Features</a>
+        </div>
+      </div>
+    </section>
+  }
+</div>

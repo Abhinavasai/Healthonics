@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { DashboardService, DoctorCriticalEscalation, DoctorDashboardSummary } from '../../services/dashboard.service';
+import { DoctorWorkloadHeatmapComponent } from '../doctor-workload-heatmap/doctor-workload-heatmap.component';
 
 export interface DoctorBarRow {
   label: string;
@@ -11,26 +13,32 @@ export interface DoctorBarRow {
 @Component({
   selector: 'app-doctor-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, DoctorWorkloadHeatmapComponent],
   templateUrl: './doctor-dashboard.component.html',
   styleUrl: './doctor-dashboard.component.scss'
 })
-export class DoctorDashboardComponent implements OnInit {
+export class DoctorDashboardComponent implements OnInit, OnDestroy {
   data: DoctorDashboardSummary | null = null;
   error: string | null = null;
   ackingEscalationId: string | null = null;
   pieBackground = 'conic-gradient(#334155 0% 100%)';
 
+  private sub?: Subscription;
+
   constructor(private dash: DashboardService) {}
 
   ngOnInit(): void {
-    this.dash.doctorSummary().subscribe({
+    this.sub = this.dash.doctorSummary().subscribe({
       next: (d) => {
         this.data = d;
         this.pieBackground = this.computePieGradient(d);
       },
       error: () => (this.error = 'Could not load summary')
     });
+  }
+
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
   }
 
   get barRows(): DoctorBarRow[] {
@@ -103,6 +111,7 @@ export class DoctorDashboardComponent implements OnInit {
       },
       error: () => {
         this.ackingEscalationId = null;
+        this.error = 'Could not acknowledge escalation. Please try again.';
       }
     });
   }
