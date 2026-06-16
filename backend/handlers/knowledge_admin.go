@@ -67,6 +67,10 @@ func (h *KnowledgeAdminHandler) List(c *gin.Context) {
 		r.IsStale = KnowledgeIsStale(r.DaysSinceReview, r.ReviewIntervalDays)
 		out = append(out, r)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
 	if out == nil {
 		out = []row{}
 	}
@@ -93,6 +97,14 @@ func (h *KnowledgeAdminHandler) Create(c *gin.Context) {
 	text := strings.TrimSpace(body.Body)
 	if title == "" || text == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title and body required"})
+		return
+	}
+	if len([]rune(title)) > 500 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title must be 500 characters or fewer"})
+		return
+	}
+	if len([]rune(text)) > 100000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body must be 100000 characters or fewer"})
 		return
 	}
 	interval := 180
@@ -361,6 +373,10 @@ func (h *KnowledgeAdminHandler) ListVersions(c *gin.Context) {
 			return
 		}
 		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
 	}
 	if out == nil {
 		out = []vrow{}

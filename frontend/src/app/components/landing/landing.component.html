@@ -90,8 +90,16 @@
           Comprehensive tools designed to streamline healthcare workflows and enhance patient care.
         </p>
       </div>
-      
-      <div class="features-grid">
+
+      <!-- Scroll hint -->
+      <div class="scroll-hint">
+        <span>Scroll to explore</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </div>
+
+      <div class="features-carousel">
         @for (feature of features; track feature.title) {
           <div class="feature-card">
             <div class="feature-icon-wrapper">
@@ -100,7 +108,7 @@
             </div>
             <h3 class="feature-title">{{ feature.title }}</h3>
             <p class="feature-description">{{ feature.description }}</p>
-            <a href="#" class="feature-link">
+            <a [routerLink]="['/features', feature.slug]" class="feature-link">
               Learn more
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -126,7 +134,7 @@
         </p>
         <div class="cta-buttons">
           <a routerLink="/register" class="btn btn-primary btn-lg">Get Started Free</a>
-          <a href="#" class="btn btn-ghost btn-lg">Watch Demo</a>
+          <a routerLink="/login" class="btn btn-ghost btn-lg">Sign In</a>
         </div>
       </div>
     </div>

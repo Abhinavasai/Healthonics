@@ -1,0 +1,7 @@
+{
+  "release_gate_passed": true,
+  "security_gate_passed": true,
+  "reliability_gate_passed": true,
+  "performance_gate_passed": true,
+  "errors": []
+}

@@ -2,7 +2,9 @@ import { Component, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit, PLA
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import * as THREE from 'three';
+gsap.registerPlugin(ScrollTrigger);
 
 @Component({
   selector: 'app-landing',
@@ -27,32 +29,38 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: '🏥',
       title: 'Smart Health Monitoring',
-      description: 'AI-powered real-time health tracking with predictive analytics and early warning systems.'
+      description: 'AI-powered real-time health tracking with predictive analytics and early warning systems.',
+      slug: 'smart-health-monitoring'
     },
     {
       icon: '📋',
       title: 'Digital Medical Records',
-      description: 'Secure, encrypted storage for all your medical history accessible anytime, anywhere.'
+      description: 'Secure, encrypted storage for all your medical history accessible anytime, anywhere.',
+      slug: 'digital-medical-records'
     },
     {
       icon: '👨‍⚕️',
       title: 'Doctor Portal',
-      description: 'Comprehensive dashboard for healthcare providers to manage patients efficiently.'
+      description: 'Comprehensive dashboard for healthcare providers to manage patients efficiently.',
+      slug: 'doctor-portal'
     },
     {
       icon: '📅',
       title: 'Smart Appointments',
-      description: 'AI-assisted scheduling with automated reminders and virtual consultation support.'
+      description: 'AI-assisted scheduling with automated reminders and virtual consultation support.',
+      slug: 'smart-appointments'
     },
     {
       icon: '💊',
       title: 'Prescription Management',
-      description: 'Digital prescriptions with drug interaction checks and refill automation.'
+      description: 'Digital prescriptions with drug interaction checks and refill automation.',
+      slug: 'prescription-management'
     },
     {
       icon: '🔒',
       title: 'Enterprise Security',
-      description: 'HIPAA-compliant infrastructure with end-to-end encryption and audit trails.'
+      description: 'HIPAA-compliant infrastructure with end-to-end encryption and audit trails.',
+      slug: 'enterprise-security'
     }
   ];
 
@@ -90,6 +98,10 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.renderer.dispose();
       }
     }
+  }
+
+  scrollToFeatures(): void {
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
   }
 
   private onMouseMove(event: MouseEvent): void {
@@ -288,17 +300,6 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
       ease: 'power3.out'
     });
     
-    // Feature cards animation on scroll
-    gsap.from('.feature-card', {
-      scrollTrigger: {
-        trigger: '.features-grid',
-        start: 'top 80%'
-      },
-      y: 60,
-      opacity: 0,
-      duration: 0.8,
-      stagger: 0.15,
-      ease: 'power3.out'
-    });
+    // Feature cards are in a horizontal scroll carousel — no GSAP animation needed
   }
 }

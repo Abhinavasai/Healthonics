@@ -90,8 +90,9 @@ func normalizePolicyVersion(raw string) string {
 }
 
 func (h *NotificationsHandler) ensurePreferencesSchema(c *gin.Context) error {
-	_, err := db.Pool.Exec(c.Request.Context(), `
-		CREATE TABLE IF NOT EXISTS notification_preferences (
+	ctx := c.Request.Context()
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS notification_preferences (
 			user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			category       TEXT NOT NULL,
 			enabled        BOOLEAN NOT NULL DEFAULT TRUE,
@@ -103,9 +104,8 @@ func (h *NotificationsHandler) ensurePreferencesSchema(c *gin.Context) error {
 			CONSTRAINT notification_preferences_category_check CHECK (
 				category IN ('appointment_reminders', 'medication_reminders', 'lab_result_alerts', 'announcements')
 			)
-		)
-
-		CREATE TABLE IF NOT EXISTS notification_consent_events (
+		)`,
+		`CREATE TABLE IF NOT EXISTS notification_consent_events (
 			id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			actor_user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -122,11 +122,16 @@ func (h *NotificationsHandler) ensurePreferencesSchema(c *gin.Context) error {
 			new_sms_enabled    BOOLEAN NOT NULL,
 			new_in_app_enabled BOOLEAN NOT NULL,
 			created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		);
-		CREATE INDEX IF NOT EXISTS idx_notification_consent_events_user ON notification_consent_events(user_id, created_at DESC);
-		CREATE INDEX IF NOT EXISTS idx_notification_consent_events_actor ON notification_consent_events(actor_user_id, created_at DESC);
-	`)
-	return err
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_notification_consent_events_user ON notification_consent_events(user_id, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_notification_consent_events_actor ON notification_consent_events(actor_user_id, created_at DESC)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Pool.Exec(ctx, s); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (h *NotificationsHandler) seedDefaultsIfMissing(c *gin.Context, userID string) error {
@@ -209,6 +214,10 @@ func (h *NotificationsHandler) ListMine(c *gin.Context) {
 		}
 		out = append(out, r)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
 	if out == nil {
 		out = []row{}
 	}
@@ -270,6 +279,10 @@ func (h *NotificationsHandler) AdminList(c *gin.Context) {
 			r.SentAt = &s
 		}
 		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
 	}
 	if out == nil {
 		out = []row{}
@@ -376,6 +389,10 @@ func (h *NotificationsHandler) ListPreferences(c *gin.Context) {
 			return
 		}
 		out = append(out, row)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
 	}
 	if out == nil {
 		out = []NotificationPreference{}
@@ -539,6 +556,10 @@ func (h *NotificationsHandler) AdminConsentHistory(c *gin.Context) {
 			return
 		}
 		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
 	}
 	if out == nil {
 		out = []row{}

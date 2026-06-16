@@ -1,10 +1,21 @@
 <section class="dash" data-cy="patient-dashboard">
   <header class="dash-head">
-    <h1>Dashboard</h1>
-    <p class="dash-sub">Your care snapshot — appointments, messages, and records at a glance.</p>
+    <div>
+      <h1>Dashboard</h1>
+      <p class="dash-sub">Your care snapshot — appointments, messages, and records at a glance.</p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button type="button" class="btn-fhir" (click)="downloadFhir()" [disabled]="fhirDownloading">
+        {{ fhirDownloading ? 'Preparing...' : '⬇ Download Health Record (FHIR R4)' }}
+      </button>
+      <button type="button" class="btn-fhir" (click)="downloadHealthSummary()" [disabled]="healthSummaryDownloading" style="background:#0f4c2d">
+        {{ healthSummaryDownloading ? 'Preparing...' : '⬇ Health Summary' }}
+      </button>
+    </div>
   </header>
 
   <p *ngIf="error" class="err">{{ error }}</p>
+  <p *ngIf="fhirError" class="err">{{ fhirError }}</p>
 
   <ng-container *ngIf="data">
     <div class="cards" data-cy="patient-dashboard-stats">
@@ -30,6 +41,34 @@
           <span class="lbl">Documents</span>
         </div>
       </ng-container>
+    </div>
+
+    <!-- Medication Adherence Score -->
+    <div class="panel adherence-panel" *ngIf="adherence" data-cy="patient-adherence-card">
+      <div class="adherence-header">
+        <h2>Medication Adherence</h2>
+        <span class="adherence-badge" [style.color]="adherenceColor(adherence.label)" [style.border-color]="adherenceColor(adherence.label)">
+          {{ adherence.label }}
+        </span>
+      </div>
+      <div class="adherence-body" *ngIf="adherence.score !== null; else noAdherence">
+        <div class="adherence-score-wrap">
+          <span class="adherence-score" [style.color]="adherenceColor(adherence.label)">{{ adherence.score }}</span>
+          <span class="adherence-max">/100</span>
+        </div>
+        <div class="adherence-bar-track">
+          <div class="adherence-bar-fill" [style.width.%]="adherence.score" [style.background]="adherenceColor(adherence.label)"></div>
+        </div>
+        <div class="adherence-stats">
+          <span>Active: <strong>{{ adherence.active }}</strong></span>
+          <span>Completed: <strong>{{ adherence.completed }}</strong></span>
+          <span>Revoked: <strong>{{ adherence.revoked }}</strong></span>
+          <span>Avg duration: <strong>{{ adherence.avg_days_used | number:'1.0-1' }} days</strong></span>
+        </div>
+      </div>
+      <ng-template #noAdherence>
+        <p class="muted">No prescription history yet — your adherence score will appear once you have active or completed prescriptions.</p>
+      </ng-template>
     </div>
 
     <div class="insights-grid">

@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -46,11 +48,12 @@ func validRole(role string) bool {
 }
 
 func validPassword(pw string) bool {
-	return utf8.RuneCountInString(pw) >= 6
+	return len([]rune(pw)) >= 6
 }
 
 func validEmailFormat(email string) bool {
-	return strings.Contains(email, "@") && len(email) > 3
+	_, err := mail.ParseAddress(email)
+	return err == nil && strings.Contains(email, ".")
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -104,10 +107,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
+	refreshToken, _ := h.issueRefreshToken(c, id) // best-effort; login still succeeds if this fails
 
 	c.JSON(http.StatusCreated, gin.H{
-		"token": token,
-		"user":  models.UserProfile{ID: id, Email: req.Email, Role: req.Role},
+		"token":         token,
+		"refresh_token": refreshToken,
+		"user":          models.UserProfile{ID: id, Email: req.Email, Role: req.Role},
 	})
 }
 
@@ -145,11 +150,104 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
+	refreshToken, _ := h.issueRefreshToken(c, id)
 
 	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-		"user":  models.UserProfile{ID: id, Email: req.Email, Role: role},
+		"token":         token,
+		"refresh_token": refreshToken,
+		"user":          models.UserProfile{ID: id, Email: req.Email, Role: role},
 	})
+}
+
+// generateRefreshToken creates a cryptographically random 256-bit token.
+func generateRefreshToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// issueRefreshToken stores a new refresh token and returns it.
+// Refresh tokens are long-lived (30 days) and stored server-side for revocation.
+func (h *AuthHandler) issueRefreshToken(c *gin.Context, userID uuid.UUID) (string, error) {
+	token, err := generateRefreshToken()
+	if err != nil {
+		return "", err
+	}
+	expiresAt := time.Now().UTC().Add(30 * 24 * time.Hour)
+	_, err = db.Pool.Exec(c.Request.Context(), `
+		INSERT INTO refresh_tokens (user_id, token, expires_at)
+		VALUES ($1, $2, $3)
+	`, userID, token, expiresAt)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// Refresh  POST /api/auth/refresh
+// Validates a refresh token and issues a new short-lived access token.
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.RefreshToken) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token is required"})
+		return
+	}
+
+	var userID uuid.UUID
+	var email, role string
+	var isActive bool
+	err := db.Pool.QueryRow(c.Request.Context(), `
+		SELECT u.id, u.email, u.role, u.is_active
+		FROM refresh_tokens rt
+		JOIN users u ON u.id = rt.user_id
+		WHERE rt.token = $1
+		  AND rt.revoked = FALSE
+		  AND rt.expires_at > NOW()
+	`, strings.TrimSpace(body.RefreshToken)).Scan(&userID, &email, &role, &isActive)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+	if !isActive {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Account is deactivated"})
+		return
+	}
+
+	// Rotate: revoke old token, issue new refresh + access tokens.
+	_, _ = db.Pool.Exec(c.Request.Context(), `UPDATE refresh_tokens SET revoked = TRUE WHERE token = $1`, body.RefreshToken)
+
+	newRefresh, err := h.issueRefreshToken(c, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	accessToken, err := h.createToken(userID, email, role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":         accessToken,
+		"refresh_token": newRefresh,
+		"user":          models.UserProfile{ID: userID, Email: email, Role: role},
+	})
+}
+
+// Logout  POST /api/auth/logout — revokes the caller's refresh token.
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	if t := strings.TrimSpace(body.RefreshToken); t != "" {
+		_, _ = db.Pool.Exec(c.Request.Context(), `UPDATE refresh_tokens SET revoked = TRUE WHERE token = $1`, t)
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {

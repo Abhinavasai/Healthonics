@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,23 +22,34 @@ import (
 )
 
 func main() {
+	// Structured JSON logging — all log.Printf calls in workers/handlers will use this.
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+	// Redirect stdlib log output through slog so third-party libs also produce JSON.
+	log.SetFlags(0)
+
 	cfg := config.Load()
-	if cfg.DatabaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
-	}
-	if cfg.JWTSecret == "" {
-		log.Fatal("JWT_SECRET is required")
+	if err := cfg.Validate(); err != nil {
+		slog.Error("startup configuration invalid", "error", err)
+		os.Exit(1)
 	}
 	handlers.ConfigureAIRuntime(cfg.AIEnabled, cfg.OllamaHost, cfg.OllamaModel, cfg.OllamaTimeoutMS)
 
 	if err := db.Connect(cfg.DatabaseURL); err != nil {
-		log.Fatalf("database connection: %v", err)
+		slog.Error("database connection failed", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	if err := db.Migrate(context.Background()); err != nil {
-		log.Fatalf("migration: %v", err)
+		slog.Error("database migration failed", "error", err)
+		os.Exit(1)
 	}
+
+	// Root context cancelled on SIGTERM/SIGINT — shared by handlers, workers, and hub.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	auth := handlers.NewAuthHandler(cfg.JWTSecret)
 	bootstrap := handlers.NewBootstrapHandler()
@@ -44,7 +59,7 @@ func main() {
 	documents := handlers.NewDocumentsHandler()
 	doctorDocuments := handlers.NewDoctorDocumentsHandler()
 	msgHub := handlers.NewMessagingHub()
-	go msgHub.Run()
+	go msgHub.Run(ctx)
 	messaging := handlers.NewMessagingHandler(msgHub)
 	prescriptions := handlers.NewPrescriptionsHandler()
 	notifications := handlers.NewNotificationsHandler()
@@ -55,6 +70,12 @@ func main() {
 	geo := handlers.NewGeoBookingHandler()
 	geocode := handlers.NewGeocodeHandler(cfg.NominatimBaseURL, cfg.GeocodeUserAgent, cfg.GoogleMapsAPIKey)
 	assistant := handlers.NewAssistantChatHandler(
+		cfg.AzureOpenAIEndpoint,
+		cfg.AzureOpenAIAPIKey,
+		cfg.AzureOpenAIAPIVersion,
+		cfg.AzureOpenAIModel,
+	)
+	aiHealth := handlers.NewAIHealthHandler(
 		cfg.AzureOpenAIEndpoint,
 		cfg.AzureOpenAIAPIKey,
 		cfg.AzureOpenAIAPIVersion,
@@ -77,6 +98,7 @@ func main() {
 		origins = []string{"http://localhost:4200"}
 	}
 	r.Use(middleware.CORS(origins))
+	r.Use(middleware.RequestID())
 	r.Use(middleware.RequestTelemetry())
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
@@ -84,8 +106,12 @@ func main() {
 
 	api := r.Group("/api")
 	{
-		api.POST("/register", auth.Register)
-		api.POST("/login", auth.Login)
+		// Rate limit: 10 requests per minute per IP on auth endpoints to block brute-force.
+		authLimiter := middleware.NewRateLimiter(ctx, 10, time.Minute)
+		api.POST("/register", authLimiter.Middleware(), auth.Register)
+		api.POST("/login", authLimiter.Middleware(), auth.Login)
+		api.POST("/auth/refresh", authLimiter.Middleware(), auth.Refresh)
+		api.POST("/auth/logout", auth.RequireAuth(), auth.Logout)
 
 		// Protected: requires valid JWT
 		api.GET("/me", auth.RequireAuth(), auth.Me)
@@ -193,10 +219,75 @@ func main() {
 		}
 		api.GET("/messages/ws", messaging.ServeWebSocket(auth))
 		api.POST("/assistant/chat", auth.RequireAuth(), assistant.Chat)
+		api.POST("/assistant/symptom-check", auth.RequireAuth(), auth.RequireRole("patient"), aiHealth.SymptomCheck)
+		api.POST("/assistant/drug-interactions", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), aiHealth.DrugInteractions)
+		api.GET("/patients/:patientId/ai-summary", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), aiHealth.PatientSummary)
+		api.POST("/appointments/:id/note-assist", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), aiHealth.NoteAssist)
+		api.GET("/assistant/symptom-trends", auth.RequireAuth(), auth.RequireRole("patient"), aiHealth.SymptomTrends)
+		slotRec := handlers.NewSlotRecommenderHandler()
+		api.GET("/appointments/recommend", auth.RequireAuth(), auth.RequireRole("patient"), slotRec.Recommend)
+		preVisit := handlers.NewPreVisitHandler(aiHealth)
+		api.GET("/appointments/:id/questionnaire", auth.RequireAuth(), preVisit.GetQuestionnaire)
+		api.POST("/appointments/:id/questionnaire", auth.RequireAuth(), auth.RequireRole("patient"), preVisit.SubmitAnswers)
+		adherence := handlers.NewAdherenceHandler()
+		api.GET("/patients/:patientId/adherence-score", auth.RequireAuth(), adherence.Score)
+		heatmap := handlers.NewWorkloadHeatmapHandler()
+		api.GET("/doctor/workload-heatmap", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), heatmap.Get)
+		fhirExport := handlers.NewFHIRExportHandler()
+		api.GET("/patient/fhir-export", auth.RequireAuth(), auth.RequireRole("patient"), fhirExport.Export)
+		so := handlers.NewSecondOpinionHandler()
+		api.GET("/second-opinions", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), so.List)
+		api.POST("/second-opinions", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), so.Create)
+		api.GET("/second-opinions/:id/replies", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), so.GetReplies)
+		api.POST("/second-opinions/:id/replies", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), so.PostReply)
+		api.PATCH("/second-opinions/:id/resolve", auth.RequireAuth(), auth.RequireRole("doctor", "admin"), so.Resolve)
+
+		// Feature 1: Teleconsult video link
+		api.PATCH("/appointments/:id/video-link", auth.RequireAuth(), auth.RequireRole("doctor"), appointments.SetVideoLink)
+
+		// Feature 2: Prescription refill requests
+		refill := handlers.NewRefillRequestHandler()
+		api.POST("/prescriptions/:id/refill-request", auth.RequireAuth(), auth.RequireRole("patient"), refill.PatientCreate)
+		api.GET("/patient/refill-requests", auth.RequireAuth(), auth.RequireRole("patient"), refill.PatientList)
+		api.GET("/doctor/refill-requests", auth.RequireAuth(), auth.RequireRole("doctor"), refill.DoctorList)
+		api.PATCH("/refill-requests/:id/review", auth.RequireAuth(), auth.RequireRole("doctor"), refill.DoctorReview)
+
+		// Feature 3: Lab results (AI interpretation on existing patient_documents)
+		labResults := handlers.NewLabResultsHandler(aiHealth)
+		api.GET("/patient/lab-results", auth.RequireAuth(), auth.RequireRole("patient"), labResults.PatientList)
+		api.POST("/patient/lab-results/:id/interpret", auth.RequireAuth(), auth.RequireRole("patient"), labResults.Interpret)
+
+		// Feature 4: Doctor patient panel
+		doctorPatients := handlers.NewDoctorPatientsHandler()
+		api.GET("/doctor/patients", auth.RequireAuth(), auth.RequireRole("doctor"), doctorPatients.List)
+
+		// Feature 6: Patient health summary export
+		healthSummary := handlers.NewHealthSummaryPDFHandler()
+		api.GET("/patient/health-summary", auth.RequireAuth(), auth.RequireRole("patient"), healthSummary.Export)
+
+		// Feature 7: Admin SLO dashboard
+		slo := handlers.NewAdminSLOHandler()
+		api.GET("/admin/slo", auth.RequireAuth(), auth.RequireRole("admin"), slo.Dashboard)
+
+		// Feature 8: Bulk messaging
+		api.POST("/doctor/broadcast", auth.RequireAuth(), auth.RequireRole("doctor"), messaging.BulkBroadcast)
+
+		// Feature 9: Waiting room
+		waitingRoom := handlers.NewWaitingRoomHandler()
+		api.GET("/doctor/waiting-room", auth.RequireAuth(), auth.RequireRole("doctor"), waitingRoom.Queue)
+		api.POST("/appointments/:id/check-in", auth.RequireAuth(), auth.RequireRole("patient"), waitingRoom.CheckIn)
+
+		// Feature 10: Appointment ratings
+		ratings := handlers.NewAppointmentRatingHandler()
+		api.POST("/appointments/:id/rating", auth.RequireAuth(), auth.RequireRole("patient"), ratings.Submit)
+		api.GET("/appointments/:id/rating", auth.RequireAuth(), ratings.GetForAppointment)
+		api.GET("/doctor/rating-summary", auth.RequireAuth(), auth.RequireRole("doctor"), ratings.DoctorRatingSummary)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
-	go workers.NewDocumentSummaryWorker(2 * time.Second).Run(context.Background())
+	go workers.NewDocumentSummaryWorker(2 * time.Second).Run(ctx)
+	workers.StartAnomalyWorker(ctx)
+	go workers.NewAppointmentReminderWorker(5 * time.Minute).Run(ctx)
 	notificationProviders := workers.NewNotificationProviderSet(
 		providers.NewSendGridAdapter(cfg.SendGridAPIKey, cfg.SendGridFrom),
 		providers.NewTwilioAdapter(cfg.TwilioAccountSID, cfg.TwilioAuthToken, cfg.TwilioFromNumber),
@@ -205,9 +296,20 @@ func main() {
 		Interval:   time.Duration(cfg.NotifyIntervalMS) * time.Millisecond,
 		MaxRetries: cfg.NotifyMaxRetries,
 		Providers:  notificationProviders,
-	}).Run(context.Background())
-	log.Printf("Listening on %s", addr)
-	if err := r.Run(addr); err != nil {
-		log.Fatal(err)
+	}).Run(ctx)
+
+	srv := &http.Server{Addr: addr, Handler: r}
+	go func() {
+		<-ctx.Done()
+		slog.Info("shutting down gracefully")
+		shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutCtx)
+	}()
+
+	slog.Info("server starting", "addr", addr)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server error", "error", err)
+		os.Exit(1)
 	}
 }

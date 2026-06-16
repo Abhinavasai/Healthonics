@@ -61,12 +61,14 @@ func writeAudit(ctx context.Context, tx pgx.Tx, actor uuid.UUID, action, entityT
 	}
 
 	var prevHash string
-	_ = tx.QueryRow(ctx, `
+	if err := tx.QueryRow(ctx, `
 		SELECT COALESCE(event_hash, '')
 		FROM immutable_audit_events
 		ORDER BY sequence DESC
 		LIMIT 1
-	`).Scan(&prevHash)
+	`).Scan(&prevHash); err != nil && err != pgx.ErrNoRows {
+		return fmt.Errorf("audit chain: failed to fetch prev_hash: %w", err)
+	}
 
 	eventTime := time.Now().UTC()
 	eventHash := computeImmutableAuditHash(prevHash, action, entityType, entityID, detail, eventTime)

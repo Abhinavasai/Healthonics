@@ -1,0 +1,29 @@
+{
+  "chaos_scenarios_total": 2,
+  "chaos_scenarios_passed": 2,
+  "suite": "provider-outage-and-callback-replay",
+  "scenarios": [
+    {
+      "name": "notification-worker-provider-outage",
+      "passed": true,
+      "details": {
+        "dead_letters_count": 1,
+        "delivery_attempts_count": 1,
+        "final_error_contains": "NTF_PROVIDER_CONFIG_MISSING",
+        "final_error_preview": "code=NTF_PROVIDER_CONFIG_MISSING|severity=critical|subsystem=provider|remediation=configure provider credentials in environment|message=email provider not configured",
+        "processed_due": 1
+      }
+    },
+    {
+      "name": "provider-callback-replay-dedup",
+      "passed": true,
+      "details": {
+        "final_error_contains": "NTF_CALLBACK_HARD_FAILURE",
+        "final_error_preview": "code=NTF_CALLBACK_HARD_FAILURE|severity=warning|subsystem=callback|remediation=suppress recipient and notify support if recurrent|message=sendgrid:bounce:Mailbox full",
+        "notification_dead_letter_attempt_count": 1,
+        "notification_status": "failed",
+        "provider_callback_events_count": 1
+      }
+    }
+  ]
+}

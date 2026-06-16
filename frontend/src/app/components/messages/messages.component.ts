@@ -128,6 +128,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
     this.rtMsgSub?.unsubscribe();
     this.rtStateSub?.unsubscribe();
     this.stopPolling();
+    this.messaging.disconnectRealtime();
   }
 
   loadThreads(): void {
@@ -175,6 +176,16 @@ export class MessagesComponent implements OnInit, OnDestroy {
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
           this.scrollChatToEnd();
+        },
+        error: (err) => {
+          console.error('Message polling error, will retry on next interval:', err);
+          // Restart polling after a delay so transient errors don't kill the feed.
+          this.stopPolling();
+          setTimeout(() => {
+            if (this.selectedThreadId === threadId) {
+              this.startPollingThread(threadId);
+            }
+          }, 10000);
         }
       });
   }
@@ -220,7 +231,12 @@ export class MessagesComponent implements OnInit, OnDestroy {
       .map((m) => `${this.isMine(m) ? 'me' : 'peer'}: ${m.body}`)
       .join('\n');
     this.drafting = true;
-    this.assistant.chat('Draft a short professional reply for this conversation.', context).subscribe({
+    // Pass conversation context as user/assistant history turns.
+    const history = recent.map((m) => ({
+      role: (this.isMine(m) ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: m.body
+    }));
+    this.assistant.chat('Draft a short professional reply for this conversation.', history).subscribe({
       next: (res) => {
         this.drafting = false;
         this.replyBody = (res.reply || '').trim();

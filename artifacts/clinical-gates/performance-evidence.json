@@ -1,0 +1,13 @@
+{
+  "soak_duration_minutes": 5,
+  "requests_total": 131626,
+  "errors_total": 0,
+  "error_rate_percent": 0,
+  "p95_latency_ms": 54,
+  "avg_latency_ms": 18,
+  "path_sample": [
+    "/api/patient/dashboard/summary",
+    "/api/doctor/dashboard/summary",
+    "/health"
+  ]
+}

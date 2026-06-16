@@ -139,11 +139,13 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 	} else if suppressed {
 		f := failures.ClassifySuppression(n.Provider, reason)
 		nextAttempt := n.Attempts + 1
-		_, _ = db.Pool.Exec(ctx, `
+		if _, err := db.Pool.Exec(ctx, `
 			INSERT INTO notification_delivery_attempts(notification_id, channel, provider, attempt_no, success, error_message, latency_ms)
 			VALUES($1, $2, $3, $4, FALSE, $5, 0)
-		`, n.ID, n.Channel, n.Provider, nextAttempt, f.Encode())
-		_, _ = db.Pool.Exec(ctx, `
+		`, n.ID, n.Channel, n.Provider, nextAttempt, f.Encode()); err != nil {
+			log.Printf("notification worker: failed to insert delivery attempt for %s: %v", n.ID, err)
+		}
+		if _, err := db.Pool.Exec(ctx, `
 			INSERT INTO notification_dead_letters(notification_id, channel, provider, final_error, attempt_count)
 			VALUES($1, $2, $3, $4, $5)
 			ON CONFLICT(notification_id) DO UPDATE SET
@@ -151,7 +153,9 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 				final_error = EXCLUDED.final_error,
 				attempt_count = EXCLUDED.attempt_count,
 				created_at = NOW()
-		`, n.ID, n.Channel, n.Provider, f.Encode(), nextAttempt)
+		`, n.ID, n.Channel, n.Provider, f.Encode(), nextAttempt); err != nil {
+			log.Printf("notification worker: failed to insert dead letter for %s: %v", n.ID, err)
+		}
 		_, updateErr := db.Pool.Exec(ctx, `
 			UPDATE notifications
 			SET status = 'failed',
@@ -171,10 +175,12 @@ func (w *NotificationWorker) processSingle(ctx context.Context, n queuedNotifica
 	}
 	nextAttempt := n.Attempts + 1
 	classified := failures.ClassifyProviderSend(mode, err)
-	_, _ = db.Pool.Exec(ctx, `
+	if _, execErr := db.Pool.Exec(ctx, `
 		INSERT INTO notification_delivery_attempts(notification_id, channel, provider, attempt_no, success, error_message, latency_ms)
 		VALUES($1, $2, $3, $4, $5, $6, $7)
-	`, n.ID, n.Channel, mode, nextAttempt, err == nil, errorStringOrClassified(err, classified), latencyMS)
+	`, n.ID, n.Channel, mode, nextAttempt, err == nil, errorStringOrClassified(err, classified), latencyMS); execErr != nil {
+		log.Printf("notification worker: failed to insert delivery attempt for %s: %v", n.ID, execErr)
+	}
 
 	if err == nil {
 		_, updateErr := db.Pool.Exec(ctx, `

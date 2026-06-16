@@ -357,7 +357,7 @@ func loadRecentEvalRuns(ctx context.Context, limit int) ([]adminAIEvalRunSummary
 		}
 		out = append(out, r)
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
 func loadAIObservability(c *gin.Context) (adminAIObservability, error) {

@@ -43,9 +43,17 @@ func (h *PatientFilesHandler) canAccessPatient(c *gin.Context, patientID uuid.UU
 		return true
 	}
 	if claims.Role == "doctor" {
+		// Only grant access if the doctor has an approved or completed appointment
+		// with this patient within the past 2 years — prevents indefinite access.
 		var ok bool
 		err := db.Pool.QueryRow(c.Request.Context(),
-			`SELECT EXISTS(SELECT 1 FROM appointments WHERE patient_id = $1 AND doctor_id = $2)`,
+			`SELECT EXISTS(
+				SELECT 1 FROM appointments
+				WHERE patient_id = $1
+				  AND doctor_id = $2
+				  AND status IN ('approved', 'completed')
+				  AND scheduled_at >= NOW() - INTERVAL '2 years'
+			)`,
 			patientID, claims.UserID,
 		).Scan(&ok)
 		return err == nil && ok
@@ -98,6 +106,10 @@ func (h *PatientFilesHandler) List(c *gin.Context) {
 			return
 		}
 		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
 	}
 	if out == nil {
 		out = []row{}
@@ -184,8 +196,8 @@ func (h *PatientFilesHandler) Upload(c *gin.Context) {
 	}
 
 	desc := strings.TrimSpace(c.PostForm("description"))
-	if len(desc) > 2000 {
-		desc = desc[:2000]
+	if runes := []rune(desc); len(runes) > 2000 {
+		desc = string(runes[:2000])
 	}
 
 	size := int64(len(body))

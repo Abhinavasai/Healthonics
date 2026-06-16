@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,20 @@ import (
 	"github.com/healthonyx/backend/models"
 	"github.com/jackc/pgx/v5"
 )
+
+// pageParams parses ?page=1&per_page=20 query params.
+// page is 1-indexed; per_page capped at 100.
+func pageParams(c *gin.Context) (offset, limit int) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	return (page - 1) * perPage, perPage
+}
 
 type AppointmentHandler struct{}
 
@@ -74,6 +89,10 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
 		return
 	}
+	if len([]rune(reason)) > 2000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason must be 2000 characters or fewer"})
+		return
+	}
 
 	doctorID, err := uuid.Parse(req.DoctorID)
 	if err != nil {
@@ -119,6 +138,15 @@ func (h *AppointmentHandler) ListPatient(c *gin.Context) {
 	if !ok {
 		return
 	}
+	offset, limit := pageParams(c)
+
+	var total int
+	if err := db.Pool.QueryRow(c.Request.Context(),
+		`SELECT COUNT(*) FROM appointments WHERE patient_id = $1`, claims.UserID,
+	).Scan(&total); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
 
 	rows, err := db.Pool.Query(c.Request.Context(), `
 		SELECT a.id, a.patient_id, COALESCE(p.email, ''), a.doctor_id, COALESCE(d.email, ''), a.scheduled_at, a.reason, a.status, a.created_at, a.updated_at
@@ -127,7 +155,8 @@ func (h *AppointmentHandler) ListPatient(c *gin.Context) {
 		LEFT JOIN users d ON d.id = a.doctor_id
 		WHERE patient_id = $1
 		ORDER BY scheduled_at DESC, created_at DESC
-	`, claims.UserID)
+		LIMIT $2 OFFSET $3
+	`, claims.UserID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
@@ -148,12 +177,27 @@ func (h *AppointmentHandler) ListPatient(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"appointments": appointments})
+	c.JSON(http.StatusOK, gin.H{
+		"appointments": appointments,
+		"total":        total,
+		"page":         (offset/limit + 1),
+		"per_page":     limit,
+		"has_more":     offset+limit < total,
+	})
 }
 
 func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 	claims, ok := getClaims(c)
 	if !ok {
+		return
+	}
+	offset, limit := pageParams(c)
+
+	var total int
+	if err := db.Pool.QueryRow(c.Request.Context(),
+		`SELECT COUNT(*) FROM appointments WHERE doctor_id = $1`, claims.UserID,
+	).Scan(&total); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
 
@@ -164,7 +208,8 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 		LEFT JOIN users d ON d.id = a.doctor_id
 		WHERE doctor_id = $1
 		ORDER BY status ASC, scheduled_at ASC, created_at DESC
-	`, claims.UserID)
+		LIMIT $2 OFFSET $3
+	`, claims.UserID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
@@ -185,7 +230,13 @@ func (h *AppointmentHandler) ListDoctor(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"appointments": appointments})
+	c.JSON(http.StatusOK, gin.H{
+		"appointments": appointments,
+		"total":        total,
+		"page":         (offset/limit + 1),
+		"per_page":     limit,
+		"has_more":     offset+limit < total,
+	})
 }
 
 // GetByID returns one appointment when the caller is the patient or assigned doctor.
@@ -207,12 +258,12 @@ func (h *AppointmentHandler) GetByID(c *gin.Context) {
 
 	var appt models.Appointment
 	err = db.Pool.QueryRow(c.Request.Context(), `
-		SELECT a.id, a.patient_id, COALESCE(p.email, ''), a.doctor_id, COALESCE(d.email, ''), a.scheduled_at, a.reason, a.status, a.created_at, a.updated_at
+		SELECT a.id, a.patient_id, COALESCE(p.email, ''), a.doctor_id, COALESCE(d.email, ''), a.scheduled_at, a.reason, a.status, a.video_link, a.checked_in_at, a.created_at, a.updated_at
 		FROM appointments a
 		LEFT JOIN users p ON p.id = a.patient_id
 		LEFT JOIN users d ON d.id = a.doctor_id
 		WHERE a.id = $1
-	`, id).Scan(&appt.ID, &appt.PatientID, &appt.PatientEmail, &appt.DoctorID, &appt.DoctorEmail, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.CreatedAt, &appt.UpdatedAt)
+	`, id).Scan(&appt.ID, &appt.PatientID, &appt.PatientEmail, &appt.DoctorID, &appt.DoctorEmail, &appt.ScheduledAt, &appt.Reason, &appt.Status, &appt.VideoLink, &appt.CheckedInAt, &appt.CreatedAt, &appt.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
@@ -379,7 +430,7 @@ func (h *AppointmentHandler) UpdateStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
 
 	var appt models.Appointment
 	err = tx.QueryRow(c.Request.Context(), `
@@ -441,7 +492,7 @@ func (h *AppointmentHandler) PatientCancel(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
 
 	var appt models.Appointment
 	err = tx.QueryRow(c.Request.Context(), `
@@ -475,4 +526,55 @@ func (h *AppointmentHandler) PatientCancel(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, appt)
+}
+
+// SetVideoLink — doctor sets a Jitsi/teleconsult URL on their appointment.
+func (h *AppointmentHandler) SetVideoLink(c *gin.Context) {
+	claims, ok := getClaims(c)
+	if !ok {
+		return
+	}
+	if claims.Role != "doctor" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only doctors can set video links"})
+		return
+	}
+	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appointment id"})
+		return
+	}
+	var body struct {
+		VideoLink string `json:"video_link"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	link := strings.TrimSpace(body.VideoLink)
+	if link != "" && !strings.HasPrefix(link, "https://") && !strings.HasPrefix(link, "http://") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "video_link must be a valid URL"})
+		return
+	}
+	if len(link) > 500 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "video_link must be 500 characters or fewer"})
+		return
+	}
+	ctx := c.Request.Context()
+	var linkVal *string
+	if link != "" {
+		linkVal = &link
+	}
+	res, err := db.Pool.Exec(ctx, `
+		UPDATE appointments SET video_link = $1, updated_at = NOW()
+		WHERE id = $2 AND doctor_id = $3
+	`, linkVal, id, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+		return
+	}
+	if res.RowsAffected() == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "video_link": link})
 }
